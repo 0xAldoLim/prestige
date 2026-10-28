@@ -1,0 +1,154 @@
+"""Reproducible fixture runs and strict comparison gates; no invented model baselines."""
+
+import asyncio
+import hashlib
+import json
+import math
+import random
+from pathlib import Path
+
+from prestige.engine import new_run, solve
+from prestige.store import Store
+from prestige.types import PolicyDenied, PrestigeError
+
+CONDITIONS = {
+    "B0": "plain Codex",
+    "B1": "Codex plus owner skills",
+    "P1": "FAST",
+    "P2": "AUTO",
+    "P3": "EXPERT",
+}
+EQUALITY_FIELDS = (
+    "suite_hash",
+    "model",
+    "effort",
+    "permissions",
+    "max_turns",
+    "max_seconds",
+    "workers",
+)
+
+
+def wilson(successes: int, count: int) -> list[float] | None:
+    if count == 0:
+        return None
+    z = 1.959963984540054
+    p = successes / count
+    scale = 1 + z * z / count
+    center = (p + z * z / (2 * count)) / scale
+    radius = z * math.sqrt(p * (1 - p) / count + z * z / (4 * count * count)) / scale
+    return [max(0, center - radius), min(1, center + radius)]
+
+
+def metrics(results: list[dict]) -> dict:
+    solved = sum(item["status"] == "solved" for item in results)
+    points = sum(item["points"] for item in results if item["status"] == "solved")
+    complete = all(item["tokens"] is not None for item in results)
+    tokens = sum(item["tokens"] for item in results) if complete else None
+    return {
+        "count": len(results),
+        "solved": solved,
+        "verified_points": points,
+        "solve_rate_ci95": wilson(solved, len(results)),
+        "tokens": tokens,
+        "points_per_1000_tokens": points * 1000 / tokens
+        if tokens
+        else (0 if not points and complete else None),
+        "seconds": sum(x["seconds"] for x in results),
+        "usage_coverage": sum(x["tokens"] is not None for x in results) / len(results)
+        if results
+        else 0,
+        "composite": "not_comparable",
+    }
+
+
+def compare(left: dict, right: dict) -> dict:
+    if any(
+        key not in result.get("contract", {}) for result in (left, right) for key in EQUALITY_FIELDS
+    ):
+        raise PolicyDenied("Benchmark contract is incomplete")
+    if any(left["contract"].get(k) != right["contract"].get(k) for k in EQUALITY_FIELDS):
+        raise PolicyDenied("Benchmark contracts differ; comparison rejected")
+    left_cases = {(x["case"], x["repeat"]) for x in left["results"]}
+    right_cases = {(x["case"], x["repeat"]) for x in right["results"]}
+    if len(left_cases) != len(left["results"]) or len(right_cases) != len(right["results"]):
+        raise PolicyDenied("Duplicate benchmark case/repetition results")
+    if left_cases != right_cases:
+        raise PolicyDenied("Missing failed/unsolved cases or unequal repetitions")
+    return {
+        "comparable_inputs": True,
+        "left": metrics(left["results"]),
+        "right": metrics(right["results"]),
+        "performance_claim": "none; fixture results do not establish superiority over Codex + skills",
+    }
+
+
+async def benchmark(store: Store, suite: Path, repetitions=1, seed=2026) -> dict:
+    if not 1 <= repetitions <= 20:
+        raise PrestigeError("Repetitions must be in 1..20")
+    raw = suite.read_bytes()
+    if len(raw) > 65536:
+        raise PolicyDenied("Suite too large")
+    manifest = json.loads(raw)
+    cases = manifest["cases"]
+    if not isinstance(cases, list) or len(cases) > 50:
+        raise PolicyDenied("Invalid suite size")
+    jobs, hashes = [], []
+    for case in cases:
+        artifact = (suite.parent / case["file"]).resolve()
+        if not artifact.is_relative_to(suite.parent.resolve()) or not artifact.is_file():
+            raise PolicyDenied("Benchmark artifact escapes suite")
+        digest = hashlib.sha256(artifact.read_bytes()).hexdigest()
+        if digest != case["artifact_sha256"]:
+            raise PolicyDenied("Benchmark artifact hash changed")
+        hashes.append(digest)
+        for repeat in range(repetitions):
+            jobs.append((case, artifact, repeat))
+    random.Random(seed).shuffle(jobs)
+    results = []
+    for case, artifact, repeat in jobs:
+        run_id = new_run(store, artifact, expected=case["expected_sha256"])
+        result = await solve(store, run_id)
+        results.append({**result, "case": case["id"], "repeat": repeat, "points": case["points"]})
+    return {
+        "condition": "fixture-worker",
+        "model_evaluation": False,
+        "contract": {
+            "suite_hash": hashlib.sha256(raw + "".join(hashes).encode()).hexdigest(),
+            "model": "fake",
+            "effort": "deterministic",
+            "permissions": "bounded-offline-tools",
+            "max_turns": 12,
+            "max_seconds": 120,
+            "workers": 1,
+        },
+        "seed": seed,
+        "results": results,
+        "metrics": metrics(results),
+        "baselines": {key: "not run" for key in CONDITIONS},
+    }
+
+
+async def run_queue(store: Store, jobs: list[dict], workers=1):
+    if not 1 <= workers <= 2 or len(jobs) > 50:
+        raise PolicyDenied("Competition workers must be 1..2; at most 50 jobs")
+    # Explicit, uncalibrated priority baseline. No invented success probabilities.
+    ordered = sorted(
+        jobs,
+        key=lambda item: (
+            -item.get("priority", 0),
+            item.get("deadline", float("inf")),
+            -item.get("points", 0),
+        ),
+    )
+    semaphore = asyncio.Semaphore(workers)
+
+    async def run(job):
+        import time
+
+        async with semaphore:
+            if job.get("deadline", float("inf")) < time.time():
+                return {"status": "deadline_passed", "points": job.get("points", 0)}
+            return await solve(store, job["run_id"])
+
+    return await asyncio.gather(*(run(job) for job in ordered))

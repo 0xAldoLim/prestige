@@ -1,0 +1,4 @@
+{
+  "expected_sha256": "a3efc88bc4ce94077f2a632ec28b4b97d624be9c0fa6df5d782dbcf891f9acec",
+  "purpose": "Trusted synthetic test commitment; keep separate from challenge evidence"
+}

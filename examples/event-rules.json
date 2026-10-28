@@ -1,0 +1,10 @@
+{
+  "ai_allowed": true,
+  "automation_allowed": true,
+  "remote_allowed": false,
+  "allowed_tools": ["inspect", "strings", "base64", "hex", "xor", "zip"],
+  "max_turns": 12,
+  "max_seconds": 120,
+  "max_requests": 0,
+  "denied_origins": ["https://ctfd.example/"]
+}

@@ -1,0 +1,7 @@
+include THIRD_PARTY_NOTICES.md
+recursive-include licenses *
+recursive-include docs *.md *.json
+recursive-include examples *.txt *.json
+recursive-include benchmarks *.json *.txt
+recursive-include tests *.py
+include SECURITY.md CONTRIBUTING.md

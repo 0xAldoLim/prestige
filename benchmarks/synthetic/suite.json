@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "kind": "synthetic-orchestration-only",
+  "cases": [
+    {
+      "id": "hex",
+      "file": "hex.txt",
+      "artifact_sha256": "65fd3ae830e57f22b59a5c70cf86b50ed9239a771a377bda56468701a0288532",
+      "expected_sha256": "a3efc88bc4ce94077f2a632ec28b4b97d624be9c0fa6df5d782dbcf891f9acec",
+      "points": 100
+    },
+    {
+      "id": "base64",
+      "file": "base64.txt",
+      "artifact_sha256": "abec564e3f6395399c716469436c98491d9b7d9765d1e461311136a8a1ea7a41",
+      "expected_sha256": "c49acd753864b413374a5c74662c7c774d37f077bd685a8510b9147e4d2ee6be",
+      "points": 100
+    },
+    {
+      "id": "nested",
+      "file": "nested.txt",
+      "artifact_sha256": "dd1a2b2d3e31184663418d5e005819476b5121ff26de64f23bc3812f436cc48a",
+      "expected_sha256": "39adb0d45f5c38a8429eeccd2fab40e1d627cc9e2c1375504d340d84d8f7d896",
+      "points": 100
+    },
+    {
+      "id": "trap",
+      "file": "trap.txt",
+      "artifact_sha256": "b6145453a4d0ffe156a86d83820dda088efbce9eca2b8d4e6e6d431a476b3615",
+      "expected_sha256": "2496310400d7032d5ac65903e7e788331ba084e78a39bd2ac3afb8cb69df9c7d",
+      "points": 100
+    }
+  ]
+}

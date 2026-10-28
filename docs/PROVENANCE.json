@@ -1,0 +1,247 @@
+[
+  {
+    "feature_id": "lanes",
+    "upstream_name": "OpenCode-for-CTF",
+    "upstream_url": "https://github.com/h1kibi/Opencode-for-CTF",
+    "upstream_commit_or_version": null,
+    "authors_or_maintainers": "h1kibi and contributors",
+    "concept_or_files_reused": "FAST/EXPERT policies; independent reimplementation, no code copied",
+    "license_type": "MIT",
+    "original_copyright_holder": "2026 opencode-for-ctf contributors",
+    "license_copy_path": null,
+    "modifications": "None to copied schema; other implementation is original",
+    "implementation_files": [
+      "src/prestige/engine.py",
+      "src/prestige/progress.py"
+    ],
+    "date_checked": "2026-10-28",
+    "review_scope": "Source/license inspection, not legal advice or dependency certification"
+  },
+  {
+    "feature_id": "planning",
+    "upstream_name": "D-CIPHER",
+    "upstream_url": "https://github.com/NYU-LLM-CTF/nyuctf_agents",
+    "upstream_commit_or_version": null,
+    "authors_or_maintainers": "Udeshi et al.; NYU-LLM-CTF",
+    "concept_or_files_reused": "Planner/executor separation and evaluation framing; no code copied",
+    "license_type": "MIT",
+    "original_copyright_holder": "2024 NYU Tandon School of Engineering and NYU Abu Dhabi",
+    "license_copy_path": null,
+    "modifications": "None to copied schema; other implementation is original",
+    "implementation_files": [
+      "src/prestige/types.py",
+      "src/prestige/evaluation.py"
+    ],
+    "date_checked": "2026-10-28",
+    "review_scope": "Source/license inspection, not legal advice or dependency certification"
+  },
+  {
+    "feature_id": "interactive-roadmap",
+    "upstream_name": "EnIGMA",
+    "upstream_url": "https://arxiv.org/abs/2409.16165",
+    "upstream_commit_or_version": null,
+    "authors_or_maintainers": "Abramovich et al.",
+    "concept_or_files_reused": "Interactive debugger and response-management ideas; persistent debugger NOT implemented; no code copied",
+    "license_type": "Paper reference; SWE-agent file-specific licenses not audited for reuse",
+    "original_copyright_holder": "See paper and SWE-agent v0.7 notices",
+    "license_copy_path": null,
+    "modifications": "None to copied schema; other implementation is original",
+    "implementation_files": [
+      "docs/IMPLEMENTATION_STATUS.md"
+    ],
+    "date_checked": "2026-10-28",
+    "review_scope": "Source/license inspection, not legal advice or dependency certification"
+  },
+  {
+    "feature_id": "retrieval",
+    "upstream_name": "CTFAgent",
+    "upstream_url": "https://yan5ui.github.io/CCSCTF-Web/",
+    "upstream_commit_or_version": null,
+    "authors_or_maintainers": "Ji et al.",
+    "concept_or_files_reused": "Retrieval plus environment feedback; local stage implemented, external stage deferred",
+    "license_type": "Paper/site reference; linked code not incorporated",
+    "original_copyright_holder": "Original paper authors",
+    "license_copy_path": null,
+    "modifications": "None to copied schema; other implementation is original",
+    "implementation_files": [
+      "src/prestige/knowledge.py",
+      "src/prestige/research.py"
+    ],
+    "date_checked": "2026-10-28",
+    "review_scope": "Source/license inspection, not legal advice or dependency certification"
+  },
+  {
+    "feature_id": "state",
+    "upstream_name": "PentestGPT",
+    "upstream_url": "https://github.com/GreyDGL/PentestGPT",
+    "upstream_commit_or_version": null,
+    "authors_or_maintainers": "Deng et al.; GreyDGL contributors",
+    "concept_or_files_reused": "Canonical state, phases and task leases; no code copied",
+    "license_type": "MIT",
+    "original_copyright_holder": "2023 Grey_D",
+    "license_copy_path": null,
+    "modifications": "None to copied schema; other implementation is original",
+    "implementation_files": [
+      "src/prestige/store.py"
+    ],
+    "date_checked": "2026-10-28",
+    "review_scope": "Source/license inspection, not legal advice or dependency certification"
+  },
+  {
+    "feature_id": "evaluation",
+    "upstream_name": "CTFusion",
+    "upstream_url": "https://github.com/kaist-hacking/CTFusion",
+    "upstream_commit_or_version": null,
+    "authors_or_maintainers": "Lee, Bae and Yun; KAIST HackingLab",
+    "concept_or_files_reused": "Controlled evaluation concepts; CTFd/platform integrations explicitly excluded; no code copied",
+    "license_type": "MIT root; derived directories retain separate notices",
+    "original_copyright_holder": "2025 KAIST HackingLab",
+    "license_copy_path": null,
+    "modifications": "None to copied schema; other implementation is original",
+    "implementation_files": [
+      "src/prestige/evaluation.py"
+    ],
+    "date_checked": "2026-10-28",
+    "review_scope": "Source/license inspection, not legal advice or dependency certification"
+  },
+  {
+    "feature_id": "adversarial",
+    "upstream_name": "AgentLSD",
+    "upstream_url": "https://arxiv.org/abs/2609.19140",
+    "upstream_commit_or_version": null,
+    "authors_or_maintainers": "Golinelli, Drago, Boffa, Bergadano and Crispo",
+    "concept_or_files_reused": "Task contamination, misleading flags and hints; original synthetic tests",
+    "license_type": "Paper reference; no code/data reused",
+    "original_copyright_holder": "Original paper authors",
+    "license_copy_path": null,
+    "modifications": "None to copied schema; other implementation is original",
+    "implementation_files": [
+      "tests/test_security.py",
+      "benchmarks/synthetic/trap.txt"
+    ],
+    "date_checked": "2026-10-28",
+    "review_scope": "Source/license inspection, not legal advice or dependency certification"
+  },
+  {
+    "feature_id": "learning-schema",
+    "upstream_name": "Owner's CTF skills",
+    "upstream_url": "https://github.com/0xAldoLim/skills",
+    "upstream_commit_or_version": "1d51e0f4a289cb1b6e7326d41db4e6f6ad54516d",
+    "authors_or_maintainers": "0xAldoLim; preserve upstream attribution",
+    "concept_or_files_reused": "Copied schemas/learning.schema.json unchanged; read-only workflow integration; no helper code copied",
+    "license_type": "MIT",
+    "original_copyright_holder": "2026 Lukasz Jagiello",
+    "license_copy_path": "licenses/skills-MIT.txt",
+    "modifications": "None to copied schema; other implementation is original",
+    "implementation_files": [
+      "src/prestige/data/learning.schema.json",
+      "src/prestige/knowledge.py"
+    ],
+    "date_checked": "2026-10-28",
+    "review_scope": "Source/license inspection, not legal advice or dependency certification"
+  },
+  {
+    "feature_id": "abliteration",
+    "upstream_name": "Arditi et al.",
+    "upstream_url": "https://arxiv.org/abs/2406.11717",
+    "upstream_commit_or_version": null,
+    "authors_or_maintainers": "Arditi, Obeso, Syed, Paleka, Panickssery, Gurnee and Nanda",
+    "concept_or_files_reused": "Refusal mechanism research motivates paired tests; no capability or safety improvement claimed",
+    "license_type": "Paper reference; no model/code/data reused",
+    "original_copyright_holder": "Original paper authors",
+    "license_copy_path": null,
+    "modifications": "None to copied schema; other implementation is original",
+    "implementation_files": [
+      "docs/LOCAL_MODELS.md",
+      "src/prestige/local_models.py"
+    ],
+    "date_checked": "2026-10-28",
+    "review_scope": "Source/license inspection, not legal advice or dependency certification"
+  },
+  {
+    "feature_id": "codex-sdk",
+    "upstream_name": "OpenAI Codex",
+    "upstream_url": "https://github.com/openai/codex/tree/main/sdk/python",
+    "upstream_commit_or_version": "SDK 0.163.0; source 04e365c698b94651b6ea7e3b3af5c1dd697bd30c",
+    "authors_or_maintainers": "OpenAI and contributors",
+    "concept_or_files_reused": "Official SDK contracts; no source vendored; live solver gated",
+    "license_type": "Apache-2.0; separately installed optional dependency",
+    "original_copyright_holder": "OpenAI",
+    "license_copy_path": null,
+    "modifications": "None to copied schema; other implementation is original",
+    "implementation_files": [
+      "src/prestige/codex_sdk.py"
+    ],
+    "date_checked": "2026-10-28",
+    "review_scope": "Source/license inspection, not legal advice or dependency certification"
+  },
+  {
+    "feature_id": "local-runtime",
+    "upstream_name": "Ollama",
+    "upstream_url": "https://docs.ollama.com/api/chat",
+    "upstream_commit_or_version": null,
+    "authors_or_maintainers": "Ollama maintainers",
+    "concept_or_files_reused": "Bounded advisory HTTP API contract",
+    "license_type": "MIT runtime; API documentation reference, not copied",
+    "original_copyright_holder": "Ollama contributors",
+    "license_copy_path": null,
+    "modifications": "None to copied schema; other implementation is original",
+    "implementation_files": [
+      "src/prestige/local_models.py"
+    ],
+    "date_checked": "2026-10-28",
+    "review_scope": "Source/license inspection, not legal advice or dependency certification"
+  },
+  {
+    "feature_id": "model-supply-chain",
+    "upstream_name": "Hugging Face",
+    "upstream_url": "https://huggingface.co/docs/hub/security-pickle",
+    "upstream_commit_or_version": null,
+    "authors_or_maintainers": "Hugging Face maintainers",
+    "concept_or_files_reused": "Safe formats, explicit provenance and custom-code avoidance",
+    "license_type": "Documentation reference; individual model licenses must be checked",
+    "original_copyright_holder": "Hugging Face contributors",
+    "license_copy_path": null,
+    "modifications": "None to copied schema; other implementation is original",
+    "implementation_files": [
+      "src/prestige/local_models.py"
+    ],
+    "date_checked": "2026-10-28",
+    "review_scope": "Source/license inspection, not legal advice or dependency certification"
+  },
+  {
+    "feature_id": "future-backend",
+    "upstream_name": "OpenCode",
+    "upstream_url": "https://opencode.ai/docs/sdk/",
+    "upstream_commit_or_version": null,
+    "authors_or_maintainers": "OpenCode maintainers",
+    "concept_or_files_reused": "Capability-separated backend design; OpenCode adapter not implemented",
+    "license_type": "API documentation reference; no code reused",
+    "original_copyright_holder": "OpenCode contributors",
+    "license_copy_path": null,
+    "modifications": "None to copied schema; other implementation is original",
+    "implementation_files": [
+      "docs/IMPLEMENTATION_STATUS.md"
+    ],
+    "date_checked": "2026-10-28",
+    "review_scope": "Source/license inspection, not legal advice or dependency certification"
+  },
+  {
+    "feature_id": "trust-boundaries",
+    "upstream_name": "OWASP",
+    "upstream_url": "https://cheatsheetseries.owasp.org/cheatsheets/LLM_Prompt_Injection_Prevention_Cheat_Sheet.html",
+    "upstream_commit_or_version": null,
+    "authors_or_maintainers": "OWASP Cheat Sheet Series contributors",
+    "concept_or_files_reused": "Layered trust boundaries and deterministic enforcement beyond filtering",
+    "license_type": "Documentation reference; no text/code copied",
+    "original_copyright_holder": "OWASP contributors",
+    "license_copy_path": null,
+    "modifications": "None to copied schema; other implementation is original",
+    "implementation_files": [
+      "SECURITY.md",
+      "tests/test_security.py"
+    ],
+    "date_checked": "2026-10-28",
+    "review_scope": "Source/license inspection, not legal advice or dependency certification"
+  }
+]
