@@ -5,3 +5,5 @@ recursive-include examples *.txt *.json
 recursive-include benchmarks *.json *.txt
 recursive-include tests *.py
 include SECURITY.md CONTRIBUTING.md
+include AGENTS.md
+recursive-include .opencode *.md

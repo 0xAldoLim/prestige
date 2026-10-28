@@ -1,5 +1,10 @@
 # Attribution and research foundations
 
+OpenCode development handoff files use its documented AGENTS.md and custom Markdown
+command conventions. Those project instructions are original; no upstream source or
+documentation text is copied. This development setup does not implement the optional
+OpenCode runtime backend. See [handoff](OPENCODE_HANDOFF.md) and PROVENANCE.json.
+
 Checked 2026-10-28. PRESTIGE is independent; no upstream endorsement or affiliation.
 
 ## OpenCode-for-CTF

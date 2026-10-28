@@ -2,6 +2,14 @@
 
 This records local evidence. The full specification and P0 remain incomplete.
 
+Later migration checkpoint: **75 passed in 19.95 seconds** on the Windows host with
+the reviewed Kali Docker image enabled. New coverage includes the experimental gateway,
+bounded artifact views and the internal WorkspaceRunner's readonly-input/file-persistence
+behavior. Ruff and compilation passed. One real Codex smoke was exercised separately;
+see CODEX_BACKEND.md for actual/unknown usage. OpenCode itself was not found on PATH;
+handoff-file preparation is not a successful OpenCode runtime test. The table below is
+the earlier shipped baseline validation record.
+
 | Check | Actual result |
 | --- | --- |
 | Windows host, Python 3.14.3; pytest 9.2.0; installed SDK 0.163.0 | **64 passed**, including explicitly enabled Docker isolation/cancellation tests; 5.87 s |

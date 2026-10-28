@@ -7,7 +7,7 @@ import json
 import re
 import zipfile
 
-from prestige.artifacts import FLAG, MAX_FILE, Artifacts, transform
+from prestige.artifacts import FLAG, Artifacts, transform
 from prestige.types import PolicyDenied
 
 
@@ -28,7 +28,7 @@ def replay(artifacts: Artifacts, artifact_id: str, depth=0) -> bytes:
     if operation["tool"] == "zip":
         with zipfile.ZipFile(io.BytesIO(parent)) as archive:
             with archive.open(operation["member"]) as stream:
-                result = stream.read(MAX_FILE + 1)
+                result = stream.read(artifacts.max_file + 1)
     else:
         result = transform(parent, operation["tool"], operation["args"])
     if result != stored:
@@ -41,7 +41,9 @@ def verify_candidates(artifacts: Artifacts, expected: str | None) -> bool:
     solved = False
     for item in artifacts.list():
         data = artifacts.read(item["id"])
-        for match in FLAG.finditer(data):
+        import itertools
+
+        for match in itertools.islice(FLAG.finditer(data), 128):
             value = match.group()
             digest_matches = expected is not None and hmac.compare_digest(
                 hashlib.sha256(value).hexdigest(), expected

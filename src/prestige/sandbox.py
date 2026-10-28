@@ -1,4 +1,4 @@
-"""Opt-in offline container runner. Never mounts source directories or provider credentials."""
+"""Offline execution with exact artifact/workspace mounts and no provider credentials."""
 
 import json
 import re
@@ -40,6 +40,8 @@ class DockerRunner:
             raise PolicyDenied("Use an existing immutable Docker image digest; no automatic pull")
         self.image = image
         self.verified = False
+        self.active = set()
+        self.active_lock = threading.Lock()
 
     def argv(self, name: str):
         return [
@@ -77,6 +79,8 @@ class DockerRunner:
         if len(script.encode()) > 65536 or not 0 < timeout <= 30:
             raise PolicyDenied("Script or time budget exceeded")
         name = "prestige-" + uuid.uuid4().hex
+        with self.active_lock:
+            self.active.add(name)
         args = self.argv(name)
         args[2:2] = ["--log-driver=none"]
         process = None
@@ -130,6 +134,8 @@ class DockerRunner:
                 },
             }
         finally:
+            with self.active_lock:
+                self.active.discard(name)
             try:
                 subprocess.run(
                     ["docker", "rm", "--force", name], capture_output=True, timeout=10, check=False
@@ -161,3 +167,134 @@ class DockerRunner:
         if not self.verified:
             self.audit()
         return self._run(script, timeout)
+
+    def cancel(self):
+        with self.active_lock:
+            names = list(self.active)
+        for name in names:
+            subprocess.run(
+                ["docker", "rm", "--force", name], capture_output=True, timeout=10, check=False
+            )
+
+
+class WorkspaceRunner(DockerRunner):
+    """Persist files between bounded calls; mount only this run's blobs and output.
+
+    Execution processes are recreated on each call. Interactive debugger processes
+    are not yet persistent. The image must be locally reviewed and immutable.
+    """
+
+    COMMANDS = {
+        "file",
+        "strings",
+        "readelf",
+        "objdump",
+        "nm",
+        "xxd",
+        "gdb",
+        "tshark",
+        "7z",
+        "unzip",
+        "python3",
+        "sage",
+        "radare2",
+        "r2",
+        "binwalk",
+        "exiftool",
+        "analyzeHeadless",
+        "sha256sum",
+    }
+
+    def __init__(self, image, artifacts):
+        from pathlib import Path
+
+        super().__init__(image)
+        self.input = artifacts.root.resolve(strict=True)
+        self.output = artifacts.root.parent / "workspace"
+        self.output.mkdir(exist_ok=True)
+        if self.output.is_symlink() or not self.output.resolve().is_relative_to(
+            artifacts.root.parent.resolve()
+        ):
+            raise PolicyDenied("Workspace root escaped investigation directory")
+        self.output = Path(self.output.resolve())
+        if any("," in str(path) for path in (self.input, self.output)):
+            raise PolicyDenied("Docker mount paths containing commas are unsupported")
+        self.file_limit = artifacts.max_file
+
+    def argv(self, name):
+        args = super().argv(name)
+        args[args.index("fsize=1048576:1048576")] = f"fsize={self.file_limit}:{self.file_limit}"
+        args[args.index("--workdir") + 1] = "/work/output"
+        args[-4:-4] = [
+            "--mount",
+            f"type=bind,src={self.input},dst=/work/input,readonly",
+            "--mount",
+            f"type=bind,src={self.output},dst=/work/output",
+        ]
+        return args
+
+    def execute(self, action):
+        args = dict(action.args)
+        timeout = args.pop("timeout", 15)
+        if type(timeout) not in (int, float) or not 0 < timeout <= 30:
+            raise PolicyDenied("Tool timeout must be in (0,30] seconds")
+        if action.tool == "python":
+            if set(args) != {"code"} or not isinstance(args["code"], str):
+                raise PolicyDenied("Python tool requires exactly code and optional timeout")
+            return self.run(args["code"], timeout)
+        if action.tool == "command":
+            argv = args.get("argv")
+            if (
+                set(args) - {"argv", "stdin"}
+                or not isinstance(argv, list)
+                or not argv
+                or not all(isinstance(x, str) and len(x) <= 4096 for x in argv)
+            ):
+                raise PolicyDenied("Invalid command arguments")
+            if (
+                argv[0] not in self.COMMANDS
+                or len(argv) > 64
+                or not isinstance(args.get("stdin", ""), str)
+            ):
+                raise PolicyDenied("Command is not in the security-tool allowlist")
+            script = (
+                "import subprocess,sys\na="
+                + repr(argv)
+                + "\nr=subprocess.run(a,input="
+                + repr(args.get("stdin", ""))
+                + ",text=True,capture_output=False,timeout="
+                + repr(timeout)
+                + ")\nsys.exit(r.returncode)\n"
+            )
+            return self.run(script, min(30, timeout + 1))
+        raise PolicyDenied("Unsupported isolated tool")
+
+    def collect(self, artifacts):
+        import os
+
+        from prestige.artifacts import regular_file, safe_label
+
+        result, total, count = [], 0, 0
+        for directory, dirs, files in os.walk(self.output, followlinks=False):
+            count += len(dirs) + len(files)
+            if count > 128:
+                raise PolicyDenied("Tool output file budget exceeded")
+            for name in dirs + files:
+                path = __import__("pathlib").Path(directory) / name
+                if path.is_symlink() or getattr(path.lstat(), "st_file_attributes", 0) & 0x400:
+                    raise PolicyDenied("Linked tool outputs are forbidden")
+            for name in files:
+                path = __import__("pathlib").Path(directory) / name
+                if not regular_file(path):
+                    raise PolicyDenied("Non-regular tool output")
+                total += path.stat().st_size
+                if path.stat().st_size > artifacts.max_file or total > artifacts.max_total:
+                    raise PolicyDenied("Tool output byte budget exceeded")
+                label = path.relative_to(self.output).as_posix()
+                safe_label(label)
+                with path.open("rb") as stream:
+                    data = stream.read(artifacts.max_file + 1)
+                result.append(
+                    {"path": "/work/output/" + label, "artifact": artifacts.add(data, label)}
+                )
+        return result

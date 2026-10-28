@@ -59,6 +59,8 @@ class Artifacts:
         self.store, self.run_id = store, run_id
         self.root = store.home / "runs" / run_id / "blobs"
         self.root.mkdir(parents=True, exist_ok=True)
+        self.max_file = store.run(run_id)["settings"].get("max_artifact_mib", 1) * 1024 * 1024
+        self.max_total = max(MAX_TOTAL, min(256 * 1024 * 1024, self.max_file * 4))
 
     def list(self) -> list[dict]:
         return self.store.rows(
@@ -66,8 +68,8 @@ class Artifacts:
         )
 
     def add(self, data: bytes, label: str, parent=None, transform=None) -> str:
-        if len(data) > MAX_FILE:
-            raise PolicyDenied("Artifact exceeds the 1 MiB per-file limit")
+        if len(data) > self.max_file:
+            raise PolicyDenied("Artifact exceeds the configured per-file limit")
         safe_label(label)
         digest = hashlib.sha256(data).hexdigest()
         entries = self.list()
@@ -75,7 +77,7 @@ class Artifacts:
             return digest
         if (
             len(entries) >= MAX_FILES
-            or sum(item["size"] for item in entries) + len(data) > MAX_TOTAL
+            or sum(item["size"] for item in entries) + len(data) > self.max_total
         ):
             raise PolicyDenied("Artifact inventory budget exceeded")
         path = self.root / digest
@@ -105,7 +107,7 @@ class Artifacts:
         ):
             raise PolicyDenied("Artifact ID is not part of this investigation")
         path = self.root / artifact_id
-        if not regular_file(path) or path.stat().st_size > MAX_FILE:
+        if not regular_file(path) or path.stat().st_size > self.max_file:
             raise PolicyDenied("Invalid artifact snapshot")
         data = path.read_bytes()
         if hashlib.sha256(data).hexdigest() != artifact_id:
@@ -140,16 +142,33 @@ class Artifacts:
             if not regular_file(path):
                 raise PolicyDenied("Only regular files are accepted")
             size = path.stat().st_size
-            if size > MAX_FILE:
-                raise PolicyDenied("Artifact exceeds the 1 MiB limit; supply a bounded excerpt")
+            if size > self.max_file:
+                raise PolicyDenied(
+                    "Artifact exceeds the configured limit; use --max-artifact-mib explicitly"
+                )
             total += size
             safe_label(path.relative_to(root).as_posix())
-        if total > MAX_TOTAL:
-            raise PolicyDenied("Inventory exceeds 16 MiB")
+        if total > self.max_total:
+            raise PolicyDenied("Inventory exceeds configured total byte limit")
         for path in sorted(paths):
             with path.open("rb") as stream:
-                data = stream.read(MAX_FILE + 1)
+                data = stream.read(self.max_file + 1)
             self.add(data, path.relative_to(root).as_posix())
+
+    def view(self, artifact_id: str, offset=0, length=4096) -> bytes:
+        if (
+            type(offset) is not int
+            or type(length) is not int
+            or offset < 0
+            or not 1 <= length <= 32768
+        ):
+            raise PolicyDenied("Invalid bounded byte range")
+        entry = next((x for x in self.list() if x["id"] == artifact_id), None)
+        if not entry or offset > entry["size"] or not regular_file(self.root / artifact_id):
+            raise PolicyDenied("Invalid artifact range")
+        with (self.root / artifact_id).open("rb") as stream:
+            stream.seek(offset)
+            return stream.read(length)
 
 
 def transform(data: bytes, tool: str, args: dict) -> bytes:
@@ -173,12 +192,33 @@ def transform(data: bytes, tool: str, args: dict) -> bytes:
 
 
 class ToolRegistry:
-    def __init__(self, artifacts: Artifacts, allowed: tuple[str, ...]):
+    def __init__(self, artifacts: Artifacts, allowed: tuple[str, ...], runner=None):
         self.artifacts, self.allowed = artifacts, allowed
+        self.runner = runner
 
     def execute(self, action: Action) -> dict:
         if action.tool not in self.allowed:
             raise PolicyDenied("Tool is not authorized by event rules")
+        if action.tool in {"python", "command"}:
+            if self.runner is None:
+                raise PolicyDenied("No validated isolated tool runner configured")
+            result = self.runner.execute(action)
+            # Outputs become bounded content-addressed evidence; never trust returned
+            # claims or filenames as permissions or a solution oracle.
+            stdout = result["stdout"].encode("utf-8")
+            result["stdout_artifact"] = self.artifacts.add(stdout, "tool-stdout.txt")
+            result["outputs"] = self.runner.collect(self.artifacts)
+            return result
+        if action.tool == "read":
+            if set(action.args) - {"offset", "length"}:
+                raise PolicyDenied("Unknown read arguments")
+            raw = self.artifacts.view(action.artifact, **action.args)
+            return {
+                "offset": action.args.get("offset", 0),
+                "bytes": len(raw),
+                "hex": raw.hex(),
+                "text": raw.decode("utf-8", errors="replace"),
+            }
         data = self.artifacts.read(action.artifact)
         if action.tool in {"base64", "hex", "xor"}:
             output = transform(data, action.tool, action.args)
@@ -211,7 +251,10 @@ class ToolRegistry:
             archive = zipfile.ZipFile(io.BytesIO(data))
             with archive:
                 members = archive.infolist()
-                if len(members) > 64 or sum(x.file_size for x in members) > 4 * MAX_FILE:
+                if (
+                    len(members) > 64
+                    or sum(x.file_size for x in members) > self.artifacts.max_total
+                ):
                     raise PolicyDenied("Archive expansion budget exceeded")
                 names = set()
                 for item in members:
@@ -225,7 +268,7 @@ class ToolRegistry:
                     ):
                         raise PolicyDenied("Archive links/devices are forbidden")
                     if (
-                        item.file_size > MAX_FILE
+                        item.file_size > self.artifacts.max_file
                         or item.file_size > max(1, item.compress_size) * 200
                     ):
                         raise PolicyDenied("Archive bomb limit")
@@ -234,7 +277,7 @@ class ToolRegistry:
                     if item.is_dir():
                         continue
                     with archive.open(item) as stream:
-                        payload = stream.read(MAX_FILE + 1)
+                        payload = stream.read(self.artifacts.max_file + 1)
                     child = self.artifacts.add(
                         payload, item.filename, parent, {"tool": "zip", "member": item.filename}
                     )

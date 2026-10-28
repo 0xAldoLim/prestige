@@ -14,18 +14,27 @@ are preparatory controls, not claims that an exact-endpoint broker has been comp
 No CLI option or model field enables remote operation. Potential platform origins are
 denied; no substring-based classifier could establish complete platform detection.
 
-Codex inference is blocked because SDK sandbox settings alone do not prove the required
-control/data separation. Do not remove this gate merely to make the example work.
-The adapter is tested with genuine installed SDK types and simulated server results.
-Provider auth files are neither read nor copied by PRESTIGE.
+The normal CLI's Codex path remains gated. An experimental internal transport strips
+native tool definitions and validates bounded provider responses before forwarding them
+to the SDK/runtime. One real inference smoke succeeded. Active-upstream cancellation
+and ambiguous SSE framing still need implementation and adversarial integration coverage;
+the smoke does not establish a production execution boundary. Provider auth files are
+neither read nor copied by PRESTIGE. Authentication headers stay in transient normal
+SDK/provider transport and are not logged or persisted by the gateway.
 
-The optional Docker runner uses an immutable local Linux image, no host mounts, no network,
+The baseline Docker runner uses an immutable local Linux image, no host mounts, no network,
 an unprivileged UID, dropped capabilities, read-only root, limited tmpfs, CPU, memory,
 processes, output and wall time. Every runner instance audits loopback-only interfaces,
 blocked TCP/DNS/child egress and root writes before executing a script. Timeout/output
 overflow removes its named container. A trusted image, current Docker/kernel and correct
 daemon are assumed. Docker isolation is not a VM escape defense or a guarantee against
 kernel vulnerabilities. Container availability does not enable remote challenges.
+
+An internal WorkspaceRunner extension mounts only the current run's content-addressed
+blob directory read-only and its output directory writable. Tests cover offline isolation,
+read-only inputs and file persistence across calls. It is not yet connected to the normal
+solve loop, does not provide a persistent debugger process, and needs further adversarial
+mount/output and cancellation review before enabling model-driven tool execution.
 
 Untrusted archives are never executed or extracted to chosen filesystem paths. Sources
 are bounded and copied to content-addressed snapshots; traversal, links, devices, duplicate

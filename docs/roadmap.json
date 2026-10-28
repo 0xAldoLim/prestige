@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "updated": "2026-10-28",
+  "release_ready": false,
+  "baseline_commit": "7a32b4557840d0a49b3590346d843e2a0b6426c1",
+  "revision_note": "Use git log -1 and git status for the migration checkpoint and subsequent local work.",
+  "development_agent_target": "OpenCode",
+  "primary_product_backend": "Codex Python SDK",
+  "items": [
+    {"id":"offline-spine","status":"integration-tested","evidence":["tests/test_engine.py","tests/test_store_evaluation.py"],"remaining":"General CTF reasoning is not provided by the fake fixture worker."},
+    {"id":"real-inference-smoke","status":"integration-tested","evidence":["docs/CODEX_BACKEND.md"],"remaining":"One smoke only; no real challenge or public CLI inference flow."},
+    {"id":"gateway-adversarial-boundary","status":"tested with mocks","evidence":["tests/test_inference_gate.py"],"remaining":"Canonical SSE frames, malformed/multiline cases and real SDK malicious-provider coverage.","priority":1},
+    {"id":"upstream-cancellation","status":"not implemented","evidence":[],"remaining":"Close active upstream TLS sockets and propagate interruption; test partial response and timeout.","priority":1},
+    {"id":"large-artifacts","status":"in progress","evidence":["tests/test_workspace_tools.py"],"remaining":"Validate/expose configured limits; stream snapshots/hashes and preserve byte-range provenance.","priority":2},
+    {"id":"isolated-workspace-tools","status":"integration-tested","evidence":["tests/test_workspace_tools.py"],"remaining":"Internal-only runner; integrate into async engine, strengthen cancellation, output/mount adversarial tests.","priority":2},
+    {"id":"live-public-cli","status":"not implemented","evidence":[],"remaining":"Explicit live/image options, validated runner wiring, request accounting and budgets.","priority":3},
+    {"id":"venom-investigation","status":"not implemented","evidence":["docs/CONTINUATION.md"],"remaining":"Only archive hash/metadata were inspected. Actual agent investigation and independent verification required.","priority":4},
+    {"id":"reasoning-lanes","status":"in progress","evidence":["tests/test_engine.py"],"remaining":"Baseline handoff works; model-driven hypothesis evaluation, useful novelty signals and recovery incomplete.","priority":5},
+    {"id":"skills-retrieval","status":"integration-tested","evidence":["tests/test_integrations.py"],"remaining":"Narrow lexical retrieval works; richer dynamic routing and existing helper integration remain."},
+    {"id":"generic-verified-learning","status":"in progress","evidence":["src/prestige/knowledge.py"],"remaining":"Only reviewed decoding chains are generalized; arbitrary technique learning and independent reuse not proven."},
+    {"id":"research-broker","status":"not implemented","evidence":["src/prestige/research.py"],"remaining":"Only offline advisory matching exists. Separate bounded online broker/cache needed."},
+    {"id":"persistent-debugger","status":"not implemented","evidence":[],"remaining":"File persistence exists; no durable PTY/GDB process."},
+    {"id":"scoped-remote-and-expiry","status":"not implemented","evidence":["tests/test_security.py"],"remaining":"Parser/lease units only. End-to-end network broker not shipped; remote remains disabled."},
+    {"id":"scheduler","status":"in progress","evidence":["src/prestige/evaluation.py"],"remaining":"Bounded local priority queue only; calibrated marginal-value allocation not implemented."},
+    {"id":"real-baseline-benchmarks","status":"not implemented","evidence":["docs/BENCHMARKING.md"],"remaining":"B0/B1/P1/P2/P3 real evaluations, held-out categories and paired statistics absent."},
+    {"id":"opencode-product-backend","status":"not implemented","evidence":[],"remaining":"Future optional adapter; independent of the requested development-agent migration."},
+    {"id":"local-model-laboratory","status":"in progress","evidence":["src/prestige/local_models.py"],"remaining":"Advisory transport/mock tests only; no real paired ordinary/abliterated experiment."},
+    {"id":"opencode-development-handoff","status":"implemented but untested","evidence":["AGENTS.md",".opencode/commands/prestige-resume.md","docs/OPENCODE_HANDOFF.md"],"remaining":"Files reviewed against official docs; actual OpenCode version/startup/login unavailable on current PATH."}
+  ]
+}

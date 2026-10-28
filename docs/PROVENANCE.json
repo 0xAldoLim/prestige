@@ -164,13 +164,14 @@
     "upstream_url": "https://github.com/openai/codex/tree/main/sdk/python",
     "upstream_commit_or_version": "SDK 0.163.0; source 04e365c698b94651b6ea7e3b3af5c1dd697bd30c",
     "authors_or_maintainers": "OpenAI and contributors",
-    "concept_or_files_reused": "Official SDK contracts; no source vendored; live solver gated",
+    "concept_or_files_reused": "Official SDK contracts and Responses transport; original text-only experimental gateway, real smoke only; normal CLI solve path gated",
     "license_type": "Apache-2.0; separately installed optional dependency",
     "original_copyright_holder": "OpenAI",
     "license_copy_path": null,
     "modifications": "None to copied schema; other implementation is original",
     "implementation_files": [
-      "src/prestige/codex_sdk.py"
+      "src/prestige/codex_sdk.py",
+      "src/prestige/inference_gate.py"
     ],
     "date_checked": "2026-10-28",
     "review_scope": "Source/license inspection, not legal advice or dependency certification"
@@ -243,5 +244,24 @@
     ],
     "date_checked": "2026-10-28",
     "review_scope": "Source/license inspection, not legal advice or dependency certification"
+  },
+  {
+    "feature_id": "opencode-development-handoff",
+    "upstream_name": "OpenCode official documentation",
+    "upstream_url": "https://opencode.ai/docs/rules/",
+    "upstream_commit_or_version": null,
+    "authors_or_maintainers": "OpenCode maintainers",
+    "concept_or_files_reused": "AGENTS.md and custom Markdown-command conventions; original project instructions, no upstream code copied",
+    "license_type": "Documentation reference; no source copied",
+    "original_copyright_holder": "OpenCode contributors",
+    "license_copy_path": null,
+    "modifications": "Original handoff and project guidance; no upstream files modified",
+    "implementation_files": [
+      "AGENTS.md",
+      ".opencode/commands/prestige-resume.md",
+      "docs/OPENCODE_HANDOFF.md"
+    ],
+    "date_checked": "2026-10-28",
+    "review_scope": "Documentation-checked file conventions; OpenCode startup not tested"
   }
 ]

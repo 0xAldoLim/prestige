@@ -6,9 +6,11 @@ PRESTIGE is an **experimental Python CLI** for bounded offline artifact investig
 It records evidence in SQLite, applies FAST/EXPERT investigation policies, verifies
 synthetic solutions independently, and preserves narrow reusable decoding methods.
 This first implementation is **not a production autonomous CTF solver: P0 is incomplete**.
-The Codex SDK adapter is contract-tested but live inference is deliberately blocked
-until its built-in tools have a validated independent isolation boundary. Remote
-challenge connections are disabled. See [implementation status](docs/IMPLEMENTATION_STATUS.md).
+The normal CLI's Codex solving path remains gated. An internal experimental text-only
+gateway completed one real inference smoke turn; autonomous real-challenge solving
+has not been demonstrated. Remote challenge connections are disabled. See
+[implementation status](docs/IMPLEMENTATION_STATUS.md) and the
+[OpenCode development handoff](docs/OPENCODE_HANDOFF.md).
 
 The design goal is more independently verified points per unit of model usage than
 plain Codex or Codex with the owner's skills. **No comparative model evaluation has

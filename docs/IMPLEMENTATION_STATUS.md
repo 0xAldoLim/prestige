@@ -6,12 +6,12 @@ is not a production-ready release.** No model benchmark superiority is claimed.
 | Milestone | Status | Evidence and missing work |
 | --- | --- | --- |
 | A: installable spine | Working, tested | Python CLI, configuration, truthful doctor, immutable inventory, SQLite WAL, synthetic fixture worker |
-| B: Codex actual solving | Contract-tested; live blocked | Real SDK 0.163.0 types, ExternalMessage, resume/interrupt/usage adapter tests; no paid turn, auth probe or live solve. Independent provider-tool isolation is unresolved |
+| B: Codex actual solving | Internal inference smoke passed; CLI solving gated | Real SDK 0.163.0 account/model discovery and a text-only transport completed one paid smoke. No real challenge solve. Cancellation/SSE framing and engine integration remain incomplete |
 | C: lanes, verifier, recovery | Working for bounded offline tools | FAST/EXPERT/AUTO, one-way handoff, duplicate suppression, digest+replay verification, pause/resume; general CTF reasoning requires the live backend |
 | D: scope, isolation, leases | Partial, fail closed | Strict offline tool surface; Docker egress/child/DNS/root-write probes; endpoint parser and lease unit tests. Remote broker and actual instance renewal remain disabled |
 | E: skills, research, learning | Partial | Read-only lexical retrieval, local-first accepted knowledge, exact upstream schema, static decoding generalizers, related-technique inbox. No helper-script execution, general exploit learning or live research broker |
 | F: competition and comparisons | Partial | Local queue with bounded concurrency; deterministic priority/deadline/points policy; fixture harness and equality gates. B0/B1/P1/P2/P3 live comparisons and calibrated marginal value unimplemented |
-| G: advanced tools and portability | Partial | Windows tests and opt-in Kali container checks. No persistent GDB/PTY, Ghidra integration, OpenCode adapter or remote worker |
+| G: advanced tools and portability | Partial | Internal WorkspaceRunner tested for readonly inputs and file persistence in isolated Kali Docker. Normal engine does not use it yet. No persistent GDB/PTY, OpenCode runtime adapter or remote worker |
 | H: local models and attribution | Partial | User-declared pinned registry, loopback advisory adapter, hardware diagnostics, mocked tests, attribution/license audit. No downloaded weights, real inference benchmark, paired-model experiments or autonomous local worker |
 
 ## Validated boundaries
@@ -28,6 +28,13 @@ It checks loopback-only interfaces, TCP, DNS, subprocess egress and read-only ro
 offline isolation checks; they do not validate a scoped remote broker or provider built-in tools.
 
 ## Validation record
+
+Migration checkpoint: 75 Windows-host tests passed with the local Kali Docker image
+enabled (19.95 seconds), including new internal workspace-tool checks. These supplement
+the historical baseline results below; they do not establish an autonomous solver.
+OpenCode development handoff files are prepared; OpenCode startup/login is not validated
+because its executable was not found on PATH. See [handoff](OPENCODE_HANDOFF.md) and
+[machine-readable roadmap](roadmap.json) for current uncompleted acceptance items.
 
 See [VALIDATION.md](VALIDATION.md) for the final executed commands, exact outcomes and benchmark
 totals. GitHub CI is configured but a green remote CI result is not assumed merely from the
