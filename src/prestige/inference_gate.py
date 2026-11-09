@@ -8,7 +8,9 @@ Authentication stays in the SDK/HTTPS transport; headers and bodies are never lo
 
 import gzip
 import http.client
+import io
 import json
+import re
 import secrets
 import socket
 import threading
@@ -39,6 +41,7 @@ EVENTS = {
     "response.incomplete",
     "error",
 }
+_ALLOWED_SSE_FIELDS = {"data", "event", "id", "retry"}
 
 
 def text_item(item):
@@ -51,57 +54,103 @@ def text_item(item):
             raise PolicyDenied("Inference gateway rejected non-text content")
 
 
-def validate_sse(raw: bytes) -> bytes:
+def _parse_sse_frames(raw: bytes):
+    """Strict Server-Sent Events frame parser.
+
+    Only ``data``, ``event``, ``id`` and ``retry`` fields are accepted. Unknown
+    fields, ambiguous frames and event/data disagreements are rejected. Multiple
+    ``data:`` lines are joined with ``\\n`` per the SSE standard.
+    """
     if len(raw) > MAX_RESPONSE:
         raise PolicyDenied("Inference response exceeds gateway limit")
-    # Provider metadata has no role in PRESTIGE inference. Discard it rather
-    # than forwarding an unvalidated extension to the authenticated runtime.
-    frames = []
-    for frame in raw.replace(b"\r\n", b"\n").split(b"\n\n"):
-        payloads = [line[5:].strip() for line in frame.splitlines() if line.startswith(b"data:")]
-        if any(
-            payload != b"[DONE]" and json.loads(payload).get("type") == "response.metadata"
-            for payload in payloads
-        ):
+    try:
+        text = raw.decode("utf-8-sig")
+    except UnicodeError as error:
+        raise PolicyDenied("Inference response is not valid UTF-8") from error
+    # Normalize all SSE line endings to a single newline.
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    for frame in text.split("\n\n"):
+        if not frame:
             continue
-        if frame:
-            frames.append(frame)
-    raw = b"\n\n".join(frames) + b"\n\n"
-    completed = False
-    for line in raw.decode("utf-8").splitlines():
-        if not line.startswith("data:"):
+        data_lines = []
+        fields = {}
+        for line in frame.splitlines():
+            if not line or line.startswith(":"):
+                continue
+            if ":" in line:
+                name, value = line.split(":", 1)
+                if value.startswith(" "):
+                    value = value[1:]
+            else:
+                name = line
+                value = ""
+            if name not in _ALLOWED_SSE_FIELDS:
+                raise PolicyDenied(f"Unexpected SSE field: {name}")
+            if name == "data":
+                data_lines.append(value)
+            else:
+                fields[name] = value
+        if not data_lines:
             continue
-        data = line[5:].strip()
-        if data == "[DONE]":
-            continue
-        event = json.loads(data)
-        kind = event.get("type")
-        if kind not in EVENTS:
-            import re
+        fields["data"] = "\n".join(data_lines)
+        yield fields
 
-            label = (
-                kind
-                if isinstance(kind, str) and re.fullmatch(r"[a-zA-Z0-9_.]{1,100}", kind)
-                else "invalid"
-            )
-            raise PolicyDenied("Inference gateway rejected event: " + label)
-        if "item" in event:
-            text_item(event["item"])
-        if "part" in event and event["part"].get("type") not in {
-            "output_text",
-            "refusal",
-            "summary_text",
-            "reasoning_text",
-        }:
-            raise PolicyDenied("Inference gateway rejected a content part")
-        if "response" in event:
-            for item in event["response"].get("output", []):
-                text_item(item)
-        if kind == "response.completed":
+
+def _validate_event(event: dict, event_name: str | None):
+    kind = event.get("type")
+    if event_name is not None:
+        if event_name not in EVENTS:
+            raise PolicyDenied(f"Unknown SSE event name: {event_name}")
+        if kind != event_name:
+            raise PolicyDenied("SSE event name disagrees with data type")
+    if kind not in EVENTS:
+        label = (
+            kind
+            if isinstance(kind, str) and re.fullmatch(r"[a-zA-Z0-9_.]{1,100}", kind)
+            else "invalid"
+        )
+        raise PolicyDenied("Inference gateway rejected event: " + label)
+    if "item" in event:
+        text_item(event["item"])
+    if "part" in event and event["part"].get("type") not in {
+        "output_text",
+        "refusal",
+        "summary_text",
+        "reasoning_text",
+    }:
+        raise PolicyDenied("Inference gateway rejected a content part")
+    if "response" in event:
+        for item in event["response"].get("output", []):
+            text_item(item)
+
+
+def validate_sse(raw: bytes) -> bytes:
+    """Return a canonical, reserialized SSE stream or raise PolicyDenied."""
+    completed = False
+    out = []
+    for frame in _parse_sse_frames(raw):
+        data = frame["data"]
+        if data == "[DONE]":
+            # Completion is proven by response.completed; the sentinel adds no value.
+            continue
+        try:
+            event = json.loads(data)
+        except ValueError as error:
+            raise PolicyDenied("Invalid SSE JSON") from error
+        if not isinstance(event, dict):
+            raise PolicyDenied("SSE data is not a JSON object")
+        if event.get("type") == "response.metadata":
+            continue
+        event_name = frame.get("event")
+        _validate_event(event, event_name)
+        if "event" in frame:
+            out.append(f"event: {frame['event']}")
+        out.append("data: " + json.dumps(event))
+        if event.get("type") == "response.completed":
             completed = True
     if not completed:
         raise PolicyDenied("Inference response did not complete; nothing forwarded")
-    return raw
+    return "\n\n".join(out).encode() + b"\n\n"
 
 
 def narrow_request(raw: bytes) -> bytes:
@@ -133,6 +182,10 @@ class InferenceGate:
         self.provider_status = None
         self.provider_error = None
         self.lock = threading.Lock()
+        self._socket_lock = threading.Lock()
+        self._sockets: set[socket.socket] = set()
+        self._timers: set[threading.Timer] = set()
+        self._closing = False
         token = secrets.token_urlsafe(32)
         self.route = "/" + token + "/responses"
         gate = self
@@ -155,9 +208,6 @@ class InferenceGate:
                         gate.count += 1
                     request = self.rfile.read(length)
                     if self.headers.get("Content-Encoding") == "gzip":
-                        # Bound inflation separately from compressed size.
-                        import io
-
                         with gzip.GzipFile(fileobj=io.BytesIO(request)) as stream:
                             request = stream.read(2 * 1024 * 1024 + 1)
                     narrowed = narrow_request(request)
@@ -190,9 +240,33 @@ class InferenceGate:
         self.thread.start()
         return self
 
+    def _register_socket(self, sock: socket.socket):
+        with self._socket_lock:
+            if self._closing:
+                raise PolicyDenied("Gate is closing")
+            self._sockets.add(sock)
+
+    def _unregister_socket(self, sock: socket.socket):
+        with self._socket_lock:
+            self._sockets.discard(sock)
+
+    def cancel_sockets(self):
+        """Forcibly close active upstream provider sockets without shutting the gate."""
+        with self._socket_lock:
+            sockets = list(self._sockets)
+        for sock in sockets:
+            try:
+                sock.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+
     def close(self):
-        self.server.shutdown()
-        self.server.server_close()
+        self._closing = True
+        self.cancel_sockets()
+        try:
+            self.server.shutdown()
+        finally:
+            self.server.server_close()
         self.thread.join(timeout=2)
 
     def _official_transport(self, body, headers):
@@ -202,10 +276,13 @@ class InferenceGate:
         path = "/backend-api/codex/responses" if self.account_type == "chatgpt" else "/v1/responses"
         connection = http.client.HTTPSConnection(host, timeout=self.timeout)
         started = time.monotonic()
+        deadline = started + self.timeout
         timer = None
         try:
             connection.connect()
             transport = connection.sock
+            if transport is not None:
+                self._register_socket(transport)
 
             def abort():
                 try:
@@ -213,9 +290,12 @@ class InferenceGate:
                 except OSError:
                     pass
 
-            timer = threading.Timer(max(0.01, self.timeout - (time.monotonic() - started)), abort)
+            timer = threading.Timer(max(0.01, deadline - time.monotonic()), abort)
             timer.daemon = True
             timer.start()
+            with self._socket_lock:
+                if not self._closing:
+                    self._timers.add(timer)
             permitted = {
                 "authorization",
                 "chatgpt-account-id",
@@ -233,7 +313,6 @@ class InferenceGate:
             response = connection.getresponse()
             self.provider_status = response.status
             if response.status != 200:
-                # Only protocol field names/codes, never provider text, input or headers.
                 import re
 
                 try:
@@ -247,7 +326,6 @@ class InferenceGate:
                     }
                 except (ValueError, OSError):
                     pass
-                # Preserve a useful status category without private provider error data.
                 raise PolicyDenied(f"Provider HTTP status {response.status}")
             chunks, total = [], 0
             while True:
@@ -255,11 +333,15 @@ class InferenceGate:
                 if not block:
                     break
                 total += len(block)
-                if total > MAX_RESPONSE or time.monotonic() - started > self.timeout:
+                if total > MAX_RESPONSE or time.monotonic() > deadline:
                     raise PolicyDenied("Provider size/deadline limit")
                 chunks.append(block)
             return b"".join(chunks)
         finally:
-            if timer:
+            if timer is not None:
                 timer.cancel()
+                with self._socket_lock:
+                    self._timers.discard(timer)
+            if transport is not None:
+                self._unregister_socket(transport)
             connection.close()

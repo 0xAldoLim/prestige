@@ -210,6 +210,8 @@ class CodexBackend:
     async def interrupt(self):
         if self.turn is not None:
             await self.turn.interrupt()
+        if self.gate is not None:
+            await asyncio.to_thread(self.gate.cancel_sockets)
 
     async def close(self):
         try:
