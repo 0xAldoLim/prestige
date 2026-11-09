@@ -29,6 +29,9 @@ def new_run(
     live=False,
     runner_image=None,
     max_artifact_mib=1,
+    openai_base_url=None,
+    openai_api_key=None,
+    openai_model=None,
 ):
     rules = rules or Rules()
     rules.check()
@@ -45,6 +48,8 @@ def new_run(
         raise PrestigeError("Invalid run budget")
     if live and backend != "codex":
         raise PrestigeError("--live requires the codex backend")
+    if backend == "openai" and (not openai_base_url or not openai_api_key or not openai_model):
+        raise PrestigeError("openai backend requires base URL, API key and model")
     if runner_image is not None:
         from prestige.sandbox import DockerRunner
 
@@ -63,6 +68,9 @@ def new_run(
             "live": live,
             "runner_image": runner_image,
             "max_artifact_mib": max_artifact_mib,
+            "openai_base_url": openai_base_url,
+            "openai_api_key": openai_api_key,
+            "openai_model": openai_model,
         },
     )
     try:
@@ -95,6 +103,15 @@ async def solve(
                 store.home / "provider-workspace",
                 run["session"],
                 live=settings.get("live", False),
+            )
+        elif run["backend"] == "openai":
+            from prestige.openai_backend import OpenAIBackend
+
+            backend = OpenAIBackend(
+                settings["openai_base_url"],
+                settings["openai_api_key"],
+                settings["openai_model"],
+                workspace=store.home / "provider-workspace",
             )
         else:
             raise PrestigeError("Unsupported solver backend")

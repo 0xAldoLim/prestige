@@ -49,7 +49,7 @@ def parser():
     solving = commands.add_parser("solve")
     solving.add_argument("path", type=Path)
     solving.add_argument("--mode", choices=("fast", "expert", "auto"), default="auto")
-    solving.add_argument("--backend", choices=("codex", "fake"), default="codex")
+    solving.add_argument("--backend", choices=("codex", "fake", "openai"), default="codex")
     solving.add_argument("--rules", type=Path)
     solving.add_argument(
         "--offline",
@@ -79,6 +79,15 @@ def parser():
         "--runner-image",
         help="Immutable Docker image digest (sha256:...) for isolated python/command tools",
     )
+    solving.add_argument(
+        "--openai-base-url",
+        help="OpenAI-compatible endpoint base URL (e.g. https://api.openai.com/v1)",
+    )
+    solving.add_argument(
+        "--openai-api-key",
+        help="API key for the OpenAI-compatible endpoint; prefer PRESTIGE_OPENAI_API_KEY env",
+    )
+    solving.add_argument("--openai-model", help="Model name for the OpenAI-compatible endpoint")
     solving.add_argument(
         "--operating-mode",
         choices=("supervised", "autonomous"),
@@ -187,6 +196,8 @@ def dispatch(args, store: Store, config: dict):
         )
         return rules.snapshot()
     if args.command == "solve":
+        import os
+
         run_id = new_run(
             store,
             args.path,
@@ -201,6 +212,9 @@ def dispatch(args, store: Store, config: dict):
             live=args.live,
             runner_image=args.runner_image,
             max_artifact_mib=args.max_artifact_mib,
+            openai_base_url=args.openai_base_url,
+            openai_api_key=args.openai_api_key or os.environ.get("PRESTIGE_OPENAI_API_KEY"),
+            openai_model=args.openai_model,
         )
         return asyncio.run(solve(store, run_id, skills=skills))
     if args.command == "status" and args.run_id is None:

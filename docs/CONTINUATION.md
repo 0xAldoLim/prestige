@@ -27,6 +27,11 @@ current revision; no self-referential future commit hash is embedded here.
   - `--live` enables real Codex inference (still requires authenticated SDK).
   - `--runner-image` accepts an immutable Docker digest for isolated tools.
   - `--max-artifact-mib` configures per-file inventory limits (1-256).
+- Provider-independent OpenAI-compatible backend (`prestige solve --backend openai`):
+  - Uses `httpx` to call any `/chat/completions` endpoint.
+  - Supports explicit base URL, model and API key (key also via env).
+  - Parses JSON proposals; enforces the same action schema as Codex.
+  - No Codex SDK or CLI binary required.
 - Engine/ToolRegistry integration:
   - `WorkspaceRunner` is constructed from run settings and passed to `ToolRegistry`.
   - Tool execution is offloaded to a thread and cancels owned containers on interruption.
@@ -97,14 +102,16 @@ real VENOM investigation.
 - Explicit `--live`, `--runner-image`, `--max-artifact-mib` CLI controls.
 - `WorkspaceRunner` wired into `ToolRegistry`; cancellable offloaded execution.
 - Bounded artifact previews, failed-attempt accounting and progress events.
+- Provider-independent OpenAI-compatible backend with tests.
 
 ## Next executable milestone
 
 1. Complete installation of `openai-codex==0.163.0` (CLI binary wheel download in progress).
-2. Obtain or build a reviewed, immutable local Docker runner image.
-3. Authenticate Codex through `codex login` if not already authenticated.
-4. Run the actual VENOM investigation through `prestige solve --live --runner-image ...`.
-5. Iterate on model-driven observations and isolated tool results.
+2. Optionally test the openai backend against a local model or small endpoint.
+3. Obtain or build a reviewed, immutable local Docker runner image.
+4. Authenticate Codex through `codex login` if not already authenticated.
+5. Run the actual VENOM investigation through `prestige solve --backend openai` or `--live`.
+6. Iterate on model-driven observations and isolated tool results.
 
 ## Installed toolchain
 

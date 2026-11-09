@@ -9,7 +9,7 @@
   "primary_product_backend": "Codex Python SDK",
   "items": [
     {"id":"offline-spine","status":"integration-tested","evidence":["tests/test_engine.py","tests/test_store_evaluation.py"],"remaining":"General CTF reasoning is not provided by the fake fixture worker."},
-    {"id":"real-inference-smoke","status":"integration-tested","evidence":["docs/CODEX_BACKEND.md"],"remaining":"One historical smoke only; no real challenge or public CLI inference flow in this increment."},
+    {"id":"real-inference-smoke","status":"integration-tested","evidence":["docs/CODEX_BACKEND.md"],"remaining":"One historical Codex smoke and an OpenAI-compatible backend with mock tests; no paid challenge turn in this increment."},
     {"id":"gateway-adversarial-boundary","status":"tested","evidence":["tests/test_inference_gate.py"],"remaining":"Real SDK malicious-provider coverage under opt-in live tests; image/large-artifact controls still missing.","priority":1},
     {"id":"upstream-cancellation","status":"implemented","evidence":["src/prestige/inference_gate.py","tests/test_inference_gate.py"],"remaining":"Propagate through full Codex turn lifecycle in live opt-in tests.","priority":1},
     {"id":"large-artifacts","status":"in progress","evidence":["tests/test_workspace_tools.py"],"remaining":"Validate/expose configured limits; stream snapshots/hashes and preserve byte-range provenance.","priority":2},
