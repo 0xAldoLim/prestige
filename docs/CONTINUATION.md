@@ -65,7 +65,8 @@ current revision; no self-referential future commit hash is embedded here.
 ## Latest executed checks
 
 Kali Linux VM, Python 3.13.12:
-**98 passed in 3.13 seconds**, 3 skipped (container tests require `PRESTIGE_TEST_IMAGE`).
+**99 passed in 3.93 seconds**, 3 skipped (container tests require `PRESTIGE_TEST_IMAGE`,
+ghidra test requires `PRESTIGE_TEST_GHIDRA=1`).
 Ruff clean. These are offline regressions, not an autonomous challenge or comparative benchmark.
 No paid model call was made during this increment.
 
@@ -74,12 +75,15 @@ No paid model call was made during this increment.
 - Actual HEAD: `04d68d0a77ff0651d9b2f33fff90290a43029b20` plus local commits
 - Branch: `main`
 - Latest pushed commit: `04d68d0a77ff0651d9b2f33fff90290a43029b20` (identical to `origin/main`)
+- Push attempted but blocked: HTTPS origin requires interactive credentials and no
+  Git credential helper is configured in this environment.
 - Local commits since origin/main:
   - `6d36df9` strict SSE parsing and active upstream socket cancellation
   - `fae3a01` live CLI controls, runner wiring and failed-attempt accounting
   - `20c9816` provider-independent OpenAI-compatible backend
   - `003ca2e` local file tool and end-to-end OpenAI backend CLI integration test
   - `b6ecb10` allowlisted radare2 static analysis tool
+  - `d57f716` Ghidra headless adapter for static RE analysis
 - Recovered historical commits: none
 - Missing historical commits:
   - `976fc33`
