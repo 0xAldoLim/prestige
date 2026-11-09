@@ -29,6 +29,7 @@ class Rules:
         "command",
         "file",
         "radare2",
+        "ghidra",
     )
     max_turns: int = 12
     max_seconds: float = 120

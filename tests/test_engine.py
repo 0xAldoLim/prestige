@@ -2,7 +2,9 @@ import asyncio
 import base64
 import hashlib
 import json
+import os
 import shutil
+from pathlib import Path
 
 import pytest
 
@@ -305,3 +307,33 @@ async def test_radare2_tool_runs_allowed_script(store, challenge):
         (x for x in store.events(run_id) if x["kind"] == "observation"), None
     )
     assert observation and observation["data"]["result"]["returncode"] == 0
+
+
+@pytest.mark.ghidra
+@pytest.mark.skipif(
+    not Path("/usr/share/ghidra/support/analyzeHeadless").exists(),
+    reason="Ghidra headless analyzer not installed",
+)
+@pytest.mark.skipif(
+    not os.environ.get("PRESTIGE_TEST_GHIDRA"),
+    reason="Set PRESTIGE_TEST_GHIDRA=1 to run slow Ghidra analysis tests",
+)
+async def test_ghidra_tool_exports_functions(store, tmp_path):
+    binary = tmp_path / "ls"
+    binary.write_bytes(Path("/bin/ls").read_bytes())
+    run_id = new_run(store, binary)
+    artifact = Artifacts(store, run_id).list()[0]["id"]
+
+    class ProposeGhidra(FakeBackend):
+        async def propose(self, context):
+            return Proposal(
+                Action("ghidra", artifact, {"mode": "functions", "timeout": 120}),
+                "enumerate functions",
+            )
+
+    result = await solve(store, run_id, ProposeGhidra())
+    assert result["status"] == "unsolved"
+    observation = next(
+        (x for x in store.events(run_id) if x["kind"] == "observation"), None
+    )
+    assert observation and len(observation["data"]["result"]["functions"]) > 50

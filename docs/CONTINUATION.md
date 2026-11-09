@@ -42,9 +42,17 @@ current revision; no self-referential future commit hash is embedded here.
 - Local static reverse-engineering tools `file` and `radare2` added to the trusted
   tool surface. radare2 commands are allowlisted to prevent shell execution or file
   sourcing.
+- Ghidra headless adapter added as a trusted `ghidra` tool. It runs a Java export
+  script via `analyzeHeadless`, supports functions/strings/imports/exports/decompile
+  modes, uses a temporary project and returns bounded JSON. Slow tests are opt-in
+  via `PRESTIGE_TEST_GHIDRA=1`.
 - End-to-end CLI integration test exercises the OpenAI backend against a local mock
   `/chat/completions` endpoint and verifies autonomous tool selection solves a base64
   challenge.
+- Codex SDK `openai-codex==0.163.0` installed successfully after a slow background
+  wheel download.
+- Ghidra discovered at `/usr/share/ghidra/ghidraRun` with headless analyzer at
+  `/usr/share/ghidra/support/analyzeHeadless`.
 - Normal CLI remains gated (`live=False`). No paid inference was triggered.
 - Internal per-run artifact-size policy, bounded byte views and adjusted ZIP limits.
   Default remains 1 MiB unless explicitly raised.
@@ -57,7 +65,7 @@ current revision; no self-referential future commit hash is embedded here.
 ## Latest executed checks
 
 Kali Linux VM, Python 3.13.12:
-**88 passed in 2.83 seconds**, 3 skipped (container tests require `PRESTIGE_TEST_IMAGE`).
+**98 passed in 3.13 seconds**, 3 skipped (container tests require `PRESTIGE_TEST_IMAGE`).
 Ruff clean. These are offline regressions, not an autonomous challenge or comparative benchmark.
 No paid model call was made during this increment.
 
@@ -66,6 +74,12 @@ No paid model call was made during this increment.
 - Actual HEAD: `04d68d0a77ff0651d9b2f33fff90290a43029b20` plus local commits
 - Branch: `main`
 - Latest pushed commit: `04d68d0a77ff0651d9b2f33fff90290a43029b20` (identical to `origin/main`)
+- Local commits since origin/main:
+  - `6d36df9` strict SSE parsing and active upstream socket cancellation
+  - `fae3a01` live CLI controls, runner wiring and failed-attempt accounting
+  - `20c9816` provider-independent OpenAI-compatible backend
+  - `003ca2e` local file tool and end-to-end OpenAI backend CLI integration test
+  - `b6ecb10` allowlisted radare2 static analysis tool
 - Recovered historical commits: none
 - Missing historical commits:
   - `976fc33`
@@ -82,7 +96,9 @@ VENOM:
 - Path: `/home/kali/Prestige/venom_6acc0b13b97020e8cd0e3d02276b9626.zip`
 - SHA-256: `d1a14ca7dc3044a97210c9d336237029b834bc64265633d1f127c3ca30bea28f`
 - ZIP contents: `venom.paper` 1214 bytes; `FlagApp.exe` 36089344 bytes.
-- Status: inventoried only; no binary execution, model-driven investigation, candidate or flag.
+- Static inspection: PE32+ x86-64 GUI executable; strings indicate OpenSSL/CRYPTOGAMS
+  RC4, SHA1, Camellia, Poly1305, X25519 and other primitives. No model-driven
+  investigation, candidate or recovered flag yet.
 
 IBoH / Celestial Gatekeeper:
 - Archive: `/home/kali/Prestige/gate.7z` (538112 bytes extracted `gate.exe`)
@@ -94,9 +110,10 @@ IBoH / Celestial Gatekeeper:
 
 ## Current phase
 
-Phase 1: actual autonomous harness — inference boundary and live CLI controls complete;
-blocked on authenticated Codex SDK and a reviewed local runner image before the first
-real VENOM investigation.
+Phase 1: actual autonomous harness — inference boundary, live CLI controls, provider-
+independent backend and local static RE tools complete. Codex SDK is installed; Ghidra
+is present. Blocked on an authenticated model endpoint and a reviewed local runner image
+before the first real VENOM investigation.
 
 ## Completed milestones
 
@@ -110,23 +127,27 @@ real VENOM investigation.
 - Bounded artifact previews, failed-attempt accounting and progress events.
 - Provider-independent OpenAI-compatible backend with tests.
 - Local `file` and allowlisted `radare2` static analysis tools.
+- Ghidra headless adapter and opt-in integration test.
 - End-to-end mock-provider CLI solve regression.
+- Codex SDK installed and Ghidra located.
 
 ## Next executable milestone
 
-1. Complete installation of `openai-codex==0.163.0` (CLI binary wheel download in progress).
-2. Optionally test the openai backend against a local model or small endpoint.
-3. Obtain or build a reviewed, immutable local Docker runner image.
-4. Authenticate Codex through `codex login` if not already authenticated.
-5. Run the actual VENOM investigation through `prestige solve --backend openai` or `--live`.
-6. Iterate on model-driven observations and isolated tool results.
+1. Authenticate Codex through `codex login` or configure an OpenAI-compatible endpoint.
+2. Run the actual VENOM investigation through `prestige solve --backend openai` or `--live`.
+3. Iterate on model-driven observations using `file`, `strings`, `radare2`, `ghidra` and
+   the runner image once available.
+4. Obtain or build a reviewed, immutable local Docker runner image for `python`/`command`.
 
 ## Installed toolchain
 
 - Python 3.13.12, pytest 9.2.0, pytest-asyncio 1.4.1.post1, ruff 0.17.4, build 1.6.1
+- httpx 0.28.1 (for the OpenAI backend)
+- openai-codex 0.163.0 and openai-codex-cli-bin 0.163.0
 - git 2.53.0, Docker 28.5.2+dfsg3
-- `file`, `objdump`, `readelf`, `gdb` present
-- Missing: `gdb-multiarch`, Ghidra / `analyzeHeadless`
+- `file`, `objdump`, `readelf`, `gdb`, `r2`/`radare2` present
+- Ghidra: `/usr/share/ghidra/ghidraRun`, headless analyzer `/usr/share/ghidra/support/analyzeHeadless`
+- Missing: `gdb-multiarch`
 
 ## Configured model providers
 
@@ -136,7 +157,7 @@ this session only; it is not copied into PRESTIGE state.
 ## Real inference tested
 
 No paid PRESTIGE runtime inference in this increment. All gate tests use mock
-transports or fake sockets.
+transports or fake sockets; the CLI integration test uses a local mock endpoint.
 
 ## Exact reproduction commands
 
@@ -150,7 +171,13 @@ python -m prestige --help
 python -m prestige doctor
 ```
 
+## External blockers
+
+1. No authenticated model endpoint (Codex or OpenAI-compatible) is configured for
+   PRESTIGE's runtime.
+2. No reviewed, immutable local Docker runner image is available for isolated
+   `python`/`command` tool execution.
+
 No external authentication blocker was found for the Codex SDK on this machine historically.
-The current blockers are: (1) the `openai-codex-cli-bin` wheel download is still in progress,
-and (2) a reviewed local runner image is not yet available. OpenCode provider setup is
-separate; never read/copy Codex auth to migrate it. Full roadmap/P0 remain incomplete.
+OpenCode provider setup is separate; never read/copy Codex auth to migrate it.
+Full roadmap/P0 remain incomplete.

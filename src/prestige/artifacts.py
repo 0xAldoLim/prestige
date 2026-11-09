@@ -234,6 +234,8 @@ class ToolRegistry:
             }
         if action.tool == "radare2":
             return self._radare2(action)
+        if action.tool == "ghidra":
+            return self._ghidra(action)
         if action.tool == "read":
             if set(action.args) - {"offset", "length"}:
                 raise PolicyDenied("Unknown read arguments")
@@ -310,6 +312,20 @@ class ToolRegistry:
             "stderr": completed.stderr[:2048],
             "returncode": completed.returncode,
         }
+
+    def _ghidra(self, action: Action) -> dict:
+        from prestige.ghidra_adapter import GhidraAdapter
+
+        args = dict(action.args)
+        mode = args.pop("mode", "functions")
+        target = args.pop("target", "")
+        timeout = args.pop("timeout", 120)
+        if args:
+            raise PolicyDenied("Unexpected ghidra arguments")
+        path = self.artifacts.root / action.artifact
+        if not regular_file(path):
+            raise PolicyDenied("Invalid artifact for Ghidra analysis")
+        return GhidraAdapter().analyze(path, mode=mode, target=target, timeout=timeout)
 
     def _zip(self, parent: str, data: bytes):
         try:

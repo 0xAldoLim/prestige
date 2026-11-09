@@ -30,7 +30,7 @@ prestige = ["data/*.json"]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-markers = ["container: opt-in Docker isolation checks", "live: opt-in paid provider evaluation"]
+markers = ["container: opt-in Docker isolation checks", "live: opt-in paid provider evaluation", "ghidra: opt-in Ghidra headless analysis (slow)", "slow: tests that take more than a few seconds"]
 
 [tool.ruff]
 line-length = 100
