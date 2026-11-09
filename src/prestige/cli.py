@@ -65,6 +65,21 @@ def parser():
     solving.add_argument("--max-seconds", type=float, default=120)
     solving.add_argument("--max-tokens", type=int)
     solving.add_argument(
+        "--max-artifact-mib",
+        type=int,
+        default=1,
+        help="Maximum artifact size in MiB (1-256); default 1",
+    )
+    solving.add_argument(
+        "--live",
+        action="store_true",
+        help="Enable real model inference through the inspected Codex SDK",
+    )
+    solving.add_argument(
+        "--runner-image",
+        help="Immutable Docker image digest (sha256:...) for isolated python/command tools",
+    )
+    solving.add_argument(
         "--operating-mode",
         choices=("supervised", "autonomous"),
         default="supervised",
@@ -183,6 +198,9 @@ def dispatch(args, store: Store, config: dict):
             max_seconds=args.max_seconds,
             max_tokens=args.max_tokens,
             instance=args.instance,
+            live=args.live,
+            runner_image=args.runner_image,
+            max_artifact_mib=args.max_artifact_mib,
         )
         return asyncio.run(solve(store, run_id, skills=skills))
     if args.command == "status" and args.run_id is None:

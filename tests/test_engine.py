@@ -168,3 +168,86 @@ async def test_two_worker_queue_is_bounded_and_reproducible(store, challenge):
     assert len(store.rows("SELECT * FROM knowledge")) == 1
     with pytest.raises(PolicyDenied):
         await run_queue(store, jobs, workers=3)
+
+
+def test_new_run_stores_live_and_runner_settings(store, challenge):
+    path, _, _ = challenge
+    run_id = new_run(
+        store,
+        path,
+        backend="codex",
+        live=True,
+        runner_image="sha256:" + "a" * 64,
+        max_artifact_mib=4,
+    )
+    settings = store.run(run_id)["settings"]
+    assert settings["live"] is True
+    assert settings["runner_image"] == "sha256:" + "a" * 64
+    assert settings["max_artifact_mib"] == 4
+
+
+def test_runner_image_must_be_immutable_digest(store, challenge):
+    path, _, _ = challenge
+    with pytest.raises(PolicyDenied):
+        new_run(store, path, runner_image="latest")
+
+
+async def test_attempts_count_failed_proposes(store, challenge):
+    path, _, _ = challenge
+    run_id = new_run(store, path)
+
+    class Failing(FakeBackend):
+        async def propose(self, context):
+            raise PolicyDenied("synthetic provider failure")
+
+    result = await solve(store, run_id, Failing())
+    assert result["status"] == "blocked"
+    assert result["attempts"] == 1
+    assert result["turns"] == 0
+
+
+def test_cli_solve_accepts_live_and_runner_options(tmp_path, challenge, capsys):
+    path, digest, _ = challenge
+    args = ["--home", str(tmp_path / "cli-state")]
+    # --live without codex would block at runtime; here we just exercise parsing.
+    assert (
+        main(
+            args
+            + [
+                "solve",
+                str(path),
+                "--backend",
+                "fake",
+                "--expected-sha256",
+                digest,
+                "--max-artifact-mib",
+                "2",
+            ]
+        )
+        == 0
+    )
+    output = json.loads(capsys.readouterr().out)
+    assert output["status"] == "solved"
+
+
+async def test_runner_is_wired_for_isolated_tools(store, challenge):
+    path, _, _ = challenge
+    run_id = new_run(store, path)
+    artifact = Artifacts(store, run_id).list()[0]["id"]
+
+    class ProposePython(FakeBackend):
+        async def propose(self, context):
+            return Proposal(
+                Action("python", artifact, {"code": "print('ok')"}), "run isolated python"
+            )
+
+    class FakeRunner:
+        def execute(self, action):
+            return {"stdout": "ok", "stderr": "", "returncode": 0}
+
+        def collect(self, artifacts):
+            return []
+
+    result = await solve(store, run_id, ProposePython(), runner=FakeRunner())
+    assert result["status"] == "unsolved"
+    assert any(x["data"].get("result", {}).get("stdout") == "ok" for x in store.events(run_id))

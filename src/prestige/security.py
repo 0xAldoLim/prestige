@@ -17,7 +17,17 @@ class Rules:
     ai_allowed: bool = True
     automation_allowed: bool = True
     remote_allowed: bool = False
-    allowed_tools: tuple[str, ...] = ("inspect", "strings", "base64", "hex", "xor", "zip")
+    allowed_tools: tuple[str, ...] = (
+        "inspect",
+        "strings",
+        "base64",
+        "hex",
+        "xor",
+        "zip",
+        "read",
+        "python",
+        "command",
+    )
     max_turns: int = 12
     max_seconds: float = 120
     max_requests: int = 0

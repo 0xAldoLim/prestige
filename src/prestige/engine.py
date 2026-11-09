@@ -26,6 +26,9 @@ def new_run(
     max_seconds=120,
     max_tokens=None,
     instance=None,
+    live=False,
+    runner_image=None,
+    max_artifact_mib=1,
 ):
     rules = rules or Rules()
     rules.check()
@@ -40,6 +43,14 @@ def new_run(
         or (max_tokens is not None and max_tokens < 1)
     ):
         raise PrestigeError("Invalid run budget")
+    if live and backend != "codex":
+        raise PrestigeError("--live requires the codex backend")
+    if runner_image is not None:
+        from prestige.sandbox import DockerRunner
+
+        DockerRunner(runner_image)  # validates immutable digest format
+    if not 1 <= max_artifact_mib <= 256:
+        raise PrestigeError("max-artifact-mib must be between 1 and 256")
     run_id = store.create_run(
         mode,
         backend,
@@ -49,6 +60,9 @@ def new_run(
             "max_turns": min(max_turns, rules.max_turns),
             "max_seconds": min(max_seconds, rules.max_seconds),
             "max_tokens": max_tokens,
+            "live": live,
+            "runner_image": runner_image,
+            "max_artifact_mib": max_artifact_mib,
         },
     )
     try:
@@ -60,26 +74,40 @@ def new_run(
     return run_id
 
 
-async def solve(store: Store, run_id: str, backend=None, skills: SkillsBridge | None = None):
+async def solve(
+    store: Store,
+    run_id: str,
+    backend=None,
+    skills: SkillsBridge | None = None,
+    runner=None,
+):
     run = store.run(run_id)
     if run["status"] in {"solved", "stopped", "input_rejected"}:
         raise PrestigeError("Run is terminal; create a new run to change its policy or budget")
+    settings = run["settings"]
     if backend is None:
         if run["backend"] == "fake":
             backend = FakeBackend()
         elif run["backend"] == "codex":
             from prestige.codex_sdk import CodexBackend
 
-            backend = CodexBackend(store.home / "provider-workspace", run["session"])
+            backend = CodexBackend(
+                store.home / "provider-workspace",
+                run["session"],
+                live=settings.get("live", False),
+            )
         else:
             raise PrestigeError("Unsupported solver backend")
     artifacts = Artifacts(store, run_id)
     skills = skills or SkillsBridge()
     knowledge = Knowledge(store, skills)
-    settings = run["settings"]
     rules = Rules(**settings["rules"])
     rules.check()
-    registry = ToolRegistry(artifacts, rules.allowed_tools)
+    if runner is None and settings.get("runner_image"):
+        from prestige.sandbox import WorkspaceRunner
+
+        runner = WorkspaceRunner(settings["runner_image"], artifacts)
+    registry = ToolRegistry(artifacts, rules.allowed_tools, runner)
     budget = Budget(
         settings["max_turns"],
         settings["max_seconds"],
@@ -94,6 +122,7 @@ async def solve(store: Store, run_id: str, backend=None, skills: SkillsBridge | 
         seen={event["data"]["fingerprint"] for event in history if event["kind"] == "action"}
     )
     unknown = run["unknown_usage"]
+    attempts = run["attempts"]
     owner = uuid.uuid4().hex
     store.acquire(run_id, owner, settings["max_seconds"] + 60)
     store.update(run_id, status="running")
@@ -108,6 +137,7 @@ async def solve(store: Store, run_id: str, backend=None, skills: SkillsBridge | 
             elapsed=budget.elapsed,
             lane=lane,
             session=backend.session_id,
+            attempts=attempts,
         )
 
     async def monitored(coro):
@@ -140,13 +170,13 @@ async def solve(store: Store, run_id: str, backend=None, skills: SkillsBridge | 
             budget.check()
             material = []
             for item in artifacts.list():
-                raw = artifacts.read(item["id"])
+                prefix = artifacts.view(item["id"], 0, min(4096, item["size"]))
                 material.append(
                     {
                         "id": item["id"],
                         "bytes": item["size"],
-                        "magic_hex": raw[:16].hex(),
-                        "preview": redact(raw[:4096].decode("utf-8", errors="replace")),
+                        "magic_hex": prefix[:16].hex(),
+                        "preview": redact(prefix.decode("utf-8", errors="replace")),
                     }
                 )
             query = " ".join(x["tool"] for x in actions[-3:]) or "file encoding"
@@ -171,6 +201,8 @@ async def solve(store: Store, run_id: str, backend=None, skills: SkillsBridge | 
                     "sources": [x.get("path", x.get("id")) for x in retrieval],
                 },
             )
+            attempts += 1
+            checkpoint()
             proposal = await monitored(backend.propose(context))
             budget.turns += 1
             if proposal.usage.total is None:
@@ -206,7 +238,13 @@ async def solve(store: Store, run_id: str, backend=None, skills: SkillsBridge | 
             try:
                 if duplicate:
                     raise PolicyDenied("Repeated action suppressed")
-                result = registry.execute(action)
+                task = asyncio.to_thread(registry.execute, action)
+                try:
+                    result = await task
+                except asyncio.CancelledError:
+                    if runner is not None:
+                        runner.cancel()
+                    raise
                 store.event(
                     run_id, "observation", {"action": key, "result": result, "trust": "fact"}
                 )
@@ -214,6 +252,18 @@ async def solve(store: Store, run_id: str, backend=None, skills: SkillsBridge | 
             except PolicyDenied as error:
                 store.event(run_id, "policy_denied", {"action": key, "reason": str(error)})
                 recovery = progress.observe(action, False, True)
+            store.event(
+                run_id,
+                "progress",
+                {
+                    "turns": budget.turns,
+                    "attempts": attempts,
+                    "tokens": budget.tokens,
+                    "elapsed": round(budget.elapsed, 3),
+                    "novel_artifacts": len(artifacts.list()),
+                    "recovery": recovery,
+                },
+            )
             if recovery == "recover":
                 if lane == "fast" and run["mode"] == "auto":
                     lane = "expert"
@@ -267,6 +317,7 @@ def report(store: Store, run_id: str, reveal=False):
         "lane": run["lane"],
         "backend": run["backend"],
         "turns": run["turns"],
+        "attempts": run["attempts"],
         "known_tokens": run["tokens"],
         "tokens": None if run["unknown_usage"] else run["tokens"],
         "unknown_usage_turns": run["unknown_usage"],

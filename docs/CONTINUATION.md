@@ -23,25 +23,36 @@ current revision; no self-referential future commit hash is embedded here.
   - Unknown SSE event names, event/data disagreement, unexpected fields.
   - Malformed JSON, missing completion, comments, carriage returns, metadata discard.
   - Request budget exhaustion and active upstream read cancellation timing.
+- Public CLI controls for live solving:
+  - `--live` enables real Codex inference (still requires authenticated SDK).
+  - `--runner-image` accepts an immutable Docker digest for isolated tools.
+  - `--max-artifact-mib` configures per-file inventory limits (1-256).
+- Engine/ToolRegistry integration:
+  - `WorkspaceRunner` is constructed from run settings and passed to `ToolRegistry`.
+  - Tool execution is offloaded to a thread and cancels owned containers on interruption.
+  - Artifact previews use bounded `view()` instead of loading entire large files.
+- Failed-attempt usage accounting:
+  - New `attempts` run column counts every `backend.propose()` call, including failures.
+  - `progress` events now record turns, attempts, tokens, elapsed and recovery signal.
 - Normal CLI remains gated (`live=False`). No paid inference was triggered.
 - Internal per-run artifact-size policy, bounded byte views and adjusted ZIP limits.
-  Default remains 1 MiB; CLI exposure and streaming hashes are unfinished.
+  Default remains 1 MiB unless explicitly raised.
 - Internal WorkspaceRunner: exact readonly blob/writable output mounts, offline Docker,
   command allowlist, file persistence, output collection and owned-container cancellation.
-  Files persist; debugger processes do not. The engine does not construct this runner yet.
+  Files persist; debugger processes do not.
 - OpenCode project AGENTS.md, resume command, mission, handoff and machine-readable roadmap.
   OpenCode is running this Build session; PRESTIGE's own provider setup is separate.
 
 ## Latest executed checks
 
 Kali Linux VM, Python 3.13.12:
-**83 passed in 2.88 seconds**, 3 skipped (container tests require `PRESTIGE_TEST_IMAGE`).
+**88 passed in 2.83 seconds**, 3 skipped (container tests require `PRESTIGE_TEST_IMAGE`).
 Ruff clean. These are offline regressions, not an autonomous challenge or comparative benchmark.
 No paid model call was made during this increment.
 
 ## Repository state
 
-- Actual HEAD: `04d68d0a77ff0651d9b2f33fff90290a43029b20`
+- Actual HEAD: `04d68d0a77ff0651d9b2f33fff90290a43029b20` plus local commits
 - Branch: `main`
 - Latest pushed commit: `04d68d0a77ff0651d9b2f33fff90290a43029b20` (identical to `origin/main`)
 - Recovered historical commits: none
@@ -72,8 +83,9 @@ IBoH / Celestial Gatekeeper:
 
 ## Current phase
 
-Phase 1: actual autonomous harness — inference boundary complete; moving to
-engine/CLI integration and real offline challenge tooling.
+Phase 1: actual autonomous harness — inference boundary and live CLI controls complete;
+blocked on authenticated Codex SDK and a reviewed local runner image before the first
+real VENOM investigation.
 
 ## Completed milestones
 
@@ -82,14 +94,17 @@ engine/CLI integration and real offline challenge tooling.
 - `InferenceGate` strict SSE parsing and active upstream socket cancellation.
 - `CodexBackend.interrupt()` propagates cancellation.
 - Malicious-provider regression tests passing.
+- Explicit `--live`, `--runner-image`, `--max-artifact-mib` CLI controls.
+- `WorkspaceRunner` wired into `ToolRegistry`; cancellable offloaded execution.
+- Bounded artifact previews, failed-attempt accounting and progress events.
 
 ## Next executable milestone
 
-1. Install `openai-codex==0.163.0` (the CLI binary wheel download timed out earlier).
-2. Expose explicit `--live`, image and large-artifact CLI controls.
-3. Wire `WorkspaceRunner` into `ToolRegistry` for cancellable offloaded execution.
-4. Complete failed-attempt usage accounting and useful progress signals.
-5. Run the actual VENOM investigation through PRESTIGE's public CLI.
+1. Complete installation of `openai-codex==0.163.0` (CLI binary wheel download in progress).
+2. Obtain or build a reviewed, immutable local Docker runner image.
+3. Authenticate Codex through `codex login` if not already authenticated.
+4. Run the actual VENOM investigation through `prestige solve --live --runner-image ...`.
+5. Iterate on model-driven observations and isolated tool results.
 
 ## Installed toolchain
 
@@ -115,9 +130,12 @@ cd /home/kali/projects/prestige
 source .venv/bin/activate
 python -m pytest -q
 ruff check .
+python -m build --wheel
 python -m prestige --help
+python -m prestige doctor
 ```
 
-No external authentication blocker was found for the Codex SDK on this machine. The
-current blockers are unfinished engineering/integration. OpenCode provider setup is
+No external authentication blocker was found for the Codex SDK on this machine historically.
+The current blockers are: (1) the `openai-codex-cli-bin` wheel download is still in progress,
+and (2) a reviewed local runner image is not yet available. OpenCode provider setup is
 separate; never read/copy Codex auth to migrate it. Full roadmap/P0 remain incomplete.

@@ -35,7 +35,7 @@ class Store:
                 mode TEXT NOT NULL, lane TEXT NOT NULL, backend TEXT NOT NULL,
                 settings TEXT NOT NULL, turns INTEGER NOT NULL DEFAULT 0,
                 tokens INTEGER NOT NULL DEFAULT 0, unknown_usage INTEGER NOT NULL DEFAULT 0,
-                elapsed REAL NOT NULL DEFAULT 0, session TEXT);
+                elapsed REAL NOT NULL DEFAULT 0, session TEXT, attempts INTEGER NOT NULL DEFAULT 0);
             CREATE TABLE IF NOT EXISTS events (
                 seq INTEGER PRIMARY KEY, run_id TEXT NOT NULL REFERENCES runs(id),
                 event_key TEXT NOT NULL, kind TEXT NOT NULL, at REAL NOT NULL,
@@ -57,6 +57,11 @@ class Store:
             CREATE TABLE IF NOT EXISTS competitions (name TEXT PRIMARY KEY, data TEXT NOT NULL);
             PRAGMA user_version=1;
         """)
+        # Migration: add attempts column to runs created before this increment.
+        try:
+            self.db.execute("ALTER TABLE runs ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass
 
     @contextmanager
     def transaction(self):
@@ -107,6 +112,7 @@ class Store:
             "unknown_usage",
             "elapsed",
             "session",
+            "attempts",
         }:
             raise ValueError("Invalid run update")
         with self.transaction() as db:
