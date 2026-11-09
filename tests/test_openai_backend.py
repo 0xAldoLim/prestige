@@ -1,8 +1,13 @@
 import asyncio
+import base64
+import hashlib
 import json
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
 
+from prestige.cli import main
 from prestige.openai_backend import OpenAIBackend
 from prestige.types import Action, PolicyDenied, PrestigeError
 
@@ -152,3 +157,101 @@ async def test_interrupt_cancels_active_request():
     await backend.interrupt()
     with pytest.raises(asyncio.CancelledError):
         await task
+
+
+def test_cli_solve_with_openai_backend_and_mock_endpoint(tmp_path):
+    value = b"SYNTHETIC{openai_mock_solve}"
+    path = tmp_path / "challenge.txt"
+    path.write_bytes(base64.b64encode(value))
+    digest = hashlib.sha256(value).hexdigest()
+
+    # Start a minimal OpenAI-compatible mock server.
+    responses = []
+    server_ready = threading.Event()
+
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            return None
+
+        def do_POST(self):
+            length = int(self.headers.get("Content-Length", "0"))
+            self.rfile.read(length)
+            body = responses.pop(0)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(body).encode())
+
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    port = server.server_port
+
+    def serve():
+        server_ready.set()
+        server.handle_request()
+        server.handle_request()
+        server.server_close()
+
+    # First response: inspect the artifact. Second: decode base64.
+    artifact_digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    responses.append(
+        {
+            "choices": [
+                {
+                    "message": {
+                        "content": json.dumps(
+                            {
+                                "action": {"tool": "inspect", "artifact": artifact_digest, "args": {}},
+                                "hypothesis": "inspect bytes",
+                            }
+                        )
+                    },
+                    "finish_reason": "stop",
+                }
+            ],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 5},
+        }
+    )
+    responses.append(
+        {
+            "choices": [
+                {
+                    "message": {
+                        "content": json.dumps(
+                            {
+                                "action": {"tool": "base64", "artifact": artifact_digest, "args": {}},
+                                "hypothesis": "decode base64",
+                            }
+                        )
+                    },
+                    "finish_reason": "stop",
+                }
+            ],
+            "usage": {"prompt_tokens": 20, "completion_tokens": 5},
+        }
+    )
+
+    thread = threading.Thread(target=serve, daemon=True)
+    thread.start()
+    server_ready.wait(timeout=2)
+
+    assert (
+        main(
+            [
+                "--home",
+                str(tmp_path / "cli-state"),
+                "solve",
+                str(path),
+                "--backend",
+                "openai",
+                "--openai-base-url",
+                f"http://127.0.0.1:{port}",
+                "--openai-api-key",
+                "test-key",
+                "--openai-model",
+                "test-model",
+                "--expected-sha256",
+                digest,
+            ]
+        )
+        == 0
+    )

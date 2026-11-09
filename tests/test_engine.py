@@ -251,3 +251,20 @@ async def test_runner_is_wired_for_isolated_tools(store, challenge):
     result = await solve(store, run_id, ProposePython(), runner=FakeRunner())
     assert result["status"] == "unsolved"
     assert any(x["data"].get("result", {}).get("stdout") == "ok" for x in store.events(run_id))
+
+
+async def test_file_tool_identifies_artifact_type(store, challenge):
+    path, _, _ = challenge
+    run_id = new_run(store, path)
+    artifact = Artifacts(store, run_id).list()[0]["id"]
+
+    class ProposeFile(FakeBackend):
+        async def propose(self, context):
+            return Proposal(Action("file", artifact, {}), "identify file type")
+
+    result = await solve(store, run_id, ProposeFile())
+    assert result["status"] == "unsolved"
+    observation = next(
+        (x for x in store.events(run_id) if x["kind"] == "observation"), None
+    )
+    assert observation and "ASCII" in observation["data"]["result"]["output"]

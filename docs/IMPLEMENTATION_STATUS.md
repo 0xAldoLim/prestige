@@ -11,7 +11,7 @@ is not a production-ready release.** No model benchmark superiority is claimed.
 | D: scope, isolation, leases | Partial, fail closed | Strict offline tool surface; Docker egress/child/DNS/root-write probes; endpoint parser and lease unit tests. WorkspaceRunner is wired but requires a reviewed local image. Remote broker and actual instance renewal remain disabled |
 | E: skills, research, learning | Partial | Read-only lexical retrieval, local-first accepted knowledge, exact upstream schema, static decoding generalizers, related-technique inbox. No helper-script execution, general exploit learning or live research broker |
 | F: competition and comparisons | Partial | Local queue with bounded concurrency; deterministic priority/deadline/points policy; fixture harness and equality gates. B0/B1/P1/P2/P3 live comparisons and calibrated marginal value unimplemented |
-| G: advanced tools and portability | Partial | Internal WorkspaceRunner tested for readonly inputs and file persistence in isolated Kali Docker. Normal engine does not use it yet. No persistent GDB/PTY, OpenCode runtime adapter or remote worker |
+| G: advanced tools and portability | Partial | Internal WorkspaceRunner wired into engine; `file` static identification added. Persistent GDB/PTY, Ghidra headless, OpenCode runtime adapter and remote worker remain |
 | H: local models and attribution | Partial | User-declared pinned registry, loopback advisory adapter, hardware diagnostics, mocked tests, attribution/license audit. No downloaded weights, real inference benchmark, paired-model experiments or autonomous local worker |
 
 ## Validated boundaries

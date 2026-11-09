@@ -39,6 +39,10 @@ current revision; no self-referential future commit hash is embedded here.
 - Failed-attempt usage accounting:
   - New `attempts` run column counts every `backend.propose()` call, including failures.
   - `progress` events now record turns, attempts, tokens, elapsed and recovery signal.
+- Local static reverse-engineering tool `file` added to the trusted tool surface.
+- End-to-end CLI integration test exercises the OpenAI backend against a local mock
+  `/chat/completions` endpoint and verifies autonomous tool selection solves a base64
+  challenge.
 - Normal CLI remains gated (`live=False`). No paid inference was triggered.
 - Internal per-run artifact-size policy, bounded byte views and adjusted ZIP limits.
   Default remains 1 MiB unless explicitly raised.
@@ -103,6 +107,8 @@ real VENOM investigation.
 - `WorkspaceRunner` wired into `ToolRegistry`; cancellable offloaded execution.
 - Bounded artifact previews, failed-attempt accounting and progress events.
 - Provider-independent OpenAI-compatible backend with tests.
+- Local `file` static identification tool.
+- End-to-end mock-provider CLI solve regression.
 
 ## Next executable milestone
 

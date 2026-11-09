@@ -27,6 +27,7 @@ class Rules:
         "read",
         "python",
         "command",
+        "file",
     )
     max_turns: int = 12
     max_seconds: float = 120

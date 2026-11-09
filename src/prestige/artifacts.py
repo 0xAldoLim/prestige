@@ -6,6 +6,7 @@ import io
 import os
 import re
 import stat
+import subprocess
 import zipfile
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
@@ -209,6 +210,28 @@ class ToolRegistry:
             result["stdout_artifact"] = self.artifacts.add(stdout, "tool-stdout.txt")
             result["outputs"] = self.runner.collect(self.artifacts)
             return result
+        if action.tool == "file":
+            if action.args:
+                raise PolicyDenied("file takes no arguments")
+            path = self.artifacts.root / action.artifact
+            if not regular_file(path):
+                raise PolicyDenied("Invalid artifact for file identification")
+            try:
+                completed = subprocess.run(
+                    ["file", "-b", str(path)],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                    check=False,
+                )
+            except FileNotFoundError as error:
+                raise PolicyDenied("file utility is not installed on the host") from error
+            except subprocess.TimeoutExpired as error:
+                raise PolicyDenied("file utility timed out") from error
+            return {
+                "output": completed.stdout.strip(),
+                "returncode": completed.returncode,
+            }
         if action.tool == "read":
             if set(action.args) - {"offset", "length"}:
                 raise PolicyDenied("Unknown read arguments")
