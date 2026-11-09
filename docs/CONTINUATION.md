@@ -39,7 +39,9 @@ current revision; no self-referential future commit hash is embedded here.
 - Failed-attempt usage accounting:
   - New `attempts` run column counts every `backend.propose()` call, including failures.
   - `progress` events now record turns, attempts, tokens, elapsed and recovery signal.
-- Local static reverse-engineering tool `file` added to the trusted tool surface.
+- Local static reverse-engineering tools `file` and `radare2` added to the trusted
+  tool surface. radare2 commands are allowlisted to prevent shell execution or file
+  sourcing.
 - End-to-end CLI integration test exercises the OpenAI backend against a local mock
   `/chat/completions` endpoint and verifies autonomous tool selection solves a base64
   challenge.
@@ -107,7 +109,7 @@ real VENOM investigation.
 - `WorkspaceRunner` wired into `ToolRegistry`; cancellable offloaded execution.
 - Bounded artifact previews, failed-attempt accounting and progress events.
 - Provider-independent OpenAI-compatible backend with tests.
-- Local `file` static identification tool.
+- Local `file` and allowlisted `radare2` static analysis tools.
 - End-to-end mock-provider CLI solve regression.
 
 ## Next executable milestone

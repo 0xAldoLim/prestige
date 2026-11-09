@@ -232,6 +232,8 @@ class ToolRegistry:
                 "output": completed.stdout.strip(),
                 "returncode": completed.returncode,
             }
+        if action.tool == "radare2":
+            return self._radare2(action)
         if action.tool == "read":
             if set(action.args) - {"offset", "length"}:
                 raise PolicyDenied("Unknown read arguments")
@@ -268,6 +270,46 @@ class ToolRegistry:
         if action.tool == "zip":
             return self._zip(action.artifact, data)
         raise PolicyDenied("Tool is not implemented; no host shell fallback")
+
+    _R2_CMD = re.compile(
+        r"^(aaa|aaaa|afl|iz|izz|iS|is|ii|ie|ic|il|fs|f|q|Vq|pdf"
+        r"|p[dD8xX](?:\s+\d+)?)(?:\s+@\s+[a-zA-Z0-9_.]+)?"
+        r"(?:\s+~\s+[a-zA-Z0-9_]+)?$"
+    )
+
+    def _radare2(self, action: Action) -> dict:
+        args = dict(action.args)
+        timeout = args.pop("timeout", 30)
+        if set(args) != {"script"} or not isinstance(args["script"], list):
+            raise PolicyDenied("radare2 tool requires exactly a script command list")
+        if not all(isinstance(cmd, str) for cmd in args["script"]):
+            raise PolicyDenied("radare2 script must be a list of strings")
+        for cmd in args["script"]:
+            if not self._R2_CMD.fullmatch(cmd):
+                raise PolicyDenied(f"Disallowed radare2 command: {cmd}")
+        path = self.artifacts.root / action.artifact
+        if not regular_file(path):
+            raise PolicyDenied("Invalid artifact for radare2 analysis")
+        script = "; ".join(args["script"])
+        try:
+            completed = subprocess.run(
+                ["r2", "-q", "-c", script, str(path)],
+                capture_output=True,
+                text=True,
+                timeout=min(30, max(1, timeout)),
+                check=False,
+            )
+        except FileNotFoundError as error:
+            raise PolicyDenied("radare2 is not installed on the host") from error
+        except subprocess.TimeoutExpired as error:
+            raise PolicyDenied("radare2 analysis timed out") from error
+        if len(completed.stdout) > 65536:
+            raise PolicyDenied("radare2 output exceeded limit")
+        return {
+            "stdout": completed.stdout,
+            "stderr": completed.stderr[:2048],
+            "returncode": completed.returncode,
+        }
 
     def _zip(self, parent: str, data: bytes):
         try:

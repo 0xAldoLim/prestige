@@ -28,6 +28,7 @@ class Rules:
         "python",
         "command",
         "file",
+        "radare2",
     )
     max_turns: int = 12
     max_seconds: float = 120

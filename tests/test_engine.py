@@ -2,6 +2,7 @@ import asyncio
 import base64
 import hashlib
 import json
+import shutil
 
 import pytest
 
@@ -268,3 +269,39 @@ async def test_file_tool_identifies_artifact_type(store, challenge):
         (x for x in store.events(run_id) if x["kind"] == "observation"), None
     )
     assert observation and "ASCII" in observation["data"]["result"]["output"]
+
+
+async def test_radare2_tool_rejects_dangerous_commands(store, challenge):
+    path, _, _ = challenge
+    run_id = new_run(store, path)
+    artifact = Artifacts(store, run_id).list()[0]["id"]
+
+    class ProposeBadR2(FakeBackend):
+        async def propose(self, context):
+            return Proposal(
+                Action("radare2", artifact, {"script": ["!sh"]}), "dangerous r2"
+            )
+
+    result = await solve(store, run_id, ProposeBadR2())
+    assert result["status"] == "unsolved"
+    assert any("Disallowed" in str(x) for x in store.events(run_id))
+
+
+@pytest.mark.skipif(not shutil.which("r2"), reason="radare2 not installed")
+async def test_radare2_tool_runs_allowed_script(store, challenge):
+    path, _, _ = challenge
+    run_id = new_run(store, path)
+    artifact = Artifacts(store, run_id).list()[0]["id"]
+
+    class ProposeR2(FakeBackend):
+        async def propose(self, context):
+            return Proposal(
+                Action("radare2", artifact, {"script": ["iz"]}), "list strings"
+            )
+
+    result = await solve(store, run_id, ProposeR2())
+    assert result["status"] == "unsolved"
+    observation = next(
+        (x for x in store.events(run_id) if x["kind"] == "observation"), None
+    )
+    assert observation and observation["data"]["result"]["returncode"] == 0
