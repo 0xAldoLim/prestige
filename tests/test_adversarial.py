@@ -165,3 +165,11 @@ def test_expected_digest_is_operator_controlled(store, challenge, tmp_path):
     # A later model-supplied candidate cannot rewrite the trusted commitment.
     store.candidate(run_id, "", b"SYNTHETIC{wrong}", False)
     assert store.run(run_id)["settings"]["expected_digest"] == digest
+
+
+def test_status_observation_is_bounded():
+    from prestige.mcp_server import _STATUS_FIELD_LIMIT, _bound_observation
+
+    bounded = _bound_observation({"result": {"stdout": "A" * 100000}})
+    assert len(bounded["result"]["stdout"]) <= _STATUS_FIELD_LIMIT
+    assert "truncated by prestige" in bounded["result"]["stdout"]

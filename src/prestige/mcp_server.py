@@ -57,6 +57,22 @@ def _terminal(run: dict) -> bool:
     return run["status"] in {"solved", "stopped", "input_rejected", "budget_exhausted"}
 
 
+_STATUS_FIELD_LIMIT = 4096
+
+
+def _bound_observation(value: Any) -> Any:
+    """Bound tool output returned in status so a noisy tool cannot flood context."""
+    if isinstance(value, str):
+        if len(value) <= _STATUS_FIELD_LIMIT:
+            return value
+        return value[: _STATUS_FIELD_LIMIT - 32] + "\n...[truncated by prestige]"
+    if isinstance(value, list):
+        return [_bound_observation(x) for x in value[:_STATUS_FIELD_LIMIT // 8]]
+    if isinstance(value, dict):
+        return {k: _bound_observation(v) for k, v in value.items()}
+    return value
+
+
 def _check_budget(run: dict, store: Store, run_id: str) -> float:
     """Persistently enforce max_turns and max_seconds for MCP-driven investigations."""
     settings = run["settings"]
@@ -148,9 +164,11 @@ async def _get_status(args: dict) -> dict:
                 }
             )
         events = store.events(run_id)
-        observations = [e["data"] for e in events if e["kind"] == "observation"][-8:]
+        observations = [
+            _bound_observation(e["data"]) for e in events if e["kind"] == "observation"
+        ][-8:]
         hypotheses = [e["data"]["text"] for e in events if e["kind"] == "hypothesis"][-8:]
-        progress = [e["data"] for e in events if e["kind"] == "progress"][-3:]
+        progress = [_bound_observation(e["data"]) for e in events if e["kind"] == "progress"][-3:]
         candidates = [
             {"digest": x["digest"], "verified": bool(x["verified"])}
             for x in store.rows(
