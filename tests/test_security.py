@@ -1,5 +1,6 @@
 import io
 import json
+import shutil
 import socket
 import stat
 import subprocess
@@ -181,6 +182,32 @@ def test_changed_snapshot_rejected(store, challenge):
     (artifacts.root / digest).write_bytes(b"modified")
     with pytest.raises(PolicyDenied):
         artifacts.read(digest)
+
+
+@pytest.mark.skipif(not shutil.which("file"), reason="file utility not installed")
+def test_file_tool_rejects_path_traversal_and_unknown_artifacts(store, challenge):
+    run = new_run(store, challenge[0])
+    artifacts = Artifacts(store, run)
+    registry = ToolRegistry(artifacts, Rules().allowed_tools)
+    for artifact_id in ("/etc/passwd", "../etc/passwd", "not-a-hex-digest", "a" * 64):
+        with pytest.raises(PolicyDenied):
+            registry.execute(Action("file", artifact_id, {}))
+
+
+def test_cross_investigation_artifact_access_denied(store, challenge, tmp_path):
+    run_a = new_run(store, challenge[0])
+    artifact_a = Artifacts(store, run_a).list()[0]["id"]
+
+    other = tmp_path / "other.txt"
+    other.write_bytes(b"other challenge")
+    run_b = new_run(store, other)
+    artifacts_b = Artifacts(store, run_b)
+    registry_b = ToolRegistry(artifacts_b, Rules().allowed_tools)
+
+    with pytest.raises(PolicyDenied):
+        registry_b.execute(Action("read", artifact_a, {}))
+    with pytest.raises(PolicyDenied):
+        artifacts_b.read(artifact_a)
 
 
 def test_oversized_artifact_and_zip_bomb(store, tmp_path):

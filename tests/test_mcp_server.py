@@ -3,6 +3,7 @@ import base64
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -29,6 +30,7 @@ async def _mcp_client(tmp_path, env=None):
     """Yield a connected ClientSession backed by in-memory streams."""
     env = env or {}
     env.setdefault("PRESTIGE_HOME", str(tmp_path / "state"))
+    env.setdefault("PRESTIGE_ALLOWED_DIRS", str(tmp_path))
     old = os.environ.copy()
     os.environ.update(env)
     client_to_server_send, client_to_server_recv = anyio.create_memory_object_stream[SessionMessage | Exception](0)
@@ -239,6 +241,76 @@ async def test_mcp_create_defaults_to_fake_backend(tmp_path):
         )
         body = json.loads(result.content[0].text)
         assert body["status"] == "ready"
+
+
+async def test_mcp_create_rejects_unauthorized_source_path(tmp_path):
+    async with _mcp_client(tmp_path) as session:
+        result = await session.call_tool(
+            "prestige_create_investigation", {"source_path": "/etc/passwd"}
+        )
+        assert result.is_error or json.loads(result.content[0].text).get("status") != "ready"
+
+
+async def test_mcp_enforces_tool_attempt_budget(tmp_path):
+    path = tmp_path / "challenge.txt"
+    path.write_bytes(b"data")
+
+    async with _mcp_client(tmp_path) as session:
+        created = await session.call_tool(
+            "prestige_create_investigation",
+            {"source_path": str(path), "max_turns": 1},
+        )
+        run_id = json.loads(created.content[0].text)["run_id"]
+
+        status = await session.call_tool("prestige_get_status", {"run_id": run_id})
+        artifact_id = json.loads(status.content[0].text)["artifacts"][0]["id"]
+
+        first = await session.call_tool(
+            "prestige_run_experiment",
+            {"run_id": run_id, "tool": "inspect", "artifact_id": artifact_id, "args": {}},
+        )
+        assert json.loads(first.content[0].text)["status"] == "ok"
+
+        second = await session.call_tool(
+            "prestige_run_experiment",
+            {"run_id": run_id, "tool": "inspect", "artifact_id": artifact_id, "args": {}},
+        )
+        assert json.loads(second.content[0].text)["status"] != "ok"
+
+
+@pytest.mark.skipif(not shutil.which("opencode"), reason="OpenCode CLI not available")
+def test_prestige_agent_permissions_deny_host_tools():
+    """The registered prestige agent must not be able to invoke host tools."""
+    result = subprocess.run(
+        ["opencode", "--standalone", "debug", "agents"],
+        capture_output=True,
+        text=True,
+        cwd=str(Path(__file__).parent.parent),
+    )
+    assert result.returncode == 0, result.stderr
+    agents = json.loads(result.stdout)
+    prestige = next((a for a in agents if a["id"] == "prestige"), None)
+    assert prestige is not None
+
+    def effective(action: str, resource: str) -> str:
+        effect = "deny"
+        for rule in prestige["permissions"]:
+            action_match = rule["action"] == "*" or _match(rule["action"], action)
+            resource_match = rule["resource"] == "*" or _match(rule["resource"], resource)
+            if action_match and resource_match:
+                effect = rule["effect"]
+        return effect
+
+    for action in ("shell", "read", "write", "browser", "skill"):
+        assert effective(action, "/tmp/x") == "deny", action
+    assert effective("prestige_prestige_create_investigation", "*") == "allow"
+    assert effective("prestige_prestige_run_experiment", "*") == "allow"
+
+
+def _match(pattern: str, value: str) -> bool:
+    if pattern.endswith("*"):
+        return value.startswith(pattern[:-1])
+    return pattern == value
 
 
 def test_agent_stdio_smoke(tmp_path):

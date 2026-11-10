@@ -18,6 +18,11 @@
       "request": {},
       "permissions": [
         { "action": "*", "resource": "*", "effect": "deny" },
+        { "action": "shell", "resource": "*", "effect": "deny" },
+        { "action": "read", "resource": "*", "effect": "deny" },
+        { "action": "write", "resource": "*", "effect": "deny" },
+        { "action": "browser", "resource": "*", "effect": "deny" },
+        { "action": "skill", "resource": "*", "effect": "deny" },
         { "action": "prestige_*", "resource": "*", "effect": "allow" }
       ]
     }

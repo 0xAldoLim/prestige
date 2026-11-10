@@ -12,8 +12,8 @@ The server speaks stdio MCP. It does not open a network listener.
 
 import asyncio
 import json
+import time
 from dataclasses import asdict
-from pathlib import Path
 from typing import Any
 
 from mcp.server import Server
@@ -23,6 +23,7 @@ from mcp.types import CallToolResult, ListToolsResult, TextContent, Tool
 from prestige.artifacts import Artifacts, ToolRegistry
 from prestige.config import data_home
 from prestige.engine import new_run
+from prestige.policy import validate_source_path
 from prestige.security import Rules
 from prestige.store import Store
 from prestige.types import Action, PolicyDenied, PrestigeError
@@ -51,10 +52,47 @@ def _redact(value: Any) -> Any:
     return value
 
 
+def _terminal(run: dict) -> bool:
+    return run["status"] in {"solved", "stopped", "input_rejected", "budget_exhausted"}
+
+
+def _check_budget(run: dict, store: Store, run_id: str) -> float:
+    """Persistently enforce max_turns and max_seconds for MCP-driven investigations."""
+    settings = run["settings"]
+    attempts = run["attempts"] + 1
+    elapsed = time.time() - run["created"]
+    if attempts > settings["max_turns"]:
+        store.update(run_id, status="budget_exhausted", attempts=attempts, elapsed=elapsed)
+        store.event(run_id, "halted", {"reason": "Tool attempt budget exhausted"})
+        raise PrestigeError("Tool attempt budget exhausted")
+    if elapsed >= settings["max_seconds"]:
+        store.update(run_id, status="budget_exhausted", attempts=attempts, elapsed=elapsed)
+        store.event(run_id, "halted", {"reason": "Wall-time budget exhausted"})
+        raise PrestigeError("Wall-time budget exhausted")
+    store.update(run_id, attempts=attempts, elapsed=elapsed)
+    return elapsed
+
+
+def _cap_timeout(action: Action, remaining: float) -> Action:
+    """Ensure per-tool deadlines do not exceed the investigation's remaining budget."""
+    if remaining <= 0:
+        raise PrestigeError("No budget remaining for this tool")
+    if action.tool not in {"radare2", "ghidra", "python", "command"}:
+        return action
+    defaults = {"radare2": 30, "ghidra": 300, "python": 15, "command": 15}
+    requested = action.args.get("timeout", defaults[action.tool])
+    if type(requested) not in (int, float) or requested <= 0:
+        raise PolicyDenied("Invalid tool timeout")
+    capped = min(requested, max(1.0, remaining))
+    if capped != requested:
+        return Action(action.tool, action.artifact, {**action.args, "timeout": capped})
+    return action
+
+
 async def _create_investigation(args: dict) -> dict:
     store = await _store()
     try:
-        source = Path(args["source_path"]).resolve()
+        source = validate_source_path(args["source_path"], _HOME)
         backend = args.get("backend", "fake")
         if backend != "fake":
             raise PolicyDenied("OpenCode-native investigations use the fake backend")
@@ -136,8 +174,9 @@ async def _run_experiment(args: dict) -> dict:
     try:
         run_id = args["run_id"]
         run = _run(store, run_id)
-        if run["status"] in {"solved", "stopped", "input_rejected"}:
+        if _terminal(run):
             raise PrestigeError("Investigation is terminal")
+        elapsed = _check_budget(run, store, run_id)
         settings = run["settings"]
         rules = Rules(**settings["rules"])
         artifacts = Artifacts(store, run_id)
@@ -147,10 +186,13 @@ async def _run_experiment(args: dict) -> dict:
 
             runner = WorkspaceRunner(settings["runner_image"], artifacts)
         registry = ToolRegistry(artifacts, rules.allowed_tools, runner)
-        action = Action(
-            args["tool"],
-            args.get("artifact_id", ""),
-            args.get("args", {}),
+        action = _cap_timeout(
+            Action(
+                args["tool"],
+                args.get("artifact_id", ""),
+                args.get("args", {}),
+            ),
+            settings["max_seconds"] - elapsed,
         )
         result = await asyncio.to_thread(registry.execute, action)
         store.event(run_id, "observation", {"action": asdict(action), "result": result, "trust": "fact"})
@@ -167,9 +209,13 @@ async def _verify_candidate(args: dict) -> dict:
     store = await _store()
     try:
         run_id = args["run_id"]
+        run = _run(store, run_id)
+        if _terminal(run):
+            raise PrestigeError("Investigation is terminal")
+        _check_budget(run, store, run_id)
         value = args["candidate"].encode("utf-8")
         artifact_id = args.get("artifact_id", "")
-        expected = _run(store, run_id)["settings"].get("expected_digest")
+        expected = run["settings"].get("expected_digest")
         verified = False
         if expected:
             import hashlib
@@ -177,6 +223,10 @@ async def _verify_candidate(args: dict) -> dict:
             verified = hashlib.sha256(value).hexdigest() == expected
         store.candidate(run_id, artifact_id, value, verified)
         return {"verified": verified, "expected_available": bool(expected)}
+    except PolicyDenied as error:
+        return {"status": "denied", "reason": str(error)}
+    except Exception as error:
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
     finally:
         store.close()
 

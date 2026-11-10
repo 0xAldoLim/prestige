@@ -103,12 +103,8 @@ class Artifacts:
         return digest
 
     def read(self, artifact_id: str) -> bytes:
-        if not re.fullmatch(r"[a-f0-9]{64}", artifact_id) or not any(
-            x["id"] == artifact_id for x in self.list()
-        ):
-            raise PolicyDenied("Artifact ID is not part of this investigation")
-        path = self.root / artifact_id
-        if not regular_file(path) or path.stat().st_size > self.max_file:
+        path = self.resolve_path(artifact_id)
+        if path.stat().st_size > self.max_file:
             raise PolicyDenied("Invalid artifact snapshot")
         data = path.read_bytes()
         if hashlib.sha256(data).hexdigest() != artifact_id:
@@ -156,6 +152,21 @@ class Artifacts:
                 data = stream.read(self.max_file + 1)
             self.add(data, path.relative_to(root).as_posix())
 
+    def resolve_path(self, artifact_id: str) -> Path:
+        """Return a verified filesystem path for an artifact in this investigation.
+
+        Rejects absolute paths, traversal, unknown digests, symlinks and non-regular
+        files.  All tool adapters that need a path must use this resolver.
+        """
+        if not isinstance(artifact_id, str) or not re.fullmatch(r"[a-f0-9]{64}", artifact_id):
+            raise PolicyDenied("Artifact ID must be a 64-character hex digest")
+        if not any(x["id"] == artifact_id for x in self.list()):
+            raise PolicyDenied("Artifact ID is not part of this investigation")
+        path = self.root / artifact_id
+        if not regular_file(path):
+            raise PolicyDenied("Invalid artifact snapshot")
+        return path
+
     def view(self, artifact_id: str, offset=0, length=4096) -> bytes:
         if (
             type(offset) is not int
@@ -164,10 +175,11 @@ class Artifacts:
             or not 1 <= length <= 32768
         ):
             raise PolicyDenied("Invalid bounded byte range")
+        path = self.resolve_path(artifact_id)
         entry = next((x for x in self.list() if x["id"] == artifact_id), None)
-        if not entry or offset > entry["size"] or not regular_file(self.root / artifact_id):
+        if not entry or offset > entry["size"]:
             raise PolicyDenied("Invalid artifact range")
-        with (self.root / artifact_id).open("rb") as stream:
+        with path.open("rb") as stream:
             stream.seek(offset)
             return stream.read(length)
 
@@ -213,9 +225,7 @@ class ToolRegistry:
         if action.tool == "file":
             if action.args:
                 raise PolicyDenied("file takes no arguments")
-            path = self.artifacts.root / action.artifact
-            if not regular_file(path):
-                raise PolicyDenied("Invalid artifact for file identification")
+            path = self.artifacts.resolve_path(action.artifact)
             try:
                 completed = subprocess.run(
                     ["file", "-b", str(path)],
@@ -289,9 +299,7 @@ class ToolRegistry:
         for cmd in args["script"]:
             if not self._R2_CMD.fullmatch(cmd):
                 raise PolicyDenied(f"Disallowed radare2 command: {cmd}")
-        path = self.artifacts.root / action.artifact
-        if not regular_file(path):
-            raise PolicyDenied("Invalid artifact for radare2 analysis")
+        path = self.artifacts.resolve_path(action.artifact)
         script = "; ".join(args["script"])
         try:
             completed = subprocess.run(
@@ -322,9 +330,7 @@ class ToolRegistry:
         timeout = args.pop("timeout", 300)
         if args:
             raise PolicyDenied("Unexpected ghidra arguments")
-        path = self.artifacts.root / action.artifact
-        if not regular_file(path):
-            raise PolicyDenied("Invalid artifact for Ghidra analysis")
+        path = self.artifacts.resolve_path(action.artifact)
         return GhidraAdapter().analyze(path, mode=mode, target=target, timeout=timeout)
 
     def _zip(self, parent: str, data: bytes):
