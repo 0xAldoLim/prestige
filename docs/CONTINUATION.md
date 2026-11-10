@@ -38,13 +38,13 @@ No paid model call was made during this increment.
 
 ## Repository state
 
-- Actual HEAD: `edf5a5015fa03ef9c06b1e8f2b6b0e4b9e3f8c4c` (local)
+- Actual HEAD: `f730a08` (local)
 - Branch: `main`
 - Latest pushed commit: `04d68d0a77ff0651d9b2f33fff90290a43029b20` (`origin/main`)
 - Push blocked: HTTPS origin requires interactive GitHub authorization. `gh auth login --web`
-  produced device code `92C9-A70D` but timed out waiting for browser completion.
+  produced device code `7062-0270` but has not been completed in the browser yet.
   No `GH_TOKEN` is present. Local commits are preserved.
-- Local commits since `origin/main`: 8 ahead, including the new MCP bridge/plugin commit.
+- Local commits since `origin/main`: 9 ahead, including the new MCP bridge/plugin commit.
 
 ## Real challenge
 
@@ -52,6 +52,11 @@ VENOM:
 - Path: `/home/kali/Prestige/venom_6acc0b13b97020e8cd0e3d02276b9626.zip`
 - SHA-256: `d1a14ca7dc3044a97210c9d336237029b834bc64265633d1f127c3ca30bea28f`
 - ZIP contents: `venom.paper` 1214 bytes; `FlagApp.exe` 36089344 bytes.
+- Initial offline PRESTIGE investigation created through the MCP bridge:
+  run `62b1e633895444b8`. The broker inventoried the ZIP, extracted the two members,
+  identified `FlagApp.exe` as PE32+ x86-64 GUI, recorded radare2 section/entry-point
+  output, and captured venom.paper strings. No candidate solution has been submitted
+  or verified.
 - Static inspection: PE32+ x86-64 GUI executable; strings indicate OpenSSL/CRYPTOGAMS
   RC4, SHA1, Camellia, Poly1305, X25519 and other primitives.
 - No model-driven investigation, candidate or recovered flag yet.
@@ -129,7 +134,7 @@ python -m prestige agent
 ## External blockers
 
 1. GitHub push blocked pending interactive `gh auth login` browser completion
-   (device code `92C9-A70D`).
+   (device code `7062-0270`).
 2. No authenticated PRESTIGE runtime model endpoint configured.
 3. No reviewed, immutable local Docker runner image available for isolated
    `python`/`command` tool execution.
