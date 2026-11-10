@@ -38,13 +38,13 @@ No paid model call was made during this increment.
 
 ## Repository state
 
-- Actual HEAD: `f730a08` (local)
+- Actual HEAD: `aefdeb1` (local)
 - Branch: `main`
-- Latest pushed commit: `04d68d0a77ff0651d9b2f33fff90290a43029b20` (`origin/main`)
-- Push blocked: HTTPS origin requires interactive GitHub authorization. `gh auth login --web`
-  produced device code `7062-0270` but has not been completed in the browser yet.
-  No `GH_TOKEN` is present. Local commits are preserved.
-- Local commits since `origin/main`: 9 ahead, including the new MCP bridge/plugin commit.
+- Latest pushed commit: `aefdeb1` (`origin/main`)
+- GitHub authentication: authenticated as `0xAldoLim` via `gh auth login --web`.
+- Push status: all local commits pushed successfully.
+- CI: `offline-validation` passed on Ubuntu/Windows, Python 3.11 and 3.14
+  (run `42736865152`).
 
 ## Real challenge
 
@@ -86,14 +86,13 @@ is blocked on a configured, authorized model endpoint and a reviewed local runne
 
 ## Next executable milestone
 
-1. Complete GitHub authorization and push local commits to `0xAldoLim/prestige`.
-2. Configure an authorized PRESTIGE runtime model endpoint (OpenAI-compatible or
+1. Configure an authorized PRESTIGE runtime model endpoint (OpenAI-compatible or
    officially supported OpenCode provider) after verifying provider terms.
-3. Obtain or build a reviewed, immutable local Docker runner image for isolated
+2. Obtain or build a reviewed, immutable local Docker runner image for isolated
    `python`/`command` tool execution.
-4. Run the first real model-driven PRESTIGE investigation on VENOM through the
+3. Run the first real model-driven PRESTIGE investigation on VENOM through the
    OpenCode `prestige` agent, using only PRESTIGE tools and recording evidence.
-5. Preserve the VENOM checkpoint and, only if VENOM stalls, investigate IBoH.
+4. Preserve the VENOM checkpoint and, only if VENOM stalls, investigate IBoH.
 
 ## Installed toolchain
 
@@ -133,8 +132,6 @@ python -m prestige agent
 
 ## External blockers
 
-1. GitHub push blocked pending interactive `gh auth login` browser completion
-   (device code `7062-0270`).
-2. No authenticated PRESTIGE runtime model endpoint configured.
-3. No reviewed, immutable local Docker runner image available for isolated
+1. No authenticated PRESTIGE runtime model endpoint configured.
+2. No reviewed, immutable local Docker runner image available for isolated
    `python`/`command` tool execution.
