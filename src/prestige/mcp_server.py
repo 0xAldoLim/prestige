@@ -87,7 +87,7 @@ async def _get_status(args: dict) -> dict:
         material = []
         for item in artifacts.list():
             try:
-                prefix = artifacts.view(item["id"], 0, min(4096, item["size"]))
+                prefix = artifacts.view(item["id"], 0, min(64, item["size"]))
             except PolicyDenied:
                 prefix = b""
             material.append(
@@ -96,7 +96,7 @@ async def _get_status(args: dict) -> dict:
                     "label": item["label"],
                     "bytes": item["size"],
                     "magic_hex": prefix[:16].hex(),
-                    "preview": prefix.decode("utf-8", errors="replace")[:512],
+                    "preview": prefix.decode("utf-8", errors="replace")[:64],
                 }
             )
         events = store.events(run_id)
