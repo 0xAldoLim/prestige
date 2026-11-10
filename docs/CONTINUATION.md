@@ -1,157 +1,139 @@
 # Continuation / migration checkpoint — 2026-11-10
 
-Read `docs/OPENCODE_HANDOFF.md`, `docs/DEVELOPMENT_MISSION.md`, `docs/roadmap.json` and
-the current Git status. PRESTIGE is now an OpenCode-native project: OpenCode provides
-the generic agent runtime, and the Python engine retains investigation strategy,
-trusted tool authorization, evidence persistence and verification. Codex and Daybreak
-are no longer required dependencies or default backends.
+PRESTIGE is an **OpenCode-native** autonomous offline CTF investigation system.
+OpenCode owns the generic agent runtime; the Python engine owns investigation strategy,
+trusted tool authorization, evidence persistence, verification and isolation.
+Codex and OpenAI API credentials are **optional legacy integrations**, not core
+requirements.
 
-## Current increment
+## Current HEAD
 
-- OpenCode-native MCP bridge:
+- Actual HEAD: `5bd0df8` (local)
+- Latest pushed commit: `5bd0df8` (`origin/main`)
+- GitHub account: `0xAldoLim`
+- CI: `offline-validation` passing on Ubuntu/Windows, Python 3.11 and 3.14
+  (latest run to be confirmed after this push).
+
+## What works now
+
+- **OpenCode-native MCP broker**
   - `src/prestige/mcp_server.py` exposes PRESTIGE tools over stdio MCP.
   - Tools: `prestige_create_investigation`, `prestige_get_status`,
-    `prestige_run_experiment`, `prestige_verify_candidate`.
-  - Handler return types conform to `mcp>=1,<2` (`ListToolsResult`, `CallToolResult`).
-  - Evidence and action metadata are JSON-serializable and redacted before return.
-- `prestige agent` CLI subcommand starts the MCP server.
-- `.opencode/plugins/prestige/` registers the PRESTIGE MCP server and a dedicated
-  `prestige` agent via `opencode.jsonc`.
-- `pyproject.toml` adds `mcp>=1,<2` as an optional dependency group (`pip install -e ".[dev,codex,mcp]"`).
-- Legacy Codex adapter remains isolated and optional; `openai-codex` is still in the
-  `codex` extra but is not required for core workflows.
-- Tests:
-  - In-process MCP client tests verify tool listing, investigation creation, status
-    roundtrip, experiment execution and observation recording, and candidate digest
-    verification.
-  - A stdio smoke test verifies `python -m prestige agent` answers an `initialize`
-    JSON-RPC request.
-  - Additional tests cover a complete create/inspect/transform/read/verify loop and
-    fail-closed behavior for unknown tools and invalid investigation IDs.
-  - Full suite: **106 passed, 3 skipped**.
-- Live OpenCode model → MCP tool → evidence → model feedback validation:
-  - `opencode run --standalone --agent prestige --model opencode-go/beam-free`
-    completed a bounded VENOM triage session (`ses_e3cdaafaaffenn6mZSoGTI4VtN`).
-  - The model created investigation `418297ca91a3457c`, retrieved status, executed the
-    trusted `file` tool on the archive, and reported the real output.
-  - Session cost was **0**; tokens: 5129 input, 370 output, 285 reasoning, 5952 cached reads.
-- Ghidra headless integration test passed (`PRESTIGE_TEST_GHIDRA=1`): **107 passed, 2 skipped**.
+    `prestige_run_experiment`, `prestige_verify_candidate`,
+    `prestige_start_analysis`, `prestige_get_analysis`, `prestige_cancel_analysis`.
+  - Model-driven investigations default to and are locked to `backend=fake`; no
+    provider credentials are requested or persisted.
+  - Operator-controlled scope: source paths restricted to `PRESTIGE_ALLOWED_DIRS`
+    / `config.allowed_source_dirs`, runner image loaded from operator config,
+    model cannot supply rules files, runner images, or provider secrets.
+- **Security boundaries**
+  - Trusted artifact resolver (`Artifacts.resolve_path`) used by all path-taking
+    tools; rejects absolute paths, traversal, unknown digests, symlinks and
+    cross-investigation access.
+  - MCP budgets enforce `max_turns`, `max_seconds`, per-tool deadline caps,
+    terminal-state checks and persistent attempt accounting.
+  - OpenCode `prestige` agent permissions deny shell/read/write/browser/skill and
+    allow only `prestige_*` MCP tools.
+- **Durable analysis jobs**
+  - `JobManager` persists long-running Ghidra/radare2/python work outside the
+    model conversation.
+  - Cache by artifact digest + tool + normalized args within a run.
+  - Failure classification (`tool_timeout`, `policy_denied`, `prestige_error`, …).
+- **Isolated execution**
+  - Reviewed Docker worker pinned by immutable digest:
+    `python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39`.
+  - Non-root, no network, no Docker socket, restricted mounts, CPU/memory/pids/time
+    limits, bounded output.
+  - `WorkspaceRunner` output directory made writable for the containerized user.
+- **Tests**
+  - Default suite: **120 passed, 3 skipped**.
+  - With `PRESTIGE_TEST_IMAGE`: **122 passed, 1 skipped**.
+  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **123 passed**.
+  - Ruff clean; wheel builds.
 
 ## Latest executed checks
 
-Kali Linux VM, Python 3.13.12:
-**106 passed in 5.64 seconds**, 3 skipped (container tests require `PRESTIGE_TEST_IMAGE`,
-ghidra test requires `PRESTIGE_TEST_GHIDRA=1`).
-Ruff clean. `python -m build --wheel` succeeds.
-No paid model call was made during this increment.
+```bash
+PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39 \
+  python -m pytest -q
+# 123 passed in ~45 s
+```
 
-## Repository state
+## Real challenge status
 
-- Actual HEAD: `bc343f4` (local)
-- Branch: `main`
-- Latest pushed commit: `bc343f4` (`origin/main`)
-- GitHub authentication: authenticated as `0xAldoLim` via `gh auth login --web`.
-- Push status: all local commits pushed successfully.
-- CI: `offline-validation` passed on Ubuntu/Windows, Python 3.11 and 3.14
-  (latest run `42765388178`).
+### IBoH / Celestial Gatekeeper — solved and independently verified
 
-## Real challenge
+- Archive: `/home/kali/Prestige/gate.7z`
+- Source: `/tmp/opencode/iboh/gate.exe` (PE32 i386 console)
+- Solving run: `1646ef39be614ef7` via OpenCode `prestige` agent,
+  model `opencode-go/kimi-k3.1-pro`.
+- Result: a unique 34-byte flag candidate matching `BOH25{...}` was derived and
+  independently verified by a forward reconstruction that matched all 136 encoded
+  target bytes at VA `0x41f008`.
+- Verification: `prestige_verify_candidate` returned
+  `{verified: false, expected_available: false}` because no expected digest was
+  configured; the derivation was instead checked by replaying the recovered
+  decoder in isolated Python and confirming byte-for-byte equality with the
+  dumped target. The binary was never executed.
+- Decoder summary (preserved for reproducibility, flag value omitted from repo):
+  1. `FUN_00401130`: 34 little-endian dwords XORed with repeating key
+     `[0xdeadbeef, 0xcafebabe, 0x13371337]`.
+  2. `FUN_004010a0`: 32-bit nonlinear byte mixer; inverted by exhaustive
+     256-entry lookup (unique preimages).
+  3. 64-bit LFSR seed `0x7f3a1c9e5b2d4f61` at `0x41f090`; reversed the shuffle
+     swaps `i = 33..0` with `j = lfsr() % (i+1)`.
+  4. Main input-byte transform `t(x)` inverted by enumeration (unique inverses).
+  5. Forward reconstruction of the recovered candidate reproduced the 136 target
+     bytes exactly.
 
-VENOM:
+### VENOM — in progress
+
 - Path: `/home/kali/Prestige/venom_6acc0b13b97020e8cd0e3d02276b9626.zip`
 - SHA-256: `d1a14ca7dc3044a97210c9d336237029b834bc64265633d1f127c3ca30bea28f`
-- ZIP contents: `venom.paper` 1214 bytes; `FlagApp.exe` 36089344 bytes.
-- Initial offline PRESTIGE investigation created through the MCP bridge:
-  run `62b1e633895444b8`. The broker inventoried the ZIP, extracted the two members,
-  identified `FlagApp.exe` as PE32+ x86-64 GUI, recorded radare2 section/entry-point
-  output, and captured venom.paper strings. No candidate solution has been submitted
-  or verified.
-- Live model-driven triage: OpenCode `prestige` agent with `opencode-go/beam-free`
-  created run `418297ca91a3457c` and executed `file` on the archive, confirming the
-  model → tool → evidence → model feedback path. No candidate or flag yet.
-- Live model-driven static analysis: `opencode-go/kimi-k3.1-pro` created run
-  `f46789e7f71c461e`, extracted the archive with the `zip` tool, identified embedded
-  OpenSSL RC4 code in `FlagApp.exe`, and recovered the `TOILPAPE` container marker and
-  a DER-like ECDSA signature in `venom.paper`. No candidate was fabricated; the run
-  stopped at the 15-call budget because full-binary Ghidra/radare2 analysis exceeded
-  time/output limits.
-- Follow-up run `b1d67678d32642c2` recovered additional static evidence:
-  `VENOM_ACTIVATION_PHRASE`, `Incorrect flag!`, and a hint describing an
-  underscore-joined, confession-like insult phrase. A resume attempt hit a provider
-  transport reset (`ECONNRESET`) before a final candidate was produced.
-- A subsequent targeted run `ac3465420fc24566` reproduced the activation-phrase
-  strings and entry-point disassembly but timed out before deriving a candidate.
-  No flag has been verified.
-- Static inspection: PE32+ x86-64 GUI executable; strings indicate OpenSSL/CRYPTOGAMS
-  RC4, SHA1, Camellia, Poly1305, X25519 and other primitives.
-- No model-driven investigation, candidate or recovered flag yet.
-
-IBoH / Celestial Gatekeeper:
-- Archive: `/home/kali/Prestige/gate.7z` (538112 bytes extracted `gate.exe`)
-- Archive SHA-256: `d3459995cd7543175f758cf7738bab8ec3bc04767102bfd18b715361faf656bc`
-- Description image: `/home/kali/Prestige/Screenshot (11).png`
-- Title: Celestial Gatekeeper; category: Reverse Engineering; points: 500.
-- Flag format: `BOH25{flag}`; archive password: `ba5ada3d6169866673a5480745744cc4`.
-- Status: extracted with the supplied password to `/tmp/opencode/iboh/gate.exe`
-  (538112 bytes). Verified format is PE32 i386 console, not the previously reported ELF64.
-- Live model-driven investigation run `2531154f6b674e71` identified anti-debug checks,
-  a 136-byte encoded target at `0x41f008`, startup mutation, a custom PRNG/XOR/shuffle
-  decoder, and the encoded bytes. A resume narrowed the shuffle to a one-position
-  rotation and began validating arithmetic against the `BOH25{` prefix, but timed out
-  before producing a verified candidate.
-- A second attempt with `opencode-go/kimi-k2.7-code` (run `5daf74f127594e7a`)
-  reproduced the decoder disassembly and success/failure strings but also timed out
-  before deriving a candidate. No flag has been recovered.
-
-## Current phase
-
-Phase 1 (OpenCode-native foundation) complete: MCP bridge, plugin, dedicated agent and
-Python engine integration are validated offline. Phase 4 (real challenge investigation)
-is blocked on a configured, authorized model endpoint and a reviewed local runner image.
+- Prior runs: `62b1e633895444b8`, `f46789e7f71c461e`, `b1d67678d32642c2`,
+  `ac3465420fc24566`.
+- Recovered evidence: `venom.paper`, `FlagApp.exe`, PE32+ x86-64 GUI,
+  OpenSSL/CRYPTOGAMS RC4, `TOILPAPE` marker, DER-like signature,
+  `VENOM_ACTIVATION_PHRASE`, activation-phrase hint.
+- Status: no verified candidate yet. The activation-phrase path remains the most
+  promising next target.
 
 ## Completed milestones
 
-- OpenCode-native MCP server and `prestige agent` CLI command.
-- `.opencode/plugins/prestige/` plugin and `opencode.jsonc` registration.
-- In-process and stdio MCP tests passing.
-- Codex dependency decoupled from required/default backend.
-- All prior milestones from 2026-11-09 remain intact (SSE gate, CLI controls, OpenAI
-  backend, local RE tools, Ghidra adapter, mock end-to-end solve).
+1. OpenCode-native migration: no mandatory API keys or Codex default.
+2. MCP trust-boundary hardening: artifact resolver, source policy, budgets,
+   agent permissions.
+3. Durable, cached, resumable analysis jobs.
+4. Reviewed Docker worker and isolated Python execution.
+5. Ghidra/radare2 integration validated.
+6. First real autonomous CTF solve (IBoH) with reproducible verification.
 
 ## Next executable milestone
 
-1. Preserve the VENOM checkpoint (done: runs `62b1e633895444b8`, `f46789e7f71c461e`,
-   `b1d67678d32642c2`, `ac3465420fc24566`) and investigate IBoH as the fallback
-   challenge.
-2. Obtain or build a reviewed, immutable local Docker runner image for isolated
-   `python`/`command` tool execution.
-3. Resume VENOM with a focused activation-phrase recovery session once the IBoH
-   checkpoint exists.
+1. Resume VENOM using the now-validated durable analysis jobs and isolated Python
+   worker. Target the `VENOM_ACTIVATION_PHRASE` check with bounded decompilation
+   and decoder replay.
+2. Preserve VENOM evidence and derivation; do not fabricate a flag.
+3. Update public documentation to reflect the OpenCode-native architecture.
+4. Continue adversarial-resilience and capability roadmap items as resources allow.
 
 ## Installed toolchain
 
 - Python 3.13.12, pytest 9.2.0, pytest-asyncio 1.4.1.post1, ruff 0.17.4, build 1.6.1
-- `mcp>=1,<2` Python SDK
-- httpx 0.28.1 (for the OpenAI backend)
-- openai-codex 0.163.0 and openai-codex-cli-bin 0.163.0 (optional)
+- `mcp>=2,<3` Python SDK
+- httpx 0.28.1 (for optional standalone OpenAI-compatible backend)
+- `openai-codex` 0.163.0 (optional legacy extra)
 - git 2.53.0, Docker 28.5.2+dfsg3
-- `file`, `objdump`, `readelf`, `gdb`, `r2`/`radare2` present
-- Ghidra: `/usr/share/ghidra/ghidraRun`, headless analyzer `/usr/share/ghidra/support/analyzeHeadless`
+- `file`, `objdump`, `readelf`, `gdb`, `r2`/`radare2`
+- Ghidra headless: `/usr/share/ghidra/support/analyzeHeadless`
 - OpenCode v2.2.6
 
-## Configured model providers
+## Configured providers
 
-OpenCode's `opencode-go/beam-free` model is available and was used for a zero-cost
-bounded MCP loop. Standalone PRESTIGE runtime providers (OpenAI-compatible or Codex)
-remain unconfigured; no paid inference has been triggered.
-
-## Real inference tested
-
-Bounded live model loops were validated through OpenCode using `opencode-go/beam-free`
-and `opencode-go/kimi-k3.1-pro`. The models drove the PRESTIGE MCP tools against the
-real VENOM archive and received real tool output; both sessions reported cost 0 under
-the current OpenCode provider accounting. A full autonomous VENOM solve and standalone
-provider-specific inference remain unvalidated.
+- OpenCode Go models are the default and only required runtime.
+- Verified models: `opencode-go/beam-free`, `opencode-go/kimi-k2.7-code`,
+  `opencode-go/kimi-k3.1-pro`.
+- Standalone OpenAI/Codex providers remain optional and unconfigured.
 
 ## Exact reproduction commands
 
@@ -159,17 +141,20 @@ provider-specific inference remain unvalidated.
 cd /home/kali/projects/prestige
 source .venv/bin/activate
 python -m pytest -q
+PRESTIGE_TEST_IMAGE=python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39 python -m pytest -q
+PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39 python -m pytest -q
 ruff check .
 python -m build --wheel
-python -m prestige --help
-python -m prestige doctor
-# Start MCP server manually:
+python -m prestige --home ./.prestige config set sandbox.image python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39
 python -m prestige agent
 ```
 
-## External blockers
+## Known limitations
 
-1. No reviewed, immutable local Docker runner image available for isolated
-   `python`/`command` tool execution.
-2. A stronger authorized model is still needed for a full VENOM solve; the free
-   `beam-free` model validated the loop but was not asked to complete the challenge.
+- No official challenge checker is integrated; verification is independent
+  derivation/replay only.
+- VENOM remains unsolved.
+- Adversarial-resilience benchmarks (Gray Swan, AgentLSD, AgentDojo) are not yet
+  integrated.
+- Persistent GDB / `/exhaust` / future Claude adapter are roadmap items, not
+  shipped features.
