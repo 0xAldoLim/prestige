@@ -98,7 +98,10 @@ IBoH / Celestial Gatekeeper:
   a 136-byte encoded target at `0x41f008`, startup mutation, a custom PRNG/XOR/shuffle
   decoder, and the encoded bytes. A resume narrowed the shuffle to a one-position
   rotation and began validating arithmetic against the `BOH25{` prefix, but timed out
-  before producing a verified candidate. No flag has been recovered.
+  before producing a verified candidate.
+- A second attempt with `opencode-go/kimi-k2.7-code` (run `5daf74f127594e7a`)
+  reproduced the decoder disassembly and success/failure strings but also timed out
+  before deriving a candidate. No flag has been recovered.
 
 ## Current phase
 
