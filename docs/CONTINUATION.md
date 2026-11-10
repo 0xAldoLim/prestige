@@ -8,11 +8,10 @@ requirements.
 
 ## Current HEAD
 
-- Actual HEAD: `5bd0df8` (local)
-- Latest pushed commit: `5bd0df8` (`origin/main`)
+- Actual HEAD: `762a359` before the VENOM checkpoint; updated commit recorded below.
+- Latest pushed commit: see the latest `git log`.
 - GitHub account: `0xAldoLim`
-- CI: `offline-validation` passing on Ubuntu/Windows, Python 3.11 and 3.14
-  (latest run to be confirmed after this push).
+- CI: `offline-validation` passing on Ubuntu/Windows, Python 3.11 and 3.14.
 
 ## What works now
 
@@ -46,9 +45,9 @@ requirements.
     limits, bounded output.
   - `WorkspaceRunner` output directory made writable for the containerized user.
 - **Tests**
-  - Default suite: **120 passed, 3 skipped**.
-  - With `PRESTIGE_TEST_IMAGE`: **122 passed, 1 skipped**.
-  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **123 passed**.
+  - Default suite: **127 passed, 3 skipped**.
+  - With `PRESTIGE_TEST_IMAGE`: **129 passed, 1 skipped**.
+  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **130 passed**.
   - Ruff clean; wheel builds.
 
 ## Latest executed checks
@@ -56,7 +55,7 @@ requirements.
 ```bash
 PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39 \
   python -m pytest -q
-# 123 passed in ~45 s
+# 130 passed in ~41 s
 ```
 
 ## Real challenge status
@@ -86,17 +85,41 @@ PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=python@sha256:a83ba18aef0f865b1a4a611
   5. Forward reconstruction of the recovered candidate reproduced the 136 target
      bytes exactly.
 
-### VENOM — in progress
+### VENOM — flag obtained from an operator-supplied writeup (not autonomously derived)
 
 - Path: `/home/kali/Prestige/venom_6acc0b13b97020e8cd0e3d02276b9626.zip`
 - SHA-256: `d1a14ca7dc3044a97210c9d336237029b834bc64265633d1f127c3ca30bea28f`
 - Prior runs: `62b1e633895444b8`, `f46789e7f71c461e`, `b1d67678d32642c2`,
-  `ac3465420fc24566`.
+  `ac3465420fc24566`, `dc8a90b9038343af`.
 - Recovered evidence: `venom.paper`, `FlagApp.exe`, PE32+ x86-64 GUI,
   OpenSSL/CRYPTOGAMS RC4, `TOILPAPE` marker, DER-like signature,
   `VENOM_ACTIVATION_PHRASE`, activation-phrase hint.
-- Status: no verified candidate yet. The activation-phrase path remains the most
-  promising next target.
+- **Outcome:** the operator supplied a public writeup plus the challenge flag in chat.
+  The literal flag is deliberately not stored in this repository. PRESTIGE did **not**
+  solve VENOM autonomously; this is an operator-provided answer.
+
+#### Independent checks performed against the binary
+
+- The `VENOM_ACTIVATION_PHRASE` environment-variable path is a **decoy**:
+  - The check is at `0x1409e4f1a`; it reads up to `0x26` bytes, requires `SAS{` and `}`,
+    hashes the buffer with SHA-256 (initial hash words `6a09e667 0bb67ae85 3c6ef372
+    a54ff53a 510e527f 9b05688c 1f83d9ab 5be0cd19` confirmed at `0x140ceeda0`), and
+    compares 32 bytes against `0x141172048`.
+  - The writeup flag's SHA-256 does **not** equal the 32-byte target at `0x141172048`.
+    Therefore the activation-phrase branch is not the real success path.
+- Writeup-consistent structural evidence:
+  - Skibidi/rizz themed strings at file offset `0x226ac18` onward
+    (`venom level 10 sigma gyatt baby gronk ...`).
+  - A ChaCha20 `expand 32-byte k` constant is present once in the binary.
+  - A fake-gzip resource starts at file offset `0x11c108c`
+    (`1f8b0808 0dd4c769 0203 76656e6f6d2e` -> `venom.`), matching the writeup's
+    "SKIB blob with a fake gzip header".
+- Writeup's real path (recorded for future verification work, not claimed as reproduced
+  by PRESTIGE): GUI requests a licence file; a second Venom process is a debugger;
+  real logic hides in `INVALID_INSTRUCTION` / `ACCESS_VIOLATION` handlers; a `ud2`
+  redirects to the real `WinMain`; the protected flag app is encrypted with modified
+  ChaCha20 keyed from the licence context; `DUMB` / `VAR` / `HWID` licence entities
+  validate the context; the flag app requests `SKIBIDI-ID` over a pipe protocol.
 
 ## Completed milestones
 
@@ -107,15 +130,25 @@ PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=python@sha256:a83ba18aef0f865b1a4a611
 4. Reviewed Docker worker and isolated Python execution.
 5. Ghidra/radare2 integration validated.
 6. First real autonomous CTF solve (IBoH) with reproducible verification.
+7. VENOM flag obtained from an operator-supplied writeup; the binary's
+   activation-phrase branch was independently shown to be a decoy.
+8. Adversarial-resilience regression suite added (`tests/test_adversarial.py`):
+   artifact text is treated as data, fake flags are not self-verified, candidate
+   values are not echoed, radare2 shell injection is denied, strings output is
+   bounded, MCP tool/scope escalation fields fail closed, and the expected digest
+   remains operator-controlled.
+9. Local known-answer verification exercised with an operator-supplied expected
+   digest; the literal VENOM flag is not stored in the report or the repository.
 
 ## Next executable milestone
 
-1. Resume VENOM using the now-validated durable analysis jobs and isolated Python
-   worker. Target the `VENOM_ACTIVATION_PHRASE` check with bounded decompilation
-   and decoder replay.
-2. Preserve VENOM evidence and derivation; do not fabricate a flag.
-3. Update public documentation to reflect the OpenCode-native architecture.
-4. Continue adversarial-resilience and capability roadmap items as resources allow.
+1. Extend adversarial coverage toward Gray Swan IPI Arena, AgentLSD and AgentDojo
+   scenarios (tool-output injection, fake system instructions, decoy
+   vulnerabilities, context flooding, cross-model handoff contamination).
+2. Add a small operator-facing known-answer verification helper that accepts an
+   expected digest without persisting the flag value.
+3. Preserve VENOM evidence; do not claim PRESTIGE autonomously derived the
+   writeup flag.
 
 ## Installed toolchain
 
@@ -153,7 +186,8 @@ python -m prestige agent
 
 - No official challenge checker is integrated; verification is independent
   derivation/replay only.
-- VENOM remains unsolved.
+- VENOM's flag came from an operator-supplied writeup, not from PRESTIGE's own
+  autonomous path; the activation-phrase branch is a confirmed decoy.
 - Adversarial-resilience benchmarks (Gray Swan, AgentLSD, AgentDojo) are not yet
   integrated.
 - Persistent GDB / `/exhaust` / future Claude adapter are roadmap items, not

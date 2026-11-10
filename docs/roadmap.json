@@ -3,8 +3,8 @@
   "updated": "2026-11-10",
   "release_ready": false,
   "baseline_commit": "7a32b4557840d0a49b3590346d843e2a0b6426c1",
-  "current_head": "5bd0df8",
-  "revision_note": "OpenCode-native architecture validated: MCP bridge, security boundaries, durable analysis jobs, isolated Docker worker, and first real autonomous CTF solve (IBoH).",
+  "current_head": "762a359",
+  "revision_note": "OpenCode-native architecture validated, IBoH solved and independently verified, VENOM resolved via operator-supplied writeup with the activation-phrase branch proven to be a decoy, and an offline adversarial-resilience regression suite added.",
   "development_agent_target": "OpenCode",
   "primary_product_backend": "OpenCode-native MCP broker with trusted Python engine",
   "items": [
@@ -17,7 +17,7 @@
     {"id":"isolated-workspace-tools","status":"integration-tested","evidence":["tests/test_workspace_tools.py","tests/test_integrations.py"],"remaining":"Requires the pinned Docker image for real container execution; persistent debugger still future work."},
     {"id":"ghidra-headless","status":"integration-tested","evidence":["src/prestige/ghidra_adapter.py","tests/test_engine.py"],"remaining":"Targeted decompile job arguments need alignment with GhidraAdapter (model passed function instead of target)."},
     {"id":"live-public-cli","status":"implemented","evidence":["src/prestige/cli.py","src/prestige/engine.py"],"remaining":"CLI solve defaults to fake; Codex/OpenAI remain opt-in."},
-    {"id":"venom-investigation","status":"in progress","evidence":["docs/CONTINUATION.md"],"remaining":"Activation-phrase path not yet decoded; no verified candidate."},
+    {"id":"venom-investigation","status":"operator-provided-answer","evidence":["docs/CONTINUATION.md","binary structural checks"],"remaining":"Flag came from an operator-supplied writeup, not autonomous derivation. Activation-phrase branch proven to be a decoy (SHA-256 mismatch at 0x141172048). Real path (debugger handlers, licence context, modified ChaCha20, SKIB resource) is documented but not reproduced end-to-end."},
     {"id":"iboh-investigation","status":"solved","evidence":["docs/CONTINUATION.md","run 1646ef39be614ef7"],"remaining":"Candidate independently verified by forward reconstruction; no official checker available."},
     {"id":"reasoning-lanes","status":"in progress","evidence":["tests/test_engine.py"],"remaining":"FAST/EXPERT handoff works; model-driven hypothesis evaluation remains challenge-dependent."},
     {"id":"skills-retrieval","status":"integration-tested","evidence":["tests/test_integrations.py"],"remaining":"Narrow lexical retrieval works; richer dynamic routing remains."},
@@ -30,7 +30,7 @@
     {"id":"opencode-product-backend","status":"implemented","evidence":["src/prestige/mcp_server.py",".opencode/plugins/prestige/","opencode.jsonc"],"remaining":"Production hardening and adversarial review."},
     {"id":"local-model-laboratory","status":"in progress","evidence":["src/prestige/local_models.py"],"remaining":"Advisory transport/mock tests only."},
     {"id":"opencode-development-handoff","status":"implemented and tested","evidence":["AGENTS.md",".opencode/commands/prestige-resume.md","docs/OPENCODE_HANDOFF.md"],"remaining":"Keep docs aligned with OpenCode-native claims."},
-    {"id":"adversarial-resilience","status":"not implemented","evidence":[],"remaining":"Gray Swan IPI Arena, AgentLSD, AgentDojo integration planned."},
+    {"id":"adversarial-resilience","status":"partial","evidence":["tests/test_adversarial.py","tests/test_security.py"],"remaining":"Offline regression suite covers artifact injection, fake flags, scope escalation, tool-output bounds and command allowlisting. Gray Swan IPI Arena, AgentLSD and AgentDojo scenario harnesses are not yet integrated."},
     {"id":"claude-compatibility","status":"not implemented","evidence":[],"remaining":"Architecture preserves optional Anthropic adapter; no API key required for OpenCode workflow."}
   ]
 }

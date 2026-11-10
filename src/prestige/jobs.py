@@ -95,7 +95,10 @@ class JobManager:
         cache_key = _cache_key(artifact_id, tool, args)
         cached = self._with_store(
             lambda store: store.rows(
-                "SELECT job_id FROM jobs WHERE run_id=? AND cache_key=? AND status='completed'",
+                "SELECT job_id FROM jobs WHERE run_id=? AND cache_key=? "
+                "AND status IN ('queued','running','completed') "
+                "ORDER BY CASE status WHEN 'completed' THEN 0 WHEN 'running' THEN 1 ELSE 2 END, "
+                "started IS NULL, started LIMIT 1",
                 (self.run_id, cache_key),
             )
         )
