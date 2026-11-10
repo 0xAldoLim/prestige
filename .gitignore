@@ -13,6 +13,7 @@ auth.json
 runs/
 private/
 work/
+.prestige/
 *.log
 *.gguf
 *.safetensors

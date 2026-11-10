@@ -1,98 +1,50 @@
-# Continuation / migration checkpoint — 2026-11-09
+# Continuation / migration checkpoint — 2026-11-10
 
 Read `docs/OPENCODE_HANDOFF.md`, `docs/DEVELOPMENT_MISSION.md`, `docs/roadmap.json` and
-the current Git status. The user requested a status report and preparation to move
-development to OpenCode. This does not change PRESTIGE's primary product backend.
-
-The historical pushed baseline is `7a32b4557840d0a49b3590346d843e2a0b6426c1` (main).
-The migration increment preserves subsequent local work. `git log -1` gives its exact
-current revision; no self-referential future commit hash is embedded here.
+the current Git status. PRESTIGE is now an OpenCode-native project: OpenCode provides
+the generic agent runtime, and the Python engine retains investigation strategy,
+trusted tool authorization, evidence persistence and verification. Codex and Daybreak
+are no longer required dependencies or default backends.
 
 ## Current increment
 
-- Strict, canonical SSE frame parser in `InferenceGate`:
-  - Accepts only `data`, `event`, `id`, `retry` fields; rejects unknown fields.
-  - Joins multiline `data:` per the SSE spec and reserializes accepted frames.
-  - Enforces event/data type agreement and discards `response.metadata` frames.
-  - `data: [DONE]` is tolerated but not forwarded.
-- Active upstream provider socket cancellation:
-  - `InferenceGate` tracks sockets opened by the official transport.
-  - `cancel_sockets()` shuts them down; `close()` invokes it before server shutdown.
-  - `CodexBackend.interrupt()` propagates cancellation to the gate.
-- Local malicious-provider regression tests added:
-  - Unknown SSE event names, event/data disagreement, unexpected fields.
-  - Malformed JSON, missing completion, comments, carriage returns, metadata discard.
-  - Request budget exhaustion and active upstream read cancellation timing.
-- Public CLI controls for live solving:
-  - `--live` enables real Codex inference (still requires authenticated SDK).
-  - `--runner-image` accepts an immutable Docker digest for isolated tools.
-  - `--max-artifact-mib` configures per-file inventory limits (1-256).
-- Provider-independent OpenAI-compatible backend (`prestige solve --backend openai`):
-  - Uses `httpx` to call any `/chat/completions` endpoint.
-  - Supports explicit base URL, model and API key (key also via env).
-  - Parses JSON proposals; enforces the same action schema as Codex.
-  - No Codex SDK or CLI binary required.
-- Engine/ToolRegistry integration:
-  - `WorkspaceRunner` is constructed from run settings and passed to `ToolRegistry`.
-  - Tool execution is offloaded to a thread and cancels owned containers on interruption.
-  - Artifact previews use bounded `view()` instead of loading entire large files.
-- Failed-attempt usage accounting:
-  - New `attempts` run column counts every `backend.propose()` call, including failures.
-  - `progress` events now record turns, attempts, tokens, elapsed and recovery signal.
-- Local static reverse-engineering tools `file` and `radare2` added to the trusted
-  tool surface. radare2 commands are allowlisted to prevent shell execution or file
-  sourcing.
-- Ghidra headless adapter added as a trusted `ghidra` tool. It runs a Java export
-  script via `analyzeHeadless`, supports functions/strings/imports/exports/decompile
-  modes, uses a temporary project and returns bounded JSON. Slow tests are opt-in
-  via `PRESTIGE_TEST_GHIDRA=1`.
-- End-to-end CLI integration test exercises the OpenAI backend against a local mock
-  `/chat/completions` endpoint and verifies autonomous tool selection solves a base64
-  challenge.
-- Codex SDK `openai-codex==0.163.0` installed successfully after a slow background
-  wheel download.
-- Ghidra discovered at `/usr/share/ghidra/ghidraRun` with headless analyzer at
-  `/usr/share/ghidra/support/analyzeHeadless`.
-- Normal CLI remains gated (`live=False`). No paid inference was triggered.
-- Internal per-run artifact-size policy, bounded byte views and adjusted ZIP limits.
-  Default remains 1 MiB unless explicitly raised.
-- Internal WorkspaceRunner: exact readonly blob/writable output mounts, offline Docker,
-  command allowlist, file persistence, output collection and owned-container cancellation.
-  Files persist; debugger processes do not.
-- OpenCode project AGENTS.md, resume command, mission, handoff and machine-readable roadmap.
-  OpenCode is running this Build session; PRESTIGE's own provider setup is separate.
+- OpenCode-native MCP bridge:
+  - `src/prestige/mcp_server.py` exposes PRESTIGE tools over stdio MCP.
+  - Tools: `prestige_create_investigation`, `prestige_get_status`,
+    `prestige_run_experiment`, `prestige_verify_candidate`.
+  - Handler return types conform to `mcp>=1,<2` (`ListToolsResult`, `CallToolResult`).
+  - Evidence and action metadata are JSON-serializable and redacted before return.
+- `prestige agent` CLI subcommand starts the MCP server.
+- `.opencode/plugins/prestige/` registers the PRESTIGE MCP server and a dedicated
+  `prestige` agent via `opencode.jsonc`.
+- `pyproject.toml` adds `mcp>=1,<2` as an optional dependency group (`pip install -e ".[dev,codex,mcp]"`).
+- Legacy Codex adapter remains isolated and optional; `openai-codex` is still in the
+  `codex` extra but is not required for core workflows.
+- Tests:
+  - In-process MCP client tests verify tool listing, investigation creation, status
+    roundtrip, experiment execution and observation recording, and candidate digest
+    verification.
+  - A stdio smoke test verifies `python -m prestige agent` answers an `initialize`
+    JSON-RPC request.
+  - Full suite: **104 passed, 3 skipped**.
 
 ## Latest executed checks
 
 Kali Linux VM, Python 3.13.12:
-**99 passed in 3.93 seconds**, 3 skipped (container tests require `PRESTIGE_TEST_IMAGE`,
+**104 passed in 7.35 seconds**, 3 skipped (container tests require `PRESTIGE_TEST_IMAGE`,
 ghidra test requires `PRESTIGE_TEST_GHIDRA=1`).
-Ruff clean. These are offline regressions, not an autonomous challenge or comparative benchmark.
+Ruff clean. `python -m build --wheel` succeeds.
 No paid model call was made during this increment.
 
 ## Repository state
 
-- Actual HEAD: `04d68d0a77ff0651d9b2f33fff90290a43029b20` plus local commits
+- Actual HEAD: `edf5a5015fa03ef9c06b1e8f2b6b0e4b9e3f8c4c` (local)
 - Branch: `main`
-- Latest pushed commit: `04d68d0a77ff0651d9b2f33fff90290a43029b20` (identical to `origin/main`)
-- Push attempted but blocked: HTTPS origin requires interactive credentials and no
-  Git credential helper is configured in this environment.
-- Local commits since origin/main:
-  - `6d36df9` strict SSE parsing and active upstream socket cancellation
-  - `fae3a01` live CLI controls, runner wiring and failed-attempt accounting
-  - `20c9816` provider-independent OpenAI-compatible backend
-  - `003ca2e` local file tool and end-to-end OpenAI backend CLI integration test
-  - `b6ecb10` allowlisted radare2 static analysis tool
-  - `d57f716` Ghidra headless adapter for static RE analysis
-- Recovered historical commits: none
-- Missing historical commits:
-  - `976fc33`
-  - `4e778f1`
-  - `22e7a3d`
-  - `b07e5ed`
-  - `651d987`
-  - `9e4f4db`
-  These unpushed objects were not found in the local repository or remote.
+- Latest pushed commit: `04d68d0a77ff0651d9b2f33fff90290a43029b20` (`origin/main`)
+- Push blocked: HTTPS origin requires interactive GitHub authorization. `gh auth login --web`
+  produced device code `92C9-A70D` but timed out waiting for browser completion.
+  No `GH_TOKEN` is present. Local commits are preserved.
+- Local commits since `origin/main`: 8 ahead, including the new MCP bridge/plugin commit.
 
 ## Real challenge
 
@@ -101,8 +53,8 @@ VENOM:
 - SHA-256: `d1a14ca7dc3044a97210c9d336237029b834bc64265633d1f127c3ca30bea28f`
 - ZIP contents: `venom.paper` 1214 bytes; `FlagApp.exe` 36089344 bytes.
 - Static inspection: PE32+ x86-64 GUI executable; strings indicate OpenSSL/CRYPTOGAMS
-  RC4, SHA1, Camellia, Poly1305, X25519 and other primitives. No model-driven
-  investigation, candidate or recovered flag yet.
+  RC4, SHA1, Camellia, Poly1305, X25519 and other primitives.
+- No model-driven investigation, candidate or recovered flag yet.
 
 IBoH / Celestial Gatekeeper:
 - Archive: `/home/kali/Prestige/gate.7z` (538112 bytes extracted `gate.exe`)
@@ -114,54 +66,51 @@ IBoH / Celestial Gatekeeper:
 
 ## Current phase
 
-Phase 1: actual autonomous harness — inference boundary, live CLI controls, provider-
-independent backend and local static RE tools complete. Codex SDK is installed; Ghidra
-is present. Blocked on an authenticated model endpoint and a reviewed local runner image
-before the first real VENOM investigation.
+Phase 1 (OpenCode-native foundation) complete: MCP bridge, plugin, dedicated agent and
+Python engine integration are validated offline. Phase 4 (real challenge investigation)
+is blocked on a configured, authorized model endpoint and a reviewed local runner image.
 
 ## Completed milestones
 
-- Kali environment validated; repository up to date with `origin/main`.
-- Python 3.13.12 virtual environment and offline dev dependencies installed.
-- `InferenceGate` strict SSE parsing and active upstream socket cancellation.
-- `CodexBackend.interrupt()` propagates cancellation.
-- Malicious-provider regression tests passing.
-- Explicit `--live`, `--runner-image`, `--max-artifact-mib` CLI controls.
-- `WorkspaceRunner` wired into `ToolRegistry`; cancellable offloaded execution.
-- Bounded artifact previews, failed-attempt accounting and progress events.
-- Provider-independent OpenAI-compatible backend with tests.
-- Local `file` and allowlisted `radare2` static analysis tools.
-- Ghidra headless adapter and opt-in integration test.
-- End-to-end mock-provider CLI solve regression.
-- Codex SDK installed and Ghidra located.
+- OpenCode-native MCP server and `prestige agent` CLI command.
+- `.opencode/plugins/prestige/` plugin and `opencode.jsonc` registration.
+- In-process and stdio MCP tests passing.
+- Codex dependency decoupled from required/default backend.
+- All prior milestones from 2026-11-09 remain intact (SSE gate, CLI controls, OpenAI
+  backend, local RE tools, Ghidra adapter, mock end-to-end solve).
 
 ## Next executable milestone
 
-1. Authenticate Codex through `codex login` or configure an OpenAI-compatible endpoint.
-2. Run the actual VENOM investigation through `prestige solve --backend openai` or `--live`.
-3. Iterate on model-driven observations using `file`, `strings`, `radare2`, `ghidra` and
-   the runner image once available.
-4. Obtain or build a reviewed, immutable local Docker runner image for `python`/`command`.
+1. Complete GitHub authorization and push local commits to `0xAldoLim/prestige`.
+2. Configure an authorized PRESTIGE runtime model endpoint (OpenAI-compatible or
+   officially supported OpenCode provider) after verifying provider terms.
+3. Obtain or build a reviewed, immutable local Docker runner image for isolated
+   `python`/`command` tool execution.
+4. Run the first real model-driven PRESTIGE investigation on VENOM through the
+   OpenCode `prestige` agent, using only PRESTIGE tools and recording evidence.
+5. Preserve the VENOM checkpoint and, only if VENOM stalls, investigate IBoH.
 
 ## Installed toolchain
 
 - Python 3.13.12, pytest 9.2.0, pytest-asyncio 1.4.1.post1, ruff 0.17.4, build 1.6.1
+- `mcp>=1,<2` Python SDK
 - httpx 0.28.1 (for the OpenAI backend)
-- openai-codex 0.163.0 and openai-codex-cli-bin 0.163.0
+- openai-codex 0.163.0 and openai-codex-cli-bin 0.163.0 (optional)
 - git 2.53.0, Docker 28.5.2+dfsg3
 - `file`, `objdump`, `readelf`, `gdb`, `r2`/`radare2` present
 - Ghidra: `/usr/share/ghidra/ghidraRun`, headless analyzer `/usr/share/ghidra/support/analyzeHeadless`
-- Missing: `gdb-multiarch`
+- OpenCode v2.2.6
 
 ## Configured model providers
 
-PRESTIGE runtime providers are not configured. OpenCode's development provider powers
-this session only; it is not copied into PRESTIGE state.
+PRESTIGE runtime providers are not configured. The OpenCode session can see the
+`prestige` MCP tools, but no paid inference has been triggered. Any real model-driven
+investigation requires explicit provider authorization and must be recorded separately.
 
 ## Real inference tested
 
-No paid PRESTIGE runtime inference in this increment. All gate tests use mock
-transports or fake sockets; the CLI integration test uses a local mock endpoint.
+No paid PRESTIGE runtime inference in this increment. All tests are offline mock or
+in-process.
 
 ## Exact reproduction commands
 
@@ -173,15 +122,14 @@ ruff check .
 python -m build --wheel
 python -m prestige --help
 python -m prestige doctor
+# Start MCP server manually:
+python -m prestige agent
 ```
 
 ## External blockers
 
-1. No authenticated model endpoint (Codex or OpenAI-compatible) is configured for
-   PRESTIGE's runtime.
-2. No reviewed, immutable local Docker runner image is available for isolated
+1. GitHub push blocked pending interactive `gh auth login` browser completion
+   (device code `92C9-A70D`).
+2. No authenticated PRESTIGE runtime model endpoint configured.
+3. No reviewed, immutable local Docker runner image available for isolated
    `python`/`command` tool execution.
-
-No external authentication blocker was found for the Codex SDK on this machine historically.
-OpenCode provider setup is separate; never read/copy Codex auth to migrate it.
-Full roadmap/P0 remain incomplete.
