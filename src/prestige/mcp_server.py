@@ -21,7 +21,7 @@ from mcp.server.stdio import stdio_server
 from mcp.types import CallToolResult, ListToolsResult, TextContent, Tool
 
 from prestige.artifacts import Artifacts, ToolRegistry
-from prestige.config import data_home
+from prestige.config import data_home, load_config
 from prestige.engine import new_run
 from prestige.jobs import JobManager
 from prestige.policy import validate_source_path
@@ -102,6 +102,8 @@ async def _create_investigation(args: dict) -> dict:
         for forbidden in ("rules_path", "runner_image", "live", "openai_base_url", "openai_api_key", "openai_model"):
             if args.get(forbidden):
                 raise PolicyDenied(f"{forbidden} cannot be set by the model")
+        # Isolated execution uses the operator-controlled runner image, never a model-supplied one.
+        runner_image = load_config(_HOME).get("sandbox.image")
         run_id = new_run(
             store,
             source,
@@ -111,6 +113,7 @@ async def _create_investigation(args: dict) -> dict:
             max_turns=args.get("max_turns", 12),
             max_seconds=args.get("max_seconds", 120),
             max_tokens=args.get("max_tokens"),
+            runner_image=runner_image,
             max_artifact_mib=args.get("max_artifact_mib", 1),
         )
         return {"run_id": run_id, "status": "ready"}
