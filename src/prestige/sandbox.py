@@ -211,7 +211,8 @@ class WorkspaceRunner(DockerRunner):
         super().__init__(image)
         self.input = artifacts.root.resolve(strict=True)
         self.output = artifacts.root.parent / "workspace"
-        self.output.mkdir(exist_ok=True)
+        self.output.mkdir(exist_ok=True, mode=0o777)
+        self.output.chmod(0o777)
         if self.output.is_symlink() or not self.output.resolve().is_relative_to(
             artifacts.root.parent.resolve()
         ):
