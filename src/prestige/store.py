@@ -55,6 +55,21 @@ class Store:
                 record TEXT NOT NULL, status TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS models (id TEXT PRIMARY KEY, manifest TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS competitions (name TEXT PRIMARY KEY, data TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS jobs (
+                run_id TEXT NOT NULL REFERENCES runs(id),
+                job_id TEXT PRIMARY KEY,
+                artifact_id TEXT NOT NULL,
+                tool TEXT NOT NULL,
+                args TEXT NOT NULL,
+                cache_key TEXT NOT NULL,
+                status TEXT NOT NULL,
+                started REAL,
+                finished REAL,
+                result TEXT,
+                error TEXT,
+                output_artifact TEXT,
+                failure_class TEXT
+            );
             PRAGMA user_version=1;
         """)
         # Migration: add attempts column to runs created before this increment.

@@ -23,6 +23,7 @@ from mcp.types import CallToolResult, ListToolsResult, TextContent, Tool
 from prestige.artifacts import Artifacts, ToolRegistry
 from prestige.config import data_home
 from prestige.engine import new_run
+from prestige.jobs import JobManager
 from prestige.policy import validate_source_path
 from prestige.security import Rules
 from prestige.store import Store
@@ -231,6 +232,55 @@ async def _verify_candidate(args: dict) -> dict:
         store.close()
 
 
+async def _start_analysis(args: dict) -> dict:
+    store = await _store()
+    try:
+        run_id = args["run_id"]
+        run = _run(store, run_id)
+        if _terminal(run):
+            raise PrestigeError("Investigation is terminal")
+        _check_budget(run, store, run_id)
+        settings = run["settings"]
+        rules = Rules(**settings["rules"])
+        manager = JobManager(store, run_id)
+        job_id = manager.start(
+            args["artifact_id"],
+            args["tool"],
+            args.get("args", {}),
+            rules=rules,
+            runner_image=settings.get("runner_image"),
+        )
+        return {"job_id": job_id, "status": "queued"}
+    except PolicyDenied as error:
+        return {"status": "denied", "reason": str(error)}
+    except Exception as error:
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
+    finally:
+        store.close()
+
+
+async def _get_analysis(args: dict) -> dict:
+    store = await _store()
+    try:
+        result = JobManager(store, args["run_id"]).get(args["job_id"])
+        return _redact({"status": "ok", "result": result})
+    except Exception as error:
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
+    finally:
+        store.close()
+
+
+async def _cancel_analysis(args: dict) -> dict:
+    store = await _store()
+    try:
+        result = JobManager(store, args["run_id"]).cancel(args["job_id"])
+        return _redact({"status": "ok", "result": result})
+    except Exception as error:
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
+    finally:
+        store.close()
+
+
 _TOOLS: dict[str, tuple[Tool, Any]] = {
     "prestige_create_investigation": (
         Tool(
@@ -305,6 +355,56 @@ _TOOLS: dict[str, tuple[Tool, Any]] = {
             },
         ),
         _verify_candidate,
+    ),
+    "prestige_start_analysis": (
+        Tool(
+            name="prestige_start_analysis",
+            description="Start a durable, cached analysis job (ghidra, radare2) without blocking the conversation.",
+            inputSchema={
+                "type": "object",
+                "required": ["run_id", "tool", "artifact_id"],
+                "additionalProperties": False,
+                "properties": {
+                    "run_id": {"type": "string"},
+                    "tool": {"type": "string"},
+                    "artifact_id": {"type": "string"},
+                    "args": {"type": "object"},
+                },
+            },
+        ),
+        _start_analysis,
+    ),
+    "prestige_get_analysis": (
+        Tool(
+            name="prestige_get_analysis",
+            description="Poll the status and result of a durable analysis job.",
+            inputSchema={
+                "type": "object",
+                "required": ["run_id", "job_id"],
+                "additionalProperties": False,
+                "properties": {
+                    "run_id": {"type": "string"},
+                    "job_id": {"type": "string"},
+                },
+            },
+        ),
+        _get_analysis,
+    ),
+    "prestige_cancel_analysis": (
+        Tool(
+            name="prestige_cancel_analysis",
+            description="Cancel a queued or running analysis job.",
+            inputSchema={
+                "type": "object",
+                "required": ["run_id", "job_id"],
+                "additionalProperties": False,
+                "properties": {
+                    "run_id": {"type": "string"},
+                    "job_id": {"type": "string"},
+                },
+            },
+        ),
+        _cancel_analysis,
     ),
 }
 
