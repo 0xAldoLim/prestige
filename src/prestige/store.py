@@ -62,6 +62,8 @@ class Store:
             self.db.execute("ALTER TABLE runs ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0")
         except sqlite3.OperationalError:
             pass
+        # Migration: scrub provider secrets that may have been persisted by earlier builds.
+        self._scrub_provider_secrets()
 
     @contextmanager
     def transaction(self):
@@ -157,6 +159,18 @@ class Store:
                 "DO UPDATE SET verified=MAX(verified,excluded.verified)",
                 (run_id, digest, artifact, value, int(verified)),
             )
+
+    def _scrub_provider_secrets(self):
+        rows = self.rows("SELECT id, settings FROM runs")
+        for row in rows:
+            settings = json.loads(row["settings"])
+            if settings.pop("openai_api_key", None) is not None:
+                settings["openai_api_key"] = None
+                with self.transaction() as db:
+                    db.execute(
+                        "UPDATE runs SET settings=? WHERE id=?",
+                        (encoded(settings), row["id"]),
+                    )
 
     def close(self):
         self.db.close()

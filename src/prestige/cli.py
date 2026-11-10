@@ -50,7 +50,7 @@ def parser():
     solving = commands.add_parser("solve")
     solving.add_argument("path", type=Path)
     solving.add_argument("--mode", choices=("fast", "expert", "auto"), default="auto")
-    solving.add_argument("--backend", choices=("codex", "fake", "openai"), default="codex")
+    solving.add_argument("--backend", choices=("codex", "fake", "openai"), default="fake")
     solving.add_argument("--rules", type=Path)
     solving.add_argument(
         "--offline",
@@ -204,6 +204,9 @@ def dispatch(args, store: Store, config: dict):
     if args.command == "solve":
         import os
 
+        api_key = args.openai_api_key or os.environ.get("PRESTIGE_OPENAI_API_KEY")
+        if args.backend == "openai" and api_key:
+            os.environ["PRESTIGE_OPENAI_API_KEY"] = api_key
         run_id = new_run(
             store,
             args.path,
@@ -219,7 +222,7 @@ def dispatch(args, store: Store, config: dict):
             runner_image=args.runner_image,
             max_artifact_mib=args.max_artifact_mib,
             openai_base_url=args.openai_base_url,
-            openai_api_key=args.openai_api_key or os.environ.get("PRESTIGE_OPENAI_API_KEY"),
+            openai_api_key=api_key,
             openai_model=args.openai_model,
         )
         return asyncio.run(solve(store, run_id, skills=skills))

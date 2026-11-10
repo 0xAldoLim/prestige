@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import hashlib
 import json
@@ -5,6 +6,7 @@ import os
 import subprocess
 import sys
 import time
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import anyio
@@ -22,22 +24,33 @@ def tmp_home(tmp_path):
     return home
 
 
+@asynccontextmanager
 async def _mcp_client(tmp_path, env=None):
     """Yield a connected ClientSession backed by in-memory streams."""
     env = env or {}
     env.setdefault("PRESTIGE_HOME", str(tmp_path / "state"))
+    old = os.environ.copy()
+    os.environ.update(env)
     client_to_server_send, client_to_server_recv = anyio.create_memory_object_stream[SessionMessage | Exception](0)
     server_to_client_send, server_to_client_recv = anyio.create_memory_object_stream[SessionMessage](0)
 
-    async with anyio.create_task_group() as tg:
-        tg.start_soon(serve_streams, client_to_server_recv, server_to_client_send)
+    server_task = asyncio.create_task(serve_streams(client_to_server_recv, server_to_client_send))
+    try:
         async with ClientSession(server_to_client_recv, client_to_server_send) as session:
             await session.initialize()
             yield session
+    finally:
+        server_task.cancel()
+        try:
+            await server_task
+        except asyncio.CancelledError:
+            pass
+        os.environ.clear()
+        os.environ.update(old)
 
 
 async def test_mcp_lists_prestige_tools(tmp_path):
-    async for session in _mcp_client(tmp_path):
+    async with _mcp_client(tmp_path) as session:
         tools = await session.list_tools()
         names = {t.name for t in tools.tools}
         assert names >= {
@@ -54,7 +67,7 @@ async def test_mcp_create_and_status_roundtrip(tmp_path):
     path.write_bytes(base64.b64encode(value))
     digest = hashlib.sha256(value).hexdigest()
 
-    async for session in _mcp_client(tmp_path):
+    async with _mcp_client(tmp_path) as session:
         result = await session.call_tool(
             "prestige_create_investigation",
             {"source_path": str(path), "backend": "fake", "expected_sha256": digest},
@@ -76,7 +89,7 @@ async def test_mcp_run_experiment_and_record_observation(tmp_path):
     path.write_bytes(base64.b64encode(value))
     digest = hashlib.sha256(value).hexdigest()
 
-    async for session in _mcp_client(tmp_path):
+    async with _mcp_client(tmp_path) as session:
         created = await session.call_tool(
             "prestige_create_investigation",
             {"source_path": str(path), "backend": "fake", "expected_sha256": digest},
@@ -104,7 +117,7 @@ async def test_mcp_verify_candidate_with_digest(tmp_path):
     path.write_bytes(base64.b64encode(value))
     digest = hashlib.sha256(value).hexdigest()
 
-    async for session in _mcp_client(tmp_path):
+    async with _mcp_client(tmp_path) as session:
         created = await session.call_tool(
             "prestige_create_investigation",
             {"source_path": str(path), "backend": "fake", "expected_sha256": digest},
@@ -117,6 +130,7 @@ async def test_mcp_verify_candidate_with_digest(tmp_path):
         )
         body = json.loads(result.content[0].text)
         assert body["verified"] is True
+        assert "candidate" not in body
 
 
 async def test_mcp_investigation_loop_with_derived_evidence(tmp_path):
@@ -126,7 +140,7 @@ async def test_mcp_investigation_loop_with_derived_evidence(tmp_path):
     path.write_bytes(base64.b64encode(value))
     digest = hashlib.sha256(value).hexdigest()
 
-    async for session in _mcp_client(tmp_path):
+    async with _mcp_client(tmp_path) as session:
         created = await session.call_tool(
             "prestige_create_investigation",
             {"source_path": str(path), "backend": "fake", "expected_sha256": digest},
@@ -175,7 +189,7 @@ async def test_mcp_unknown_and_unauthorized_tools_fail_closed(tmp_path):
     path = tmp_path / "challenge.txt"
     path.write_bytes(b"SYNTHETIC{closed}")
 
-    async for session in _mcp_client(tmp_path):
+    async with _mcp_client(tmp_path) as session:
         created = await session.call_tool(
             "prestige_create_investigation",
             {"source_path": str(path), "backend": "fake"},
@@ -190,6 +204,41 @@ async def test_mcp_unknown_and_unauthorized_tools_fail_closed(tmp_path):
 
         missing = await session.call_tool("prestige_get_status", {"run_id": "does-not-exist"})
         assert missing.is_error is True
+
+
+async def test_mcp_create_rejects_model_defined_backend_and_credentials(tmp_path):
+    path = tmp_path / "challenge.txt"
+    path.write_bytes(b"data")
+
+    async with _mcp_client(tmp_path) as session:
+        for payload in (
+            {"source_path": str(path), "backend": "openai"},
+            {"source_path": str(path), "backend": "codex"},
+            {
+                "source_path": str(path),
+                "backend": "fake",
+                "openai_api_key": "sk-secret",
+            },
+            {
+                "source_path": str(path),
+                "backend": "fake",
+                "runner_image": "sha256:" + "a" * 64,
+            },
+        ):
+            result = await session.call_tool("prestige_create_investigation", payload)
+            assert result.is_error or json.loads(result.content[0].text).get("status") != "ready"
+
+
+async def test_mcp_create_defaults_to_fake_backend(tmp_path):
+    path = tmp_path / "challenge.txt"
+    path.write_bytes(b"data")
+
+    async with _mcp_client(tmp_path) as session:
+        result = await session.call_tool(
+            "prestige_create_investigation", {"source_path": str(path)}
+        )
+        body = json.loads(result.content[0].text)
+        assert body["status"] == "ready"
 
 
 def test_agent_stdio_smoke(tmp_path):

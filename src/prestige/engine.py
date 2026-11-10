@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 import uuid
 from dataclasses import asdict
 from pathlib import Path
@@ -56,6 +57,7 @@ def new_run(
         DockerRunner(runner_image)  # validates immutable digest format
     if not 1 <= max_artifact_mib <= 256:
         raise PrestigeError("max-artifact-mib must be between 1 and 256")
+    # Provider secrets are never persisted in investigation state.
     run_id = store.create_run(
         mode,
         backend,
@@ -69,7 +71,6 @@ def new_run(
             "runner_image": runner_image,
             "max_artifact_mib": max_artifact_mib,
             "openai_base_url": openai_base_url,
-            "openai_api_key": openai_api_key,
             "openai_model": openai_model,
         },
     )
@@ -107,9 +108,14 @@ async def solve(
         elif run["backend"] == "openai":
             from prestige.openai_backend import OpenAIBackend
 
+            api_key = settings.get("openai_api_key") or os.environ.get("PRESTIGE_OPENAI_API_KEY")
+            if not api_key:
+                raise PrestigeError(
+                    "openai backend requires PRESTIGE_OPENAI_API_KEY or an explicit key"
+                )
             backend = OpenAIBackend(
                 settings["openai_base_url"],
-                settings["openai_api_key"],
+                api_key,
                 settings["openai_model"],
                 workspace=store.home / "provider-workspace",
             )

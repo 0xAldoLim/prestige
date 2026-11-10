@@ -139,6 +139,16 @@ def test_cli_roundtrip(tmp_path, challenge, capsys):
     assert "value" not in json.loads(capsys.readouterr().out)["candidates"][0]
 
 
+def test_cli_default_backend_is_fake_and_keyless(tmp_path, challenge, capsys, monkeypatch):
+    path, digest, _ = challenge
+    monkeypatch.delenv("PRESTIGE_OPENAI_API_KEY", raising=False)
+    args = ["--home", str(tmp_path / "cli-state")]
+    assert main(args + ["solve", str(path), "--expected-sha256", digest]) == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["status"] == "solved"
+    assert output["backend"] == "fake"
+
+
 def test_remote_disabled_even_with_rules(store, challenge):
     with pytest.raises(PolicyDenied):
         new_run(store, challenge[0], instance="https://instance.example:8443/")
@@ -187,6 +197,42 @@ def test_new_run_stores_live_and_runner_settings(store, challenge):
     assert settings["live"] is True
     assert settings["runner_image"] == "sha256:" + "a" * 64
     assert settings["max_artifact_mib"] == 4
+
+
+def test_openai_api_key_is_not_persisted_in_settings(store, challenge):
+    path, _, _ = challenge
+    run_id = new_run(
+        store,
+        path,
+        backend="openai",
+        openai_base_url="http://localhost:1234/v1",
+        openai_api_key="sk-secret-must-not-be-stored",
+        openai_model="test-model",
+    )
+    settings = store.run(run_id)["settings"]
+    assert settings.get("openai_api_key") is None
+    assert settings["openai_base_url"] == "http://localhost:1234/v1"
+    assert settings["openai_model"] == "test-model"
+
+
+def test_store_scrubs_existing_provider_secret(store, challenge):
+    path, _, _ = challenge
+    run_id = new_run(store, path, backend="fake")
+    raw = store.rows("SELECT settings FROM runs WHERE id=?", (run_id,))[0]["settings"]
+    from prestige.store import encoded
+
+    poisoned = json.loads(raw)
+    poisoned["openai_api_key"] = "sk-old-secret"
+    with store.transaction() as db:
+        db.execute("UPDATE runs SET settings=? WHERE id=?", (encoded(poisoned), run_id))
+    # Re-opening the store triggers the migration that scrubs the secret.
+    from prestige.store import Store
+
+    fresh = Store(store.home)
+    try:
+        assert fresh.run(run_id)["settings"].get("openai_api_key") is None
+    finally:
+        fresh.close()
 
 
 def test_runner_image_must_be_immutable_digest(store, challenge):

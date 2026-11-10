@@ -56,22 +56,23 @@ async def _create_investigation(args: dict) -> dict:
     try:
         source = Path(args["source_path"]).resolve()
         backend = args.get("backend", "fake")
+        if backend != "fake":
+            raise PolicyDenied("OpenCode-native investigations use the fake backend")
+        # The model may not expand trusted scope: rules, runner images and provider
+        # configuration originate from operator-controlled configuration, not tool args.
+        for forbidden in ("rules_path", "runner_image", "live", "openai_base_url", "openai_api_key", "openai_model"):
+            if args.get(forbidden):
+                raise PolicyDenied(f"{forbidden} cannot be set by the model")
         run_id = new_run(
             store,
             source,
             mode=args.get("mode", "auto"),
             backend=backend,
-            rules=Rules.load(Path(args["rules_path"])) if args.get("rules_path") else None,
             expected=args.get("expected_sha256"),
             max_turns=args.get("max_turns", 12),
             max_seconds=args.get("max_seconds", 120),
             max_tokens=args.get("max_tokens"),
-            live=args.get("live", False),
-            runner_image=args.get("runner_image"),
             max_artifact_mib=args.get("max_artifact_mib", 1),
-            openai_base_url=args.get("openai_base_url"),
-            openai_api_key=args.get("openai_api_key"),
-            openai_model=args.get("openai_model"),
         )
         return {"run_id": run_id, "status": "ready"}
     finally:
@@ -175,7 +176,7 @@ async def _verify_candidate(args: dict) -> dict:
 
             verified = hashlib.sha256(value).hexdigest() == expected
         store.candidate(run_id, artifact_id, value, verified)
-        return {"candidate": args["candidate"], "verified": verified, "expected_available": bool(expected)}
+        return {"verified": verified, "expected_available": bool(expected)}
     finally:
         store.close()
 
@@ -192,18 +193,12 @@ _TOOLS: dict[str, tuple[Tool, Any]] = {
                 "properties": {
                     "source_path": {"type": "string"},
                     "mode": {"type": "string", "enum": ["fast", "expert", "auto"]},
-                    "backend": {"type": "string", "enum": ["fake", "codex", "openai"]},
-                    "rules_path": {"type": "string"},
+                    "backend": {"type": "string", "enum": ["fake"]},
                     "expected_sha256": {"type": "string"},
                     "max_turns": {"type": "integer"},
                     "max_seconds": {"type": "number"},
                     "max_tokens": {"type": "integer"},
-                    "live": {"type": "boolean"},
-                    "runner_image": {"type": "string"},
                     "max_artifact_mib": {"type": "integer"},
-                    "openai_base_url": {"type": "string"},
-                    "openai_api_key": {"type": "string"},
-                    "openai_model": {"type": "string"},
                 },
             },
         ),
