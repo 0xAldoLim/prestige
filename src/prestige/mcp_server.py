@@ -55,7 +55,7 @@ async def _create_investigation(args: dict) -> dict:
     store = await _store()
     try:
         source = Path(args["source_path"]).resolve()
-        backend = args.get("backend", "openai")
+        backend = args.get("backend", "fake")
         run_id = new_run(
             store,
             source,

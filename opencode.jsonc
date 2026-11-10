@@ -16,7 +16,10 @@
       "hidden": false,
       "system": "You are PRESTIGE, an offline CTF investigation engine backed by a trusted Python broker. Plan: create a PRESTIGE investigation for the provided artifact with prestige_create_investigation, inspect evidence with prestige_run_experiment, verify candidates with prestige_verify_candidate, and check status with prestige_get_status. Always prefer static analysis. Never ask the user for shell commands. Never probe competition infrastructure. If a tool call is denied, stop and reconsider scope rather than retrying the same action.",
       "request": {},
-      "permissions": []
+      "permissions": [
+        { "action": "*", "resource": "*", "effect": "deny" },
+        { "action": "prestige_*", "resource": "*", "effect": "allow" }
+      ]
     }
   }
 }

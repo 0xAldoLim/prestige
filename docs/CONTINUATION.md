@@ -29,6 +29,13 @@ are no longer required dependencies or default backends.
   - Additional tests cover a complete create/inspect/transform/read/verify loop and
     fail-closed behavior for unknown tools and invalid investigation IDs.
   - Full suite: **106 passed, 3 skipped**.
+- Live OpenCode model → MCP tool → evidence → model feedback validation:
+  - `opencode run --standalone --agent prestige --model opencode-go/beam-free`
+    completed a bounded VENOM triage session (`ses_e3cdaafaaffenn6mZSoGTI4VtN`).
+  - The model created investigation `418297ca91a3457c`, retrieved status, executed the
+    trusted `file` tool on the archive, and reported the real output.
+  - Session cost was **0**; tokens: 5129 input, 370 output, 285 reasoning, 5952 cached reads.
+- Ghidra headless integration test passed (`PRESTIGE_TEST_GHIDRA=1`): **107 passed, 2 skipped**.
 
 ## Latest executed checks
 
@@ -40,9 +47,9 @@ No paid model call was made during this increment.
 
 ## Repository state
 
-- Actual HEAD: `afd59df` (local)
+- Actual HEAD: `abbc4f1` (local)
 - Branch: `main`
-- Latest pushed commit: `afd59df` (`origin/main`)
+- Latest pushed commit: `abbc4f1` (`origin/main`)
 - GitHub authentication: authenticated as `0xAldoLim` via `gh auth login --web`.
 - Push status: all local commits pushed successfully.
 - CI: `offline-validation` passed on Ubuntu/Windows, Python 3.11 and 3.14
@@ -59,6 +66,9 @@ VENOM:
   identified `FlagApp.exe` as PE32+ x86-64 GUI, recorded radare2 section/entry-point
   output, and captured venom.paper strings. No candidate solution has been submitted
   or verified.
+- Live model-driven triage: OpenCode `prestige` agent with `opencode-go/beam-free`
+  created run `418297ca91a3457c` and executed `file` on the archive, confirming the
+  model → tool → evidence → model feedback path. No candidate or flag yet.
 - Static inspection: PE32+ x86-64 GUI executable; strings indicate OpenSSL/CRYPTOGAMS
   RC4, SHA1, Camellia, Poly1305, X25519 and other primitives.
 - No model-driven investigation, candidate or recovered flag yet.
@@ -88,13 +98,11 @@ is blocked on a configured, authorized model endpoint and a reviewed local runne
 
 ## Next executable milestone
 
-1. Configure an authorized PRESTIGE runtime model endpoint (OpenAI-compatible or
-   officially supported OpenCode provider) after verifying provider terms.
-2. Obtain or build a reviewed, immutable local Docker runner image for isolated
+1. Obtain or build a reviewed, immutable local Docker runner image for isolated
    `python`/`command` tool execution.
-3. Run the first real model-driven PRESTIGE investigation on VENOM through the
-   OpenCode `prestige` agent, using only PRESTIGE tools and recording evidence.
-4. Preserve the VENOM checkpoint and, only if VENOM stalls, investigate IBoH.
+2. Run a bounded full VENOM investigation with a stronger authorized model through the
+   OpenCode `prestige` agent, preserving all evidence and usage.
+3. Preserve the VENOM checkpoint and, only if VENOM stalls, investigate IBoH.
 
 ## Installed toolchain
 
@@ -109,14 +117,16 @@ is blocked on a configured, authorized model endpoint and a reviewed local runne
 
 ## Configured model providers
 
-PRESTIGE runtime providers are not configured. The OpenCode session can see the
-`prestige` MCP tools, but no paid inference has been triggered. Any real model-driven
-investigation requires explicit provider authorization and must be recorded separately.
+OpenCode's `opencode-go/beam-free` model is available and was used for a zero-cost
+bounded MCP loop. Standalone PRESTIGE runtime providers (OpenAI-compatible or Codex)
+remain unconfigured; no paid inference has been triggered.
 
 ## Real inference tested
 
-No paid PRESTIGE runtime inference in this increment. All tests are offline mock or
-in-process.
+A bounded, zero-cost live model loop was validated through OpenCode using
+`opencode-go/beam-free`. The model drove the PRESTIGE MCP tools against the real VENOM
+archive and received real tool output. No paid inference was used. A full autonomous
+VENOM solve and paid/provider-specific inference remain unvalidated.
 
 ## Exact reproduction commands
 
@@ -134,6 +144,7 @@ python -m prestige agent
 
 ## External blockers
 
-1. No authenticated PRESTIGE runtime model endpoint configured.
-2. No reviewed, immutable local Docker runner image available for isolated
+1. No reviewed, immutable local Docker runner image available for isolated
    `python`/`command` tool execution.
+2. A stronger authorized model is still needed for a full VENOM solve; the free
+   `beam-free` model validated the loop but was not asked to complete the challenge.
