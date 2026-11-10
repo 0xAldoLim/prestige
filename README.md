@@ -2,20 +2,24 @@
 
 Persistent CTF investigations, with evidence before confidence.
 
-PRESTIGE is an **experimental Python CLI** for bounded offline artifact investigations.
-It records evidence in SQLite, applies FAST/EXPERT investigation policies, verifies
-synthetic solutions independently, and preserves narrow reusable decoding methods.
-This first implementation is **not a production autonomous CTF solver: P0 is incomplete**.
-The normal CLI's Codex solving path remains gated. An internal experimental text-only
-gateway completed one real inference smoke turn; autonomous real-challenge solving
-has not been demonstrated. Remote challenge connections are disabled. See
+PRESTIGE is an **OpenCode-native autonomous offline CTF investigation system**.
+OpenCode owns the generic agent runtime and model transport; PRESTIGE's Python
+engine owns investigation strategy, trusted tool authorization, evidence
+persistence, progress evaluation and candidate verification.
+
+Codex and OpenAI API credentials are **optional legacy integrations**, not core
+requirements. The default workflow uses the restricted `prestige` OpenCode agent
+and PRESTIGE's MCP tools; no separate provider API key is required.
+
+This implementation is **experimental and not a production autonomous CTF solver**.
+Remote challenge connections are disabled. See
 [implementation status](docs/IMPLEMENTATION_STATUS.md) and the
 [OpenCode development handoff](docs/OPENCODE_HANDOFF.md).
 
 The design goal is more independently verified points per unit of model usage than
-plain Codex or Codex with the owner's skills. **No comparative model evaluation has
-been run and no performance advantage is claimed.** The runnable `fake` worker is a
-deterministic encoding-fixture solver, not an AI model.
+plain model loops. **No comparative model evaluation has been run and no performance
+advantage is claimed.** The runnable `fake` worker is a deterministic
+encoding-fixture solver, not an AI model.
 
 ## What works
 
@@ -25,9 +29,13 @@ deterministic encoding-fixture solver, not an AI model.
 - One-way FAST → EXPERT escalation, repeated-action suppression and evidence handoff.
 - Candidate flags remain unverified unless a separately supplied SHA256 commitment matches and the derivation replays.
 - Read-only, cited skills retrieval and schema-validated local learning with conservative novelty gates.
-- A local challenge queue (one or two workers), reproducible fixture benchmarks and comparison-contract checks.
-- Optional advisory-only Ollama requests, pinned provenance declarations and hardware diagnostics.
-- An opt-in Docker runner with no network, no host mounts, restricted resources and negative isolation probes.
+- OpenCode-native MCP broker (`prestige agent`) exposing trusted investigation tools.
+- Restricted `prestige` OpenCode agent that can call only `prestige_*` MCP tools.
+- Durable, cached, resumable analysis jobs (`prestige_start_analysis`, `prestige_get_analysis`, `prestige_cancel_analysis`).
+- Operator-controlled source-path policy, artifact resolver, and per-investigation budgets.
+- Opt-in Docker runner with no network, no host mounts, restricted resources and negative isolation probes.
+- First real autonomous CTF solve demonstrated on the IBoH / Celestial Gatekeeper challenge
+  with independent decoder-replay verification.
 
 ## Acknowledgments and Research Foundations
 
@@ -79,6 +87,27 @@ py -3 -m venv .venv
 For the smaller offline installation use `python -m pip install -e .`.
 The optional Codex extra pins SDK/runtime 0.163.0. It does not enable live solving.
 No Node UI, model weights, Docker, GDB or Ghidra are required for the quickstart.
+
+## OpenCode-native agent workflow
+
+Start the MCP server manually or let the OpenCode plugin register it:
+
+```bash
+# Manual stdio server
+python -m prestige agent
+```
+
+With OpenCode installed and authenticated, run the restricted `prestige` agent:
+
+```bash
+opencode run --standalone --agent prestige --model opencode-go/kimi-k2.7-code \
+  "Resume the existing authorized offline investigation."
+```
+
+The `prestige` agent is configured in `opencode.jsonc` with permissions limited to
+`prestige_*` MCP tools; it cannot invoke host shell, read, write, browser or skill tools.
+Provider model selection is controlled by OpenCode; PRESTIGE never requests provider
+API keys through its MCP interface.
 
 ## Offline quickstart
 
@@ -183,8 +212,9 @@ No base-versus-abliterated performance experiment has been run.
 | Windows host, Python 3.14 | Offline test and packaging validation; see exact report |
 | Kali Linux Docker | Opt-in isolation and portable suite validation; see exact report |
 | Native Kali VM, Windows 10/11 variants, other Linux distributions | Designed for; not separately certified |
-| Codex paid/live solving | Blocked pending control-plane isolation validation |
-| Remote challenges, OpenCode, persistent GDB, online CVE research | Not implemented/enabled |
+| OpenCode-native agent solving | Implemented; model selection controlled by OpenCode |
+| Codex paid/live solving | Optional standalone backend; blocked by default |
+| Remote challenges, persistent GDB, online CVE research | Not implemented/enabled |
 
 Artifact limits are 1 MiB each, 16 MiB total and 128 entries. ZIP members are read into
 content-addressed blobs, never extracted to attacker-selected paths. No unknown binary runs
@@ -206,9 +236,10 @@ python -m prestige --help
 ```
 
 Default tests are offline and spend no model quota. The Docker marker is opt-in via
-`PRESTIGE_TEST_IMAGE`. Paid integration and B0/B1 comparisons remain blocked and must not
-be simulated under real model labels. No telemetry is collected. Future cloud model use
-would send bounded challenge evidence to the chosen provider and may consume quota.
+`PRESTIGE_TEST_IMAGE`. Ghidra tests require `PRESTIGE_TEST_GHIDRA=1`. Paid integration
+and B0/B1 comparisons remain blocked and must not be simulated under real model labels.
+No telemetry is collected. Future cloud model use would send bounded challenge evidence
+to the chosen provider and may consume quota.
 Report issues without including credentials, live flags, private artifacts or provider transcripts.
 
 MIT for original PRESTIGE code; third-party notices remain applicable.
