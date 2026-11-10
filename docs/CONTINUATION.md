@@ -26,25 +26,27 @@ are no longer required dependencies or default backends.
     verification.
   - A stdio smoke test verifies `python -m prestige agent` answers an `initialize`
     JSON-RPC request.
-  - Full suite: **104 passed, 3 skipped**.
+  - Additional tests cover a complete create/inspect/transform/read/verify loop and
+    fail-closed behavior for unknown tools and invalid investigation IDs.
+  - Full suite: **106 passed, 3 skipped**.
 
 ## Latest executed checks
 
 Kali Linux VM, Python 3.13.12:
-**104 passed in 7.35 seconds**, 3 skipped (container tests require `PRESTIGE_TEST_IMAGE`,
+**106 passed in 5.64 seconds**, 3 skipped (container tests require `PRESTIGE_TEST_IMAGE`,
 ghidra test requires `PRESTIGE_TEST_GHIDRA=1`).
 Ruff clean. `python -m build --wheel` succeeds.
 No paid model call was made during this increment.
 
 ## Repository state
 
-- Actual HEAD: `aefdeb1` (local)
+- Actual HEAD: `afd59df` (local)
 - Branch: `main`
-- Latest pushed commit: `aefdeb1` (`origin/main`)
+- Latest pushed commit: `afd59df` (`origin/main`)
 - GitHub authentication: authenticated as `0xAldoLim` via `gh auth login --web`.
 - Push status: all local commits pushed successfully.
 - CI: `offline-validation` passed on Ubuntu/Windows, Python 3.11 and 3.14
-  (run `42736865152`).
+  (latest run `42737614805`).
 
 ## Real challenge
 
