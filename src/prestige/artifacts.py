@@ -295,7 +295,7 @@ class ToolRegistry:
         script = "; ".join(args["script"])
         try:
             completed = subprocess.run(
-                ["r2", "-q", "-c", script, str(path)],
+                ["r2", "-q", "-e", "scr.color=0", "-c", script, str(path)],
                 capture_output=True,
                 text=True,
                 timeout=min(30, max(1, timeout)),

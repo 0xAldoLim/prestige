@@ -75,6 +75,11 @@ VENOM:
   a DER-like ECDSA signature in `venom.paper`. No candidate was fabricated; the run
   stopped at the 15-call budget because full-binary Ghidra/radare2 analysis exceeded
   time/output limits.
+- Follow-up run `b1d67678d32642c2` recovered additional static evidence:
+  `VENOM_ACTIVATION_PHRASE`, `Incorrect flag!`, and a hint describing an
+  underscore-joined, confession-like insult phrase. A resume attempt hit a provider
+  transport reset (`ECONNRESET`) before a final candidate was produced. No flag has
+  been verified.
 - Static inspection: PE32+ x86-64 GUI executable; strings indicate OpenSSL/CRYPTOGAMS
   RC4, SHA1, Camellia, Poly1305, X25519 and other primitives.
 - No model-driven investigation, candidate or recovered flag yet.
