@@ -10,7 +10,6 @@ from pathlib import Path
 import anyio
 import pytest
 from mcp.client.session import ClientSession
-from mcp.shared._context_streams import create_context_streams
 from mcp.shared.message import SessionMessage
 
 from prestige.mcp_server import serve_streams
@@ -27,8 +26,8 @@ async def _mcp_client(tmp_path, env=None):
     """Yield a connected ClientSession backed by in-memory streams."""
     env = env or {}
     env.setdefault("PRESTIGE_HOME", str(tmp_path / "state"))
-    client_to_server_send, client_to_server_recv = create_context_streams[SessionMessage | Exception](0)
-    server_to_client_send, server_to_client_recv = create_context_streams[SessionMessage](0)
+    client_to_server_send, client_to_server_recv = anyio.create_memory_object_stream[SessionMessage | Exception](0)
+    server_to_client_send, server_to_client_recv = anyio.create_memory_object_stream[SessionMessage](0)
 
     async with anyio.create_task_group() as tg:
         tg.start_soon(serve_streams, client_to_server_recv, server_to_client_send)
