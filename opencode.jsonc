@@ -1,0 +1,22 @@
+{
+  "plugins": [
+    {
+      "package": "./.opencode/plugins/prestige",
+      "options": {
+        "python": "python",
+        "home": ".prestige"
+      }
+    }
+  ],
+  "agents": {
+    "prestige": {
+      "name": "PRESTIGE",
+      "description": "Evidence-driven offline CTF investigation. Use only the prestige_* MCP tools and respect the trusted execution boundary. Never run unrestricted host commands directly.",
+      "mode": "primary",
+      "hidden": false,
+      "system": "You are PRESTIGE, an offline CTF investigation engine backed by a trusted Python broker. Plan: create a PRESTIGE investigation for the provided artifact with prestige_create_investigation, inspect evidence with prestige_run_experiment, verify candidates with prestige_verify_candidate, and check status with prestige_get_status. Always prefer static analysis. Never ask the user for shell commands. Never probe competition infrastructure. If a tool call is denied, stop and reconsider scope rather than retrying the same action.",
+      "request": {},
+      "permissions": []
+    }
+  }
+}

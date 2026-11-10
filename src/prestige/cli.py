@@ -35,6 +35,7 @@ def parser():
     commands.add_parser("about")
     commands.add_parser("doctor")
     commands.add_parser("init")
+    commands.add_parser("agent")
     config = commands.add_parser("config").add_subparsers(dest="operation", required=True)
     config.add_parser("show")
     setting = config.add_parser("set")
@@ -182,6 +183,11 @@ def dispatch(args, store: Store, config: dict):
         }
     if args.command == "init":
         return {"state": str(store.home), "settings": config, "remote": "disabled"}
+    if args.command == "agent":
+        from prestige.mcp_server import serve_stdio
+
+        asyncio.run(serve_stdio())
+        return {"agent": "stopped"}
     if args.command == "config":
         if args.operation == "set":
             set_config(store.home, args.key, args.value)

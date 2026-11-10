@@ -13,5 +13,6 @@ complete increments, retain hard isolation and scope restrictions, update state,
 commit validated project changes and verify pushes/CI. Continue within the user's
 scope until the release criteria pass or a genuine external blocker stops progress.
 
-OpenCode is the development agent here. PRESTIGE remains a Codex-first product;
-do not silently replace its primary backend or weaken its live execution gate.
+OpenCode is the primary agent runtime for PRESTIGE. Codex and Daybreak are not
+required dependencies or default backends. PRESTIGE's Python engine owns tool
+authorization, evidence persistence, and verification.
