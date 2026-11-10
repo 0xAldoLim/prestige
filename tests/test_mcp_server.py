@@ -119,6 +119,79 @@ async def test_mcp_verify_candidate_with_digest(tmp_path):
         assert body["verified"] is True
 
 
+async def test_mcp_investigation_loop_with_derived_evidence(tmp_path):
+    """Exercise create -> inspect -> transform -> read -> verify through MCP."""
+    value = b"hello-mcp-loop"
+    path = tmp_path / "challenge.txt"
+    path.write_bytes(base64.b64encode(value))
+    digest = hashlib.sha256(value).hexdigest()
+
+    async for session in _mcp_client(tmp_path):
+        created = await session.call_tool(
+            "prestige_create_investigation",
+            {"source_path": str(path), "backend": "fake", "expected_sha256": digest},
+        )
+        run_id = json.loads(created.content[0].text)["run_id"]
+
+        status = await session.call_tool("prestige_get_status", {"run_id": run_id})
+        artifact_id = json.loads(status.content[0].text)["artifacts"][0]["id"]
+
+        inspected = await session.call_tool(
+            "prestige_run_experiment",
+            {"run_id": run_id, "tool": "inspect", "artifact_id": artifact_id, "args": {}},
+        )
+        assert json.loads(inspected.content[0].text)["status"] == "ok"
+
+        transformed = await session.call_tool(
+            "prestige_run_experiment",
+            {"run_id": run_id, "tool": "base64", "artifact_id": artifact_id, "args": {}},
+        )
+        derived = json.loads(transformed.content[0].text)
+        assert derived["status"] == "ok"
+        derived_id = derived["result"]["artifact"]
+
+        read = await session.call_tool(
+            "prestige_run_experiment",
+            {"run_id": run_id, "tool": "read", "artifact_id": derived_id, "args": {}},
+        )
+        body = json.loads(read.content[0].text)
+        assert body["status"] == "ok"
+        assert value.decode() in body["result"]["text"]
+
+        verified = await session.call_tool(
+            "prestige_verify_candidate",
+            {"run_id": run_id, "candidate": value.decode(), "artifact_id": derived_id},
+        )
+        assert json.loads(verified.content[0].text)["verified"] is True
+
+        final = await session.call_tool("prestige_get_status", {"run_id": run_id})
+        final_body = json.loads(final.content[0].text)
+        assert len(final_body["observations"]) == 3
+        assert len(final_body["candidates"]) == 1
+        assert final_body["candidates"][0]["verified"] is True
+
+
+async def test_mcp_unknown_and_unauthorized_tools_fail_closed(tmp_path):
+    path = tmp_path / "challenge.txt"
+    path.write_bytes(b"SYNTHETIC{closed}")
+
+    async for session in _mcp_client(tmp_path):
+        created = await session.call_tool(
+            "prestige_create_investigation",
+            {"source_path": str(path), "backend": "fake"},
+        )
+        run_id = json.loads(created.content[0].text)["run_id"]
+
+        unknown = await session.call_tool(
+            "prestige_run_experiment",
+            {"run_id": run_id, "tool": "definitely-not-a-tool", "artifact_id": "", "args": {}},
+        )
+        assert json.loads(unknown.content[0].text)["status"] == "denied"
+
+        missing = await session.call_tool("prestige_get_status", {"run_id": "does-not-exist"})
+        assert missing.is_error is True
+
+
 def test_agent_stdio_smoke(tmp_path):
     """The `prestige agent` CLI starts a stdio MCP server and answers initialize."""
     env = os.environ.copy()
