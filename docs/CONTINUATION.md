@@ -47,9 +47,9 @@ No paid model call was made during this increment.
 
 ## Repository state
 
-- Actual HEAD: `31413d0` (local)
+- Actual HEAD: `4706726` (local)
 - Branch: `main`
-- Latest pushed commit: `31413d0` (`origin/main`)
+- Latest pushed commit: `4706726` (`origin/main`)
 - GitHub authentication: authenticated as `0xAldoLim` via `gh auth login --web`.
 - Push status: all local commits pushed successfully.
 - CI: `offline-validation` passed on Ubuntu/Windows, Python 3.11 and 3.14
@@ -78,8 +78,10 @@ VENOM:
 - Follow-up run `b1d67678d32642c2` recovered additional static evidence:
   `VENOM_ACTIVATION_PHRASE`, `Incorrect flag!`, and a hint describing an
   underscore-joined, confession-like insult phrase. A resume attempt hit a provider
-  transport reset (`ECONNRESET`) before a final candidate was produced. No flag has
-  been verified.
+  transport reset (`ECONNRESET`) before a final candidate was produced.
+- A subsequent targeted run `ac3465420fc24566` reproduced the activation-phrase
+  strings and entry-point disassembly but timed out before deriving a candidate.
+  No flag has been verified.
 - Static inspection: PE32+ x86-64 GUI executable; strings indicate OpenSSL/CRYPTOGAMS
   RC4, SHA1, Camellia, Poly1305, X25519 and other primitives.
 - No model-driven investigation, candidate or recovered flag yet.
@@ -109,11 +111,13 @@ is blocked on a configured, authorized model endpoint and a reviewed local runne
 
 ## Next executable milestone
 
-1. Obtain or build a reviewed, immutable local Docker runner image for isolated
+1. Preserve the VENOM checkpoint (done: runs `62b1e633895444b8`, `f46789e7f71c461e`,
+   `b1d67678d32642c2`, `ac3465420fc24566`) and investigate IBoH as the fallback
+   challenge.
+2. Obtain or build a reviewed, immutable local Docker runner image for isolated
    `python`/`command` tool execution.
-2. Run a bounded full VENOM investigation with a stronger authorized model through the
-   OpenCode `prestige` agent, preserving all evidence and usage.
-3. Preserve the VENOM checkpoint and, only if VENOM stalls, investigate IBoH.
+3. Resume VENOM with a focused activation-phrase recovery session once the IBoH
+   checkpoint exists.
 
 ## Installed toolchain
 
