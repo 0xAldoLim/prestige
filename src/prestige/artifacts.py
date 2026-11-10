@@ -274,9 +274,9 @@ class ToolRegistry:
         raise PolicyDenied("Tool is not implemented; no host shell fallback")
 
     _R2_CMD = re.compile(
-        r"^(aaa|aaaa|afl|iz|izz|iS|is|ii|ie|ic|il|fs|f|q|Vq|pdf"
+        r"^(aa|aaa|aaaa|afl|iz|izz|iS|iI|is|ii|ie|ic|il|fs|f|q|Vq|pdf"
         r"|p[dD8xX](?:\s+\d+)?)(?:\s+@\s+[a-zA-Z0-9_.]+)?"
-        r"(?:\s+~\s+[a-zA-Z0-9_]+)?$"
+        r"(?:\s*~\s*[a-zA-Z0-9_]+)?$"
     )
 
     def _radare2(self, action: Action) -> dict:
@@ -319,7 +319,7 @@ class ToolRegistry:
         args = dict(action.args)
         mode = args.pop("mode", "functions")
         target = args.pop("target", "")
-        timeout = args.pop("timeout", 120)
+        timeout = args.pop("timeout", 300)
         if args:
             raise PolicyDenied("Unexpected ghidra arguments")
         path = self.artifacts.root / action.artifact

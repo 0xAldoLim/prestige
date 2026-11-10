@@ -69,6 +69,12 @@ VENOM:
 - Live model-driven triage: OpenCode `prestige` agent with `opencode-go/beam-free`
   created run `418297ca91a3457c` and executed `file` on the archive, confirming the
   model → tool → evidence → model feedback path. No candidate or flag yet.
+- Live model-driven static analysis: `opencode-go/kimi-k3.1-pro` created run
+  `f46789e7f71c461e`, extracted the archive with the `zip` tool, identified embedded
+  OpenSSL RC4 code in `FlagApp.exe`, and recovered the `TOILPAPE` container marker and
+  a DER-like ECDSA signature in `venom.paper`. No candidate was fabricated; the run
+  stopped at the 15-call budget because full-binary Ghidra/radare2 analysis exceeded
+  time/output limits.
 - Static inspection: PE32+ x86-64 GUI executable; strings indicate OpenSSL/CRYPTOGAMS
   RC4, SHA1, Camellia, Poly1305, X25519 and other primitives.
 - No model-driven investigation, candidate or recovered flag yet.
@@ -123,10 +129,11 @@ remain unconfigured; no paid inference has been triggered.
 
 ## Real inference tested
 
-A bounded, zero-cost live model loop was validated through OpenCode using
-`opencode-go/beam-free`. The model drove the PRESTIGE MCP tools against the real VENOM
-archive and received real tool output. No paid inference was used. A full autonomous
-VENOM solve and paid/provider-specific inference remain unvalidated.
+Bounded live model loops were validated through OpenCode using `opencode-go/beam-free`
+and `opencode-go/kimi-k3.1-pro`. The models drove the PRESTIGE MCP tools against the
+real VENOM archive and received real tool output; both sessions reported cost 0 under
+the current OpenCode provider accounting. A full autonomous VENOM solve and standalone
+provider-specific inference remain unvalidated.
 
 ## Exact reproduction commands
 

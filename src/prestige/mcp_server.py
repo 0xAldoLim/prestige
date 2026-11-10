@@ -225,7 +225,11 @@ _TOOLS: dict[str, tuple[Tool, Any]] = {
     "prestige_run_experiment": (
         Tool(
             name="prestige_run_experiment",
-            description="Execute one authorized PRESTIGE tool and record the observation.",
+            description=(
+                "Execute one authorized PRESTIGE tool and record the observation. "
+                "Tools: inspect, strings, file, zip, read, base64, hex, xor, radare2, ghidra. "
+                "Use zip on an archive to extract member artifacts before analyzing them."
+            ),
             inputSchema={
                 "type": "object",
                 "required": ["run_id", "tool"],
