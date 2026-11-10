@@ -92,7 +92,13 @@ IBoH / Celestial Gatekeeper:
 - Description image: `/home/kali/Prestige/Screenshot (11).png`
 - Title: Celestial Gatekeeper; category: Reverse Engineering; points: 500.
 - Flag format: `BOH25{flag}`; archive password: `ba5ada3d6169866673a5480745744cc4`.
-- Status: description transcribed; no extraction, execution or investigation yet.
+- Status: extracted with the supplied password to `/tmp/opencode/iboh/gate.exe`
+  (538112 bytes). Verified format is PE32 i386 console, not the previously reported ELF64.
+- Live model-driven investigation run `2531154f6b674e71` identified anti-debug checks,
+  a 136-byte encoded target at `0x41f008`, startup mutation, a custom PRNG/XOR/shuffle
+  decoder, and the encoded bytes. A resume narrowed the shuffle to a one-position
+  rotation and began validating arithmetic against the `BOH25{` prefix, but timed out
+  before producing a verified candidate. No flag has been recovered.
 
 ## Current phase
 
