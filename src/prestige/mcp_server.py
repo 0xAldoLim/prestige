@@ -104,14 +104,19 @@ async def _create_investigation(args: dict) -> dict:
                 raise PolicyDenied(f"{forbidden} cannot be set by the model")
         # Isolated execution uses the operator-controlled runner image, never a model-supplied one.
         runner_image = load_config(_HOME).get("sandbox.image")
+        # Budgets come from the model request but are capped by a trusted ceiling.
+        max_turns = min(max(1, args.get("max_turns", 12)), 1000)
+        max_seconds = min(max(1.0, args.get("max_seconds", 120)), 3600)
+        rules = Rules(max_turns=max_turns, max_seconds=max_seconds)
         run_id = new_run(
             store,
             source,
             mode=args.get("mode", "auto"),
             backend=backend,
+            rules=rules,
             expected=args.get("expected_sha256"),
-            max_turns=args.get("max_turns", 12),
-            max_seconds=args.get("max_seconds", 120),
+            max_turns=max_turns,
+            max_seconds=max_seconds,
             max_tokens=args.get("max_tokens"),
             runner_image=runner_image,
             max_artifact_mib=args.get("max_artifact_mib", 1),
