@@ -319,8 +319,6 @@ async def _verify_candidate(args: dict) -> dict:
         expected = run["settings"].get("expected_digest")
         verified = False
         if expected:
-            import hashlib
-
             verified = hashlib.sha256(value).hexdigest() == expected
         reproduced = False
         if derivation_id:
@@ -336,12 +334,25 @@ async def _verify_candidate(args: dict) -> dict:
         else:
             stage = "discovered"
         store.candidate(run_id, artifact_id, value, verified)
+        store.event(
+            run_id,
+            "verified",
+            {
+                "stage": stage,
+                "verified": verified,
+                "reproduced": reproduced,
+                "expected_available": bool(expected),
+                "candidate_sha256": hashlib.sha256(value).hexdigest(),
+                "trust": "fact",
+            },
+        )
         return {
             "verified": verified,
             "expected_available": bool(expected),
             "reproduced": reproduced,
             "stage": stage,
             "checker": "unavailable",
+            "digest": hashlib.sha256(value).hexdigest(),
         }
     except PolicyDenied as error:
         return {"status": "denied", "reason": str(error)}
