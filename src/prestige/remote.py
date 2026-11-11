@@ -315,6 +315,13 @@ class _CancellationMonitor:
             sock.shutdown(socket.SHUT_RDWR)
         except OSError:
             pass
+        # Closing is the only reliable way to wake a blocking recv on every
+        # platform; the supervisor below does not depend on it, but it helps
+        # release the blocked worker promptly.
+        try:
+            sock.close()
+        except OSError:
+            pass
 
     def start(self):
         self.thread.start()
@@ -460,6 +467,63 @@ class RemoteBroker:
         except OSError:
             pass
 
+    def _supervise(self, operation, monitor, timeout: float):
+        """Run a blocking exchange while observing expiry/revocation.
+
+        A socket blocked in ``recv``/``getresponse`` is not reliably
+        interrupted by ``shutdown`` from another thread on Windows. The caller
+        therefore waits on a short event and aborts as soon as the monitor
+        reports expiry or cancellation, regardless of what the worker is doing.
+        """
+        finished = threading.Event()
+        abort = threading.Event()
+        outcome: dict = {}
+
+        def run():
+            try:
+                outcome["result"] = operation(abort)
+            except BaseException as error:
+                outcome["error"] = error
+            finally:
+                finished.set()
+
+        thread = threading.Thread(target=run, daemon=True)
+        thread.start()
+        deadline = time.monotonic() + min(timeout, self.registration.max_seconds) + 1.0
+        while not finished.wait(0.1):
+            if monitor.cancelled:
+                abort.set()
+                raise RemoteExpired("Remote request cancelled or instance expired")
+            if time.monotonic() >= deadline:
+                abort.set()
+                raise PrestigeError("Remote request timed out")
+        if "error" in outcome:
+            error = outcome["error"]
+            if monitor.cancelled and isinstance(error, OSError):
+                raise RemoteExpired(
+                    "Remote request cancelled or instance expired"
+                ) from error
+            raise error
+        return outcome["result"]
+
+    @staticmethod
+    def _send_bounded(sock, data, monitor, deadline: float):
+        view = memoryview(data)
+        while view:
+            if monitor.cancelled:
+                raise RemoteExpired("Remote request cancelled or instance expired")
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise PrestigeError("TCP send timed out")
+            sock.settimeout(min(0.2, remaining))
+            try:
+                sent = sock.send(view)
+            except socket.timeout:
+                continue
+            if sent == 0:
+                raise PrestigeError("TCP connection closed during send")
+            view = view[sent:]
+
     # ---- HTTP -----------------------------------------------------------
     def _path_allowed(self, path: str) -> bool:
         if not isinstance(path, str) or not path.startswith("/") or len(path) > 2048:
@@ -517,46 +581,71 @@ class RemoteBroker:
         token = reserve(self.home, self.registration, run_id, self.registration.max_seconds)
         sock = None
         monitor = None
+        state = {"sock": None, "closed": False}
+        state_lock = threading.Lock()
         try:
             sock = self._connect(timeout)
+            state["sock"] = sock
             monitor = _CancellationMonitor(self.home, self.registration, sock)
             monitor.start()
-            if self.registration.protocol == "https":
-                context = ssl.create_default_context()
-                context.check_hostname = True
-                context.verify_mode = ssl.CERT_REQUIRED
-                context.minimum_version = ssl.TLSVersion.TLSv1_2
-                sock = context.wrap_socket(sock, server_hostname=self.registration.host)
-                self._register(sock)
-                monitor.update_socket(sock)
-            if monitor.cancelled:
-                raise RemoteExpired("Remote request cancelled during TLS handshake")
-            connection = http.client.HTTPConnection(
-                self.registration.host, self.registration.port, timeout=timeout
-            )
-            connection.sock = sock
-            connection.request(
-                method, request_target, body=body or None, headers=request_headers
-            )
-            response = connection.getresponse()
-            data = response.read(min(self.registration.max_response_bytes, _MAX_RESPONSE))
-            location = response.getheader("Location")
-            return {
-                "status": response.status,
-                "reason": response.reason,
-                "headers": {
-                    key: value
-                    for key, value in response.getheaders()
-                    if key.lower()
-                    in {"content-type", "content-length", "location", "set-cookie", "server"}
-                },
-                "bytes": len(data),
-                "body": data,
-                "followed_redirect": False,
-                "redirect_blocked": bool(
-                    location and not self._path_allowed(_location_path(location))
-                ),
-            }
+
+            def exchange(abort: threading.Event) -> dict:
+                active = sock
+                if self.registration.protocol == "https":
+                    context = ssl.create_default_context()
+                    context.check_hostname = True
+                    context.verify_mode = ssl.CERT_REQUIRED
+                    context.minimum_version = ssl.TLSVersion.TLSv1_2
+                    active = context.wrap_socket(
+                        sock, server_hostname=self.registration.host
+                    )
+                    with state_lock:
+                        if state["closed"] or abort.is_set():
+                            active.close()
+                            raise RemoteExpired(
+                                "Remote request cancelled during TLS handshake"
+                            )
+                        state["sock"] = active
+                        self._register(active)
+                    monitor.update_socket(active)
+                if monitor.cancelled:
+                    raise RemoteExpired("Remote request cancelled during TLS handshake")
+                connection = http.client.HTTPConnection(
+                    self.registration.host, self.registration.port, timeout=timeout
+                )
+                connection.sock = active
+                connection.request(
+                    method, request_target, body=body or None, headers=request_headers
+                )
+                response = connection.getresponse()
+                data = response.read(
+                    min(self.registration.max_response_bytes, _MAX_RESPONSE)
+                )
+                location = response.getheader("Location")
+                return {
+                    "status": response.status,
+                    "reason": response.reason,
+                    "headers": {
+                        key: value
+                        for key, value in response.getheaders()
+                        if key.lower()
+                        in {
+                            "content-type",
+                            "content-length",
+                            "location",
+                            "set-cookie",
+                            "server",
+                        }
+                    },
+                    "bytes": len(data),
+                    "body": data,
+                    "followed_redirect": False,
+                    "redirect_blocked": bool(
+                        location and not self._path_allowed(_location_path(location))
+                    ),
+                }
+
+            return self._supervise(exchange, monitor, timeout)
         except (OSError, http.client.HTTPException) as error:
             if monitor is not None and monitor.cancelled:
                 raise RemoteExpired("Remote request cancelled or instance expired") from error
@@ -564,8 +653,13 @@ class RemoteBroker:
         finally:
             if monitor is not None:
                 monitor.stop()
-            if sock is not None:
+            with state_lock:
+                state["closed"] = True
+                active = state["sock"]
+            if sock is not None and active is not sock:
                 self._release(sock)
+            if active is not None:
+                self._release(active)
             release(self.home, token)
 
     # ---- TCP ------------------------------------------------------------
@@ -591,21 +685,24 @@ class RemoteBroker:
             sock = self._connect(timeout)
             monitor = _CancellationMonitor(self.home, self.registration, sock)
             monitor.start()
-            if data:
-                sock.sendall(data)
             deadline = time.monotonic() + min(timeout, self.registration.max_seconds)
+            self._send_bounded(sock, data, monitor, deadline)
             while len(received) < read_bytes:
+                if monitor.cancelled:
+                    raise RemoteExpired("Remote request cancelled or instance expired")
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
                     break
-                sock.settimeout(remaining)
+                sock.settimeout(min(0.2, remaining))
                 try:
                     chunk = sock.recv(min(4096, read_bytes - len(received)))
                 except socket.timeout:
-                    break
+                    continue
                 if not chunk:
                     break
                 received.extend(chunk)
+            if monitor.cancelled:
+                raise RemoteExpired("Remote request cancelled or instance expired")
             return {"bytes": len(received), "data": bytes(received)}
         except OSError as error:
             if monitor is not None and monitor.cancelled:

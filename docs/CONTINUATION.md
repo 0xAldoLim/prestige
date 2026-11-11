@@ -44,6 +44,12 @@ requirements.
 - **Integrated harmony test**: one local environment combines offline decoding,
   skill routing, hypothesis evaluation, query-authorized web access, exclusions,
   TCP, expiry/operator assistance and verification.
+- **Cross-platform cancellation**: the HTTP exchange runs under a supervisor that
+  aborts on observed expiry/revocation without relying on `shutdown` waking a
+  blocked `recv` (which it does not reliably on Windows). TCP send/read use bounded
+  polling slices. A regression test disables `_shutdown` entirely to prove the
+  supervisor alone aborts promptly; Windows CI failures on 66913f6/8ae45ef are
+  fixed by this design.
 
 ## What works now
 
@@ -194,9 +200,9 @@ requirements.
     limits, bounded output.
   - `WorkspaceRunner` output directory made writable for the containerized user.
 - **Tests**
-  - Default suite: **282 passed, 8 skipped**.
-  - With `PRESTIGE_TEST_IMAGE`: **287 passed, 3 skipped**.
-  - With GDB + SSHD + Docker + Ghidra opt-ins: **289 passed**.
+  - Default suite: **283 passed, 8 skipped**.
+  - With `PRESTIGE_TEST_IMAGE`: **288 passed, 3 skipped**.
+  - With GDB + SSHD + Docker + Ghidra opt-ins: **291 passed**.
 - **Operator known-answer helper**
   - `prestige verify-candidate --expected-sha256 <digest> [--candidate-file PATH]`
     reads a candidate from stdin/file, reports only digests + `match`, and never

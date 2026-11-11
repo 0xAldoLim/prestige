@@ -76,6 +76,7 @@ Status legend: `done`, `partial`, `blocked-external`, `not-started`.
 | RM-17 | Expiry/revocation is rechecked after rate waits and before connection; expired instances cannot connect | done | `tests/test_remote.py::test_expiry_during_rate_wait_prevents_connection` |
 | RM-18 | In-flight HTTPS cancellation controls the TLS socket and releases the lease | done | CA-signed HTTPS tests incl. cross-process cancellation |
 | RM-19 | Expiry automatically requests operator assistance without probing for a replacement | done | `test_expired_mcp_request_asks_for_operator` |
+| RM-20 | In-flight cancellation does not depend on platform socket-shutdown semantics | done | `_supervise`, `test_cancellation_independent_of_socket_shutdown`, Windows CI |
 
 ## 6. Persistent interactive tools
 

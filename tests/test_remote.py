@@ -560,6 +560,26 @@ def test_expiry_cancels_in_flight_http_request(tmp_path, http_server):
         store.close()
 
 
+def test_cancellation_independent_of_socket_shutdown(tmp_path, http_server, monkeypatch):
+    """A blocked recv may ignore shutdown (as on Windows); abort must still be prompt."""
+    from prestige.remote import _CancellationMonitor
+
+    monkeypatch.setattr(_CancellationMonitor, "_shutdown", lambda self: None)
+    registration = _http_registration(
+        http_server, paths=["/slow"], expires_at=time.time() + 1.2
+    )
+    broker = RemoteBroker(tmp_path, registration)
+    start = time.monotonic()
+    with pytest.raises(RemoteExpired):
+        broker.http("GET", "/slow", timeout=8)
+    assert time.monotonic() - start < 4
+    store = Store(tmp_path)
+    try:
+        assert store.rows("SELECT * FROM remote_active") == []
+    finally:
+        store.close()
+
+
 async def test_expired_mcp_request_asks_for_operator(tmp_path, http_server):
     home = tmp_path / "state"
     save_registrations(
