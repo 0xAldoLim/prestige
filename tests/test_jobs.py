@@ -66,3 +66,48 @@ def test_job_manager_rejects_unknown_artifact(store, challenge):
     manager = JobManager(store, run_id)
     with pytest.raises(PolicyDenied):
         manager.start("a" * 64, "strings", {})
+
+
+def _insert_queued_job(store, run_id, job_id, artifact_id, tool, args):
+    import json
+
+    with store.transaction() as db:
+        db.execute(
+            "INSERT INTO jobs(run_id,job_id,artifact_id,tool,args,cache_key,status) "
+            "VALUES(?,?,?,?,?,?,?)",
+            (
+                run_id,
+                job_id,
+                artifact_id,
+                tool,
+                json.dumps(args, sort_keys=True),
+                "cache-" + job_id,
+                "queued",
+            ),
+        )
+
+
+def test_job_manager_cancel_marks_queued_job(store, challenge):
+    run_id = new_run(store, challenge[0])
+    artifact_id = Artifacts(store, run_id).list()[0]["id"]
+    manager = JobManager(store, run_id)
+    _insert_queued_job(store, run_id, "cancelqueued", artifact_id, "strings", {})
+
+    result = manager.cancel("cancelqueued")
+    assert result["status"] == "cancelled"
+    assert result["finished"] is not None
+
+
+def test_job_manager_cancel_does_not_rewrite_completed_job(store, challenge):
+    import time
+
+    run_id = new_run(store, challenge[0])
+    artifact_id = Artifacts(store, run_id).list()[0]["id"]
+    manager = JobManager(store, run_id)
+    job_id = manager.start(artifact_id, "strings", {})
+    deadline = time.time() + 5
+    while time.time() < deadline:
+        if manager.get(job_id)["status"] == "completed":
+            break
+        time.sleep(0.05)
+    assert manager.cancel(job_id)["status"] == "completed"
