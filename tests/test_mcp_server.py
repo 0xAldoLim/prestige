@@ -73,12 +73,11 @@ async def test_mcp_create_and_status_roundtrip(tmp_path):
     value = b"SYNTHETIC{mcp_roundtrip}"
     path = tmp_path / "challenge.txt"
     path.write_bytes(base64.b64encode(value))
-    digest = hashlib.sha256(value).hexdigest()
 
     async with _mcp_client(tmp_path) as session:
         result = await session.call_tool(
             "prestige_create_investigation",
-            {"source_path": str(path), "backend": "fake", "expected_sha256": digest},
+            {"source_path": str(path), "backend": "fake"},
         )
         data = json.loads(result.content[0].text)
         assert data["status"] == "ready"
@@ -95,12 +94,11 @@ async def test_mcp_run_experiment_and_record_observation(tmp_path):
     value = b"SYNTHETIC{mcp_experiment}"
     path = tmp_path / "challenge.txt"
     path.write_bytes(base64.b64encode(value))
-    digest = hashlib.sha256(value).hexdigest()
 
     async with _mcp_client(tmp_path) as session:
         created = await session.call_tool(
             "prestige_create_investigation",
-            {"source_path": str(path), "backend": "fake", "expected_sha256": digest},
+            {"source_path": str(path), "backend": "fake"},
         )
         run_id = json.loads(created.content[0].text)["run_id"]
 
@@ -123,12 +121,11 @@ async def test_mcp_suppresses_duplicate_deterministic_experiments(tmp_path):
     value = b"SYNTHETIC{mcp_duplicate}"
     path = tmp_path / "challenge.txt"
     path.write_bytes(base64.b64encode(value))
-    digest = hashlib.sha256(value).hexdigest()
 
     async with _mcp_client(tmp_path) as session:
         created = await session.call_tool(
             "prestige_create_investigation",
-            {"source_path": str(path), "backend": "fake", "expected_sha256": digest},
+            {"source_path": str(path), "backend": "fake"},
         )
         run_id = json.loads(created.content[0].text)["run_id"]
         status = await session.call_tool("prestige_get_status", {"run_id": run_id})
@@ -161,15 +158,18 @@ async def test_mcp_suppresses_duplicate_deterministic_experiments(tmp_path):
 
 
 async def test_mcp_verify_candidate_with_digest(tmp_path):
+    from prestige.commitments import add_commitment
+
     value = b"SYNTHETIC{mcp_verify}"
     path = tmp_path / "challenge.txt"
     path.write_bytes(base64.b64encode(value))
-    digest = hashlib.sha256(value).hexdigest()
+    artifact_digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    add_commitment(tmp_path / "state", artifact_digest, hashlib.sha256(value).hexdigest())
 
     async with _mcp_client(tmp_path) as session:
         created = await session.call_tool(
             "prestige_create_investigation",
-            {"source_path": str(path), "backend": "fake", "expected_sha256": digest},
+            {"source_path": str(path), "backend": "fake"},
         )
         run_id = json.loads(created.content[0].text)["run_id"]
 
@@ -242,15 +242,18 @@ async def test_mcp_verify_candidate_stages_without_digest(tmp_path):
 
 async def test_mcp_investigation_loop_with_derived_evidence(tmp_path):
     """Exercise create -> inspect -> transform -> read -> verify through MCP."""
+    from prestige.commitments import add_commitment
+
     value = b"hello-mcp-loop"
     path = tmp_path / "challenge.txt"
     path.write_bytes(base64.b64encode(value))
-    digest = hashlib.sha256(value).hexdigest()
+    artifact_digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    add_commitment(tmp_path / "state", artifact_digest, hashlib.sha256(value).hexdigest())
 
     async with _mcp_client(tmp_path) as session:
         created = await session.call_tool(
             "prestige_create_investigation",
-            {"source_path": str(path), "backend": "fake", "expected_sha256": digest},
+            {"source_path": str(path), "backend": "fake"},
         )
         run_id = json.loads(created.content[0].text)["run_id"]
 

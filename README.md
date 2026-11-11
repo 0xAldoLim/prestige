@@ -147,6 +147,14 @@ prestige verify-candidate --expected-sha256 <64-hex-digest> < candidate.txt
 prestige verify-candidate --expected-sha256 <64-hex-digest> --candidate-file candidate.txt
 ```
 
+Expected digests for MCP investigations are **operator commitments**, not model input:
+
+```text
+prestige commitment add <source-artifact-sha256> <expected-candidate-sha256>
+prestige commitment list
+prestige commitment remove <source-artifact-sha256>
+```
+
 Place global options (`--home`, `--json`, `--quiet`, `--no-color`) **before** the command.
 Both `prestige` and `python -m prestige` work. Exit 0 means the command completed,
 including an honestly unsolved investigation; 2 indicates invalid input and 3 a policy block.

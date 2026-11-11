@@ -11,6 +11,7 @@ The server speaks stdio MCP. It does not open a network listener.
 """
 
 import asyncio
+import hashlib
 import json
 import time
 from dataclasses import asdict
@@ -22,6 +23,7 @@ from mcp.server.stdio import stdio_server
 from mcp.types import CallToolResult, ListToolsResult, TextContent, Tool
 
 from prestige.artifacts import Artifacts, ToolRegistry
+from prestige.commitments import expected_for
 from prestige.config import data_home, load_config
 from prestige.engine import new_run
 from prestige.human import answer_operator, pending_request, request_operator
@@ -136,9 +138,18 @@ async def _create_investigation(args: dict) -> dict:
         backend = args.get("backend", "fake")
         if backend != "fake":
             raise PolicyDenied("OpenCode-native investigations use the fake backend")
-        # The model may not expand trusted scope: rules, runner images and provider
-        # configuration originate from operator-controlled configuration, not tool args.
-        for forbidden in ("rules_path", "runner_image", "live", "openai_base_url", "openai_api_key", "openai_model"):
+        # The model may not expand trusted scope: rules, runner images, expected
+        # verification digests and provider configuration originate from operator
+        # control, not tool arguments.
+        for forbidden in (
+            "rules_path",
+            "runner_image",
+            "live",
+            "expected_sha256",
+            "openai_base_url",
+            "openai_api_key",
+            "openai_model",
+        ):
             if args.get(forbidden):
                 raise PolicyDenied(f"{forbidden} cannot be set by the model")
         # Isolated execution uses the operator-controlled runner image, never a model-supplied one.
@@ -146,6 +157,11 @@ async def _create_investigation(args: dict) -> dict:
         # Budgets come from the model request but are capped by a trusted ceiling.
         max_turns = min(max(1, args.get("max_turns", 12)), 1000)
         max_seconds = min(max(1.0, args.get("max_seconds", 120)), 3600)
+        max_artifact_mib = args.get("max_artifact_mib", 1)
+        if type(max_artifact_mib) is not int or not 1 <= max_artifact_mib <= 256:
+            raise PolicyDenied("max_artifact_mib must be an integer in [1,256]")
+        digest = _source_digest(source, max_artifact_mib)
+        expected = expected_for(_home(), digest)
         rules = Rules(max_turns=max_turns, max_seconds=max_seconds)
         run_id = new_run(
             store,
@@ -153,16 +169,33 @@ async def _create_investigation(args: dict) -> dict:
             mode=args.get("mode", "auto"),
             backend=backend,
             rules=rules,
-            expected=args.get("expected_sha256"),
+            expected=expected,
             max_turns=max_turns,
             max_seconds=max_seconds,
             max_tokens=args.get("max_tokens"),
             runner_image=runner_image,
-            max_artifact_mib=args.get("max_artifact_mib", 1),
+            max_artifact_mib=max_artifact_mib,
         )
-        return {"run_id": run_id, "status": "ready"}
+        return {
+            "run_id": run_id,
+            "status": "ready",
+            "artifact_sha256": digest,
+            "commitment_applied": expected is not None,
+        }
     finally:
         store.close()
+
+
+def _source_digest(source: Path, max_artifact_mib: int) -> str:
+    """Hash the source before run creation so commitments can be applied safely."""
+    limit = max_artifact_mib * 1024 * 1024
+    if source.stat().st_size > limit:
+        raise PolicyDenied("Source exceeds the configured artifact limit")
+    digest = hashlib.sha256()
+    with source.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 async def _get_status(args: dict) -> dict:
@@ -597,7 +630,6 @@ _TOOLS: dict[str, tuple[Tool, Any]] = {
                     "source_path": {"type": "string"},
                     "mode": {"type": "string", "enum": ["fast", "expert", "auto"]},
                     "backend": {"type": "string", "enum": ["fake"]},
-                    "expected_sha256": {"type": "string"},
                     "max_turns": {"type": "integer"},
                     "max_seconds": {"type": "number"},
                     "max_tokens": {"type": "integer"},

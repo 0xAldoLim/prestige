@@ -45,6 +45,15 @@ def parser():
     verify = commands.add_parser("verify-candidate")
     verify.add_argument("--expected-sha256", required=True)
     verify.add_argument("--candidate-file", type=Path)
+    commitment = commands.add_parser("commitment").add_subparsers(
+        dest="operation", required=True
+    )
+    commitment.add_parser("list")
+    commitment_add = commitment.add_parser("add")
+    commitment_add.add_argument("artifact_sha256")
+    commitment_add.add_argument("expected_sha256")
+    commitment_remove = commitment.add_parser("remove")
+    commitment_remove.add_argument("artifact_sha256")
     config = commands.add_parser("config").add_subparsers(dest="operation", required=True)
     config.add_parser("show")
     setting = config.add_parser("set")
@@ -227,6 +236,18 @@ def dispatch(args, store: Store, config: dict):
             "candidate_sha256": digest,
             "expected_sha256": expected,
         }
+    if args.command == "commitment":
+        from prestige.commitments import (
+            add_commitment,
+            list_commitments,
+            remove_commitment,
+        )
+
+        if args.operation == "add":
+            return add_commitment(store.home, args.artifact_sha256, args.expected_sha256)
+        if args.operation == "remove":
+            return remove_commitment(store.home, args.artifact_sha256)
+        return list_commitments(store.home)
     if args.command == "config":
         if args.operation == "set":
             set_config(store.home, args.key, args.value)

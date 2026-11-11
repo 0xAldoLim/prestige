@@ -24,7 +24,7 @@ Status legend: `done`, `partial`, `blocked-external`, `not-started`.
 | TS-1 | Artifact IDs resolve through a trusted content-addressed resolver | done | `src/prestige/artifacts.py`, `tests/test_security.py` |
 | TS-2 | Model cannot supply source paths outside operator policy | done | `src/prestige/policy.py`, `tests/test_security.py` |
 | TS-3 | Model cannot supply rules files, runner images or live flags | done | `tests/test_mcp_server.py::test_mcp_create_rejects_model_defined_backend_and_credentials` |
-| TS-4 | Expected verification digests originate from operator commitments, not the model | partial | `src/prestige/commitments.py`, `tests/test_commitments.py` |
+| TS-4 | Expected verification digests originate from operator commitments, not the model | done | `src/prestige/commitments.py`, `tests/test_commitments.py` |
 | TS-5 | Budgets come from operator ceilings and model requests cannot exceed them | done | `src/prestige/mcp_server.py`, `tests/test_mcp_server.py` |
 | TS-6 | Candidate verification distinguishes discovered/derived/reproduced/independently_verified | done | `tests/test_mcp_server.py::test_mcp_verify_candidate_stages_without_digest` |
 | TS-7 | Cross-investigation access is denied | done | `tests/test_security.py::test_cross_investigation_artifact_access_denied` |

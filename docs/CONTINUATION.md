@@ -40,6 +40,9 @@ requirements.
   - Candidate verification reports an explicit `stage`
     (`discovered`, `derived`, `reproduced`, `independently_verified`) plus
     `checker: unavailable`; a digest match never implies official checker acceptance.
+  - Expected digests come only from operator commitments
+    (`prestige commitment add <artifact-sha256> <expected-sha256>`); the MCP
+    schema no longer accepts a model-supplied `expected_sha256`.
   - Human escalation: `prestige_request_operator` records a durable question and
     pauses the run; `prestige_answer_operator` relays an answer as
     `operator_relayed`, while `prestige answer RUN_ID ...` records an
@@ -71,9 +74,9 @@ requirements.
     limits, bounded output.
   - `WorkspaceRunner` output directory made writable for the containerized user.
 - **Tests**
-  - Default suite: **171 passed, 3 skipped**.
-  - With `PRESTIGE_TEST_IMAGE`: **172 passed, 1 skipped**.
-  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **174 passed**.
+  - Default suite: **181 passed, 3 skipped**.
+  - With `PRESTIGE_TEST_IMAGE`: **182 passed, 1 skipped**.
+  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **184 passed**.
 - **Operator known-answer helper**
   - `prestige verify-candidate --expected-sha256 <digest> [--candidate-file PATH]`
     reads a candidate from stdin/file, reports only digests + `match`, and never
@@ -85,7 +88,7 @@ requirements.
 ```bash
 PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39 \
   python -m pytest -q
-# 174 passed in ~39 s
+# 184 passed in ~37 s
 ```
 
 ## Real challenge status

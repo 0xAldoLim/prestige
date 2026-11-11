@@ -66,7 +66,7 @@ def build_skills(root: Path) -> Path:
 
 @asynccontextmanager
 async def _mcp_client(home: Path):
-    env = {"PRESTIGE_HOME": str(home), "PRESTIGE_ALLOWED_DIRS": str(home)}
+    env = {"PRESTIGE_HOME": str(home), "PRESTIGE_ALLOWED_DIRS": str(home.parent)}
     old = os.environ.copy()
     os.environ.update(env)
     client_to_server_send, client_to_server_recv = anyio.create_memory_object_stream[
