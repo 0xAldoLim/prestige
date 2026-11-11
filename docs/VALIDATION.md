@@ -1,4 +1,4 @@
-# Executed validation — 2026-11-10
+# Executed validation — 2026-11-11
 
 This records local evidence. The full specification remains incomplete; no model
 benchmark superiority is claimed.
@@ -17,7 +17,10 @@ benchmark superiority is claimed.
 | VENOM | Flag supplied by an operator writeup; activation-phrase branch proven to be a decoy |
 | Real Codex / B0 / B1 / P1 / P2 / P3 comparisons | **Not run**; no paid model comparison or performance claim |
 | Remote challenge / endpoint broker / live renewal | **Disabled, not tested live** |
-| Persistent debugger / Gray Swan / AgentLSD / AgentDojo | **Not implemented** |
+| Persistent debugger / SSH adapter | Implemented and locally validated with opt-in loopback/Docker tests |
+| Gray Swan / AgentDojo native adapters | Local parsing/execution only; **no official benchmark run** |
+| AgentLSD | Paper located; no public framework repository; local clean/trap pair schema only |
+| Live OpenCode adversarial model comparison | **Not run**; harness implemented and unit-tested with a fake executable |
 
 The fixture worker is deterministic. Tokens are unknown for fixture runs, usage coverage
 is 0, efficiency is null and the composite is `not_comparable`. Repeating small synthetic

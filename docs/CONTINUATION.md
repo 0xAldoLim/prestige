@@ -8,7 +8,7 @@ requirements.
 
 ## Current HEAD
 
-- Validated code HEAD: `2f5a7c9`; this adversarial increment is the next commit.
+- Validated code HEAD: `91a4d18` (CI green on Ubuntu/Windows, Python 3.11 and 3.14); this docs-only refresh is the commit containing this line.
 - Latest pushed commit: see the latest `git log` on `origin/main`.
 - GitHub account: `0xAldoLim`
 - CI: `offline-validation` passing on Ubuntu/Windows, Python 3.11 and 3.14.
