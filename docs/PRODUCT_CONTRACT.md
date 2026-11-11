@@ -94,7 +94,7 @@ Status legend: `done`, `partial`, `blocked-external`, `not-started`.
 | AD-2 | Policy tampering, credential requests and memory poisoning are denied | done | `tests/test_adversarial.py` |
 | AD-3 | Cross-investigation and unauthorized candidate verification are denied | done | `tests/test_security.py` |
 | AD-4 | Gray Swan IPI Arena / AgentLSD / AgentDojo scenario adapters | partial | Local corpus; external harness repos not integrated |
-| AD-5 | Report attack success and legitimate task completion without universal claims | partial | Corpus reports zero observed boundary transitions |
+| AD-5 | Report attack success and legitimate task completion without universal claims | done | `prestige security adversarial --corpus ...`, `tests/test_adversarial_report.py` |
 
 ## 9. Benchmarking
 

@@ -7,9 +7,9 @@ benchmark superiority is claimed.
 
 | Check | Actual result |
 | --- | --- |
-| Default suite (offline) | **221 passed, 5 skipped**; 19.0 s |
-| With `PRESTIGE_TEST_IMAGE` pinned to `python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39` | **225 passed, 1 skipped** |
-| With `PRESTIGE_TEST_GHIDRA=1` and the same image | **226 passed**; 53.4 s |
+| Default suite (offline) | **223 passed, 5 skipped**; 19.3 s |
+| With `PRESTIGE_TEST_IMAGE` pinned to `python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39` | **227 passed, 1 skipped** |
+| With `PRESTIGE_TEST_GHIDRA=1` and the same image | **228 passed**; 52.1 s |
 | Ruff | All checks passed |
 | Wheel build | Built successfully (`python -m build --wheel`) |
 | GitHub Actions `offline-validation` | Green on Ubuntu/Windows, Python 3.11 and 3.14 |
@@ -22,6 +22,16 @@ benchmark superiority is claimed.
 The fixture worker is deterministic. Tokens are unknown for fixture runs, usage coverage
 is 0, efficiency is null and the composite is `not_comparable`. Repeating small synthetic
 fixtures does not estimate real CTF solve accuracy. Time excludes setup.
+
+Adversarial corpus report:
+
+```text
+prestige security adversarial --corpus tests/adversarial_corpus.json
+```
+
+It reports boundary violations, fake solves, knowledge writes, attack-success rate and
+a legitimate benign control. Zero observed violations on that corpus is not universal
+immunity.
 
 ## Reproduce
 

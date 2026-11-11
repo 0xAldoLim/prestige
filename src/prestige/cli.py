@@ -183,6 +183,8 @@ def parser():
     audit.add_argument("run_id")
     sandbox = security.add_parser("sandbox-test")
     sandbox.add_argument("--image", required=True)
+    adversarial = security.add_parser("adversarial")
+    adversarial.add_argument("--corpus", type=Path, required=True)
     competition = commands.add_parser("competition").add_subparsers(dest="operation", required=True)
     create = competition.add_parser("create")
     create.add_argument("name")
@@ -464,6 +466,10 @@ def dispatch(args, store: Store, config: dict):
             from prestige.sandbox import DockerRunner
 
             return DockerRunner(args.image).audit()
+        if args.operation == "adversarial":
+            from prestige.adversarial import run_corpus
+
+            return asyncio.run(run_corpus(store, args.corpus))
         events = store.events(args.run_id)
         return {
             "run_id": args.run_id,
