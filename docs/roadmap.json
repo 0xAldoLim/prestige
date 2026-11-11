@@ -3,8 +3,8 @@
   "updated": "2026-11-10",
   "release_ready": false,
   "baseline_commit": "7a32b4557840d0a49b3590346d843e2a0b6426c1",
-  "current_head": "84601b4",
-  "revision_note": "OpenCode-native architecture validated; IBoH solved and independently verified; VENOM resolved via an operator-supplied writeup with the activation-phrase branch proven to be a decoy; adversarial corpus, human escalation, resume context and candidate-verification stages added; 156 default / 158 Docker / 159 Ghidra tests.",
+  "current_head": "e3484f0",
+  "revision_note": "Active OpenCode-native CTF agent: full owner-skills MCP integration, operator-scoped HTTP/TCP remote broker, persistent isolated sessions, research broker, reviewed learning, capped hypotheses, fair P1/P2/P3 harness and a measured adversarial corpus. IBoH solved; VENOM operator-supplied. 224 default / 228 Docker / 229 Ghidra tests.",
   "development_agent_target": "OpenCode",
   "primary_product_backend": "OpenCode-native MCP broker with trusted Python engine",
   "items": [

@@ -8,7 +8,7 @@ requirements.
 
 ## Current HEAD
 
-- Validated code HEAD: `84601b4` (this docs-only refresh is the commit containing this line).
+- Validated code HEAD: `e3484f0` (this docs-only refresh is the commit containing this line).
 - Latest pushed commit: see the latest `git log` on `origin/main`.
 - GitHub account: `0xAldoLim`
 - CI: `offline-validation` passing on Ubuntu/Windows, Python 3.11 and 3.14.
@@ -132,9 +132,9 @@ requirements.
     limits, bounded output.
   - `WorkspaceRunner` output directory made writable for the containerized user.
 - **Tests**
-  - Default suite: **223 passed, 5 skipped**.
-  - With `PRESTIGE_TEST_IMAGE`: **227 passed, 1 skipped**.
-  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **228 passed**.
+  - Default suite: **224 passed, 5 skipped**.
+  - With `PRESTIGE_TEST_IMAGE`: **228 passed, 1 skipped**.
+  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **229 passed**.
 - **Operator known-answer helper**
   - `prestige verify-candidate --expected-sha256 <digest> [--candidate-file PATH]`
     reads a candidate from stdin/file, reports only digests + `match`, and never
@@ -146,7 +146,7 @@ requirements.
 ```bash
 PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39 \
   python -m pytest -q
-# 228 passed in ~52 s
+# 229 passed in ~51 s
 ```
 
 ## Real challenge status
@@ -233,13 +233,19 @@ PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=python@sha256:a83ba18aef0f865b1a4a611
 
 ## Next executable milestone
 
-1. Extend adversarial coverage toward Gray Swan IPI Arena, AgentLSD and AgentDojo
-   scenarios (tool-output injection, fake system instructions, decoy
-   vulnerabilities, context flooding, cross-model handoff contamination).
-2. Add a small operator-facing known-answer verification helper that accepts an
-   expected digest without persisting the flag value.
-3. Preserve VENOM evidence; do not claim PRESTIGE autonomously derived the
-   writeup flag.
+1. Integrate the external Gray Swan IPI Arena, AgentLSD and AgentDojo scenario
+   harnesses; the local 12-class corpus currently reports zero observed boundary
+   violations and one legitimate control.
+2. Supply an operator-reviewed image containing `gdb` (and ideally `r2`/`binwalk`)
+   to exercise the persistent debugger breakpoint workflow; the session mechanism
+   and allowlist are implemented.
+3. Add an authorized SSH adapter only when an operator-reviewed SSH-enabled image
+   and explicit assignment are available.
+4. Run B0/B1 model comparisons only with recorded budgets and an explicitly
+   configured adapter; P1/P2/P3 fixture comparisons are implemented.
+5. Exercise a fresh held-out authorized challenge through the complete workflow
+   (skills route → hypotheses → tools → verification → resume) and record it
+   without fabricating a flag.
 
 ## Installed toolchain
 
