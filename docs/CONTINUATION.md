@@ -26,7 +26,8 @@ requirements.
     `prestige_skills_pivots`, `prestige_skills_apply`, `prestige_target_list`,
     `prestige_remote_http`, `prestige_remote_tcp`, `prestige_remote_status`,
     `prestige_remote_cancel`, `prestige_session_start`, `prestige_session_send`,
-    `prestige_session_read`, `prestige_session_stop`, `prestige_session_list`.
+    `prestige_session_read`, `prestige_session_stop`, `prestige_session_list`,
+    `prestige_session_cleanup`, `prestige_escalate`.
   - Model-driven investigations default to and are locked to `backend=fake`; no
     provider credentials are requested or persisted.
   - Operator-controlled scope: source paths restricted to `PRESTIGE_ALLOWED_DIRS`
@@ -103,6 +104,11 @@ requirements.
     `prestige_session_cleanup`.
   - The pinned Python slim image has no `gdb`; GDB requires an operator-reviewed
     image containing it.
+- **Operational lanes**
+  - FAST allows only cheap deterministic tools and caps at 8 turns/120 s.
+    EXPERT adds `python`, `command`, `radare2` and `ghidra` with an 18/600 s cap.
+  - AUTO starts FAST; `prestige_escalate` expands to EXPERT tools and records an
+    `escalation` event without resetting spent attempts or wall time.
 - **Structured hypotheses**
   - `prestige_hypothesis_add` records a statement plus supporting/contradicting
     evidence, predicted observation, cheapest discriminating test, cost and pivot
@@ -148,9 +154,9 @@ requirements.
     limits, bounded output.
   - `WorkspaceRunner` output directory made writable for the containerized user.
 - **Tests**
-  - Default suite: **242 passed, 6 skipped**.
-  - With `PRESTIGE_TEST_IMAGE`: **247 passed, 1 skipped**.
-  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **248 passed**.
+  - Default suite: **246 passed, 6 skipped**.
+  - With `PRESTIGE_TEST_IMAGE`: **251 passed, 1 skipped**.
+  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **252 passed**.
 - **Operator known-answer helper**
   - `prestige verify-candidate --expected-sha256 <digest> [--candidate-file PATH]`
     reads a candidate from stdin/file, reports only digests + `match`, and never
@@ -162,7 +168,7 @@ requirements.
 ```bash
 PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39 \
   python -m pytest -q
-# 248 passed in ~97 s
+# 252 passed in ~99 s
 ```
 
 ## Real challenge status

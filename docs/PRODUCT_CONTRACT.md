@@ -35,7 +35,7 @@ Status legend: `done`, `partial`, `blocked-external`, `not-started`.
 | --- | --- | --- | --- |
 | ST-1 | Autonomous hypothesis selection and revision | partial | Structured capped hypotheses and durable resume are implemented; selection is model-driven, with no independent evaluator that proposes/retires hypotheses |
 | ST-2 | Up to three active hypotheses with support/contradiction/prediction/cost/pivot | done | `src/prestige/hypotheses.py`, `tests/test_hypotheses.py` |
-| ST-3 | FAST/AUTO/EXPERT differ operationally, not only by label | partial | `tests/test_engine.py::test_escalation_preserves_evidence` |
+| ST-3 | FAST/AUTO/EXPERT differ operationally, not only by label | done | `src/prestige/strategy.py`, `prestige_escalate`, `tests/test_strategy.py` |
 | ST-4 | Repeated non-informative experiments are suppressed | done | `tests/test_engine.py::test_repeated_actions_suppressed`, `tests/test_mcp_server.py::test_mcp_suppresses_duplicate_deterministic_experiments` |
 | ST-5 | Investigation state survives session interruption and resumes without budget reset | done | `tests/test_mcp_server.py::test_mcp_state_survives_reconnect`, `test_mcp_resume_reconstructs_context_without_resetting_budget` |
 

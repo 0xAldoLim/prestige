@@ -44,7 +44,8 @@ from prestige.sessions import (
     start_session,
     stop_session,
 )
-from prestige.store import Store
+from prestige.store import Store, encoded
+from prestige.strategy import expert_rules, rules_for_mode
 from prestige.types import Action, PolicyDenied, PrestigeError
 
 
@@ -198,16 +199,17 @@ async def _create_investigation(args: dict) -> dict:
             raise PolicyDenied("max_artifact_mib must be an integer in [1,256]")
         digest = _source_digest(source, max_artifact_mib)
         expected = expected_for(_home(), digest)
-        rules = Rules(max_turns=max_turns, max_seconds=max_seconds)
+        mode = args.get("mode", "auto")
+        rules = rules_for_mode(mode, max_turns, max_seconds)
         run_id = new_run(
             store,
             source,
-            mode=args.get("mode", "auto"),
+            mode=mode,
             backend=backend,
             rules=rules,
             expected=expected,
-            max_turns=max_turns,
-            max_seconds=max_seconds,
+            max_turns=rules.max_turns,
+            max_seconds=rules.max_seconds,
             max_tokens=args.get("max_tokens"),
             runner_image=runner_image,
             max_artifact_mib=max_artifact_mib,
@@ -232,6 +234,45 @@ def _source_digest(source: Path, max_artifact_mib: int) -> str:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+async def _escalate(args: dict) -> dict:
+    store = await _store()
+    try:
+        run_id = args["run_id"]
+        run = _run(store, run_id)
+        if _terminal(run):
+            raise PrestigeError("Investigation is terminal")
+        if run["lane"] == "expert":
+            return {"status": "ok", "result": {"lane": "expert", "already": True}}
+        _check_budget(run, store, run_id)
+        rules = expert_rules(Rules(**run["settings"]["rules"]))
+        settings = dict(run["settings"])
+        settings["rules"] = rules.snapshot()
+        with store.transaction() as db:
+            db.execute(
+                "UPDATE runs SET lane='expert', settings=? WHERE id=?",
+                (encoded(settings), run_id),
+            )
+        store.event(
+            run_id,
+            "escalation",
+            {
+                "from": run["lane"],
+                "to": "expert",
+                "reason": str(args.get("reason", ""))[:300],
+                "allowed_tools": list(rules.allowed_tools),
+                "trust": "fact",
+            },
+        )
+        return {
+            "status": "ok",
+            "result": {"lane": "expert", "allowed_tools": list(rules.allowed_tools)},
+        }
+    except Exception as error:
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
+    finally:
+        store.close()
 
 
 async def _get_status(args: dict) -> dict:
@@ -1378,6 +1419,25 @@ _TOOLS: dict[str, tuple[Tool, Any]] = {
             },
         ),
         _answer_operator,
+    ),
+    "prestige_escalate": (
+        Tool(
+            name="prestige_escalate",
+            description=(
+                "Escalate an AUTO or FAST investigation to EXPERT tooling without "
+                "resetting already-spent attempts or wall time."
+            ),
+            inputSchema={
+                "type": "object",
+                "required": ["run_id"],
+                "additionalProperties": False,
+                "properties": {
+                    "run_id": {"type": "string"},
+                    "reason": {"type": "string"},
+                },
+            },
+        ),
+        _escalate,
     ),
     "prestige_resume_investigation": (
         Tool(

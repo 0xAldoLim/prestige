@@ -386,12 +386,19 @@ def dispatch(args, store: Store, config: dict):
         api_key = args.openai_api_key or os.environ.get("PRESTIGE_OPENAI_API_KEY")
         if args.backend == "openai" and api_key:
             os.environ["PRESTIGE_OPENAI_API_KEY"] = api_key
+        from prestige.strategy import rules_for_mode
+
+        rules = (
+            Rules.load(args.rules)
+            if args.rules
+            else rules_for_mode(args.mode, args.max_turns, args.max_seconds)
+        )
         run_id = new_run(
             store,
             args.path,
             mode=args.mode,
             backend=args.backend,
-            rules=Rules.load(args.rules),
+            rules=rules,
             expected=args.expected_sha256,
             max_turns=args.max_turns,
             max_seconds=args.max_seconds,
