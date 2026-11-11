@@ -14,6 +14,7 @@ import asyncio
 import json
 import time
 from dataclasses import asdict
+from pathlib import Path
 from typing import Any
 
 from mcp.server import Server
@@ -25,16 +26,19 @@ from prestige.config import data_home, load_config
 from prestige.engine import new_run
 from prestige.human import answer_operator, pending_request, request_operator
 from prestige.jobs import JobManager
+from prestige.knowledge import SkillsBridge
 from prestige.policy import validate_source_path
 from prestige.security import Rules
 from prestige.store import Store
 from prestige.types import Action, PolicyDenied, PrestigeError
 
-_HOME = data_home()
+
+def _home() -> Path:
+    return data_home()
 
 
 async def _store() -> Store:
-    return Store(_HOME)
+    return Store(_home())
 
 
 def _run(store: Store, run_id: str) -> dict:
@@ -128,7 +132,7 @@ def _cap_timeout(action: Action, remaining: float) -> Action:
 async def _create_investigation(args: dict) -> dict:
     store = await _store()
     try:
-        source = validate_source_path(args["source_path"], _HOME)
+        source = validate_source_path(args["source_path"], _home())
         backend = args.get("backend", "fake")
         if backend != "fake":
             raise PolicyDenied("OpenCode-native investigations use the fake backend")
@@ -138,7 +142,7 @@ async def _create_investigation(args: dict) -> dict:
             if args.get(forbidden):
                 raise PolicyDenied(f"{forbidden} cannot be set by the model")
         # Isolated execution uses the operator-controlled runner image, never a model-supplied one.
-        runner_image = load_config(_HOME).get("sandbox.image")
+        runner_image = load_config(_home()).get("sandbox.image")
         # Budgets come from the model request but are capped by a trusted ceiling.
         max_turns = min(max(1, args.get("max_turns", 12)), 1000)
         max_seconds = min(max(1.0, args.get("max_seconds", 120)), 3600)
@@ -473,6 +477,113 @@ async def _resume_investigation(args: dict) -> dict:
         store.close()
 
 
+def _skills() -> SkillsBridge:
+    configured = load_config(_home()).get("skills.path")
+    if not configured:
+        raise PolicyDenied(
+            "No operator-configured skills.path; run "
+            "'prestige config set skills.path /path/to/skills'"
+        )
+    return SkillsBridge(Path(configured))
+
+
+async def _skills_discover(args: dict) -> dict:
+    try:
+        return {"status": "ok", "result": _skills().discover()}
+    except Exception as error:
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
+
+
+async def _skills_route(args: dict) -> dict:
+    try:
+        return {
+            "status": "ok",
+            "result": _skills().route_problem(
+                str(args.get("evidence", ""))[:8000],
+                str(args.get("magic_hex", ""))[:64],
+            ),
+        }
+    except Exception as error:
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
+
+
+async def _skills_search(args: dict) -> dict:
+    try:
+        query = str(args.get("query", ""))[:2000]
+        if not query.strip():
+            raise PolicyDenied("A non-empty query is required")
+        category = args.get("category")
+        if category is not None and category not in {
+            "crypto", "reverse", "forensics", "web", "pwn", "misc", "osint", "ai-ml", "malware"
+        }:
+            raise PolicyDenied("Unknown skill category")
+        limit = args.get("limit", 3)
+        if type(limit) is not int or not 1 <= limit <= 8:
+            raise PolicyDenied("limit must be an integer in [1,8]")
+        return {
+            "status": "ok",
+            "result": _skills().search(query, limit=limit, category=category),
+        }
+    except Exception as error:
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
+
+
+async def _skills_read(args: dict) -> dict:
+    try:
+        line = args.get("line", 1)
+        lines = args.get("lines", 40)
+        if type(line) is not int or type(lines) is not int:
+            raise PolicyDenied("line and lines must be integers")
+        return {
+            "status": "ok",
+            "result": _skills().read_section(str(args["path"]), line, lines),
+        }
+    except Exception as error:
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
+
+
+async def _skills_pivots(args: dict) -> dict:
+    try:
+        category = args["category"]
+        if category not in {
+            "crypto", "reverse", "forensics", "web", "pwn", "misc", "osint", "ai-ml", "malware"
+        }:
+            raise PolicyDenied("Unknown skill category")
+        return {"status": "ok", "result": _skills().pivots(category)}
+    except Exception as error:
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
+
+
+async def _skills_apply(args: dict) -> dict:
+    store = await _store()
+    try:
+        brief = _skills().brief(
+            str(args.get("evidence", ""))[:8000],
+            str(args.get("query", ""))[:2000],
+            str(args.get("magic_hex", ""))[:64],
+        )
+        run_id = args.get("run_id")
+        if run_id:
+            run = _run(store, run_id)
+            if _terminal(run):
+                raise PrestigeError("Investigation is terminal")
+            store.event(
+                run_id,
+                "skill_route",
+                {
+                    "primary": brief["primary"],
+                    "supporting": brief["supporting"],
+                    "reasons": brief["reasons"],
+                    "trust": "external_untrusted",
+                },
+            )
+        return _redact({"status": "ok", "result": brief})
+    except Exception as error:
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
+    finally:
+        store.close()
+
+
 _TOOLS: dict[str, tuple[Tool, Any]] = {
     "prestige_create_investigation": (
         Tool(
@@ -656,6 +767,119 @@ _TOOLS: dict[str, tuple[Tool, Any]] = {
             },
         ),
         _resume_investigation,
+    ),
+    "prestige_skills_discover": (
+        Tool(
+            name="prestige_skills_discover",
+            description=(
+                "List the operator-configured owner CTF skill categories and entrypoints "
+                "without copying the whole checkout into context."
+            ),
+            inputSchema={"type": "object", "additionalProperties": False, "properties": {}},
+        ),
+        _skills_discover,
+    ),
+    "prestige_skills_route": (
+        Tool(
+            name="prestige_skills_route",
+            description=(
+                "Route observed evidence to a primary owner skill plus supporting skills "
+                "and matching index references."
+            ),
+            inputSchema={
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "evidence": {"type": "string"},
+                    "magic_hex": {"type": "string"},
+                },
+            },
+        ),
+        _skills_route,
+    ),
+    "prestige_skills_search": (
+        Tool(
+            name="prestige_skills_search",
+            description=(
+                "Search owner skill references and return bounded excerpts with path, "
+                "line and SHA-256 provenance."
+            ),
+            inputSchema={
+                "type": "object",
+                "required": ["query"],
+                "additionalProperties": False,
+                "properties": {
+                    "query": {"type": "string"},
+                    "category": {
+                        "type": "string",
+                        "enum": [
+                            "crypto", "reverse", "forensics", "web", "pwn",
+                            "misc", "osint", "ai-ml", "malware",
+                        ],
+                    },
+                    "limit": {"type": "integer"},
+                },
+            },
+        ),
+        _skills_search,
+    ),
+    "prestige_skills_read": (
+        Tool(
+            name="prestige_skills_read",
+            description="Read a bounded section from an approved skill reference.",
+            inputSchema={
+                "type": "object",
+                "required": ["path"],
+                "additionalProperties": False,
+                "properties": {
+                    "path": {"type": "string"},
+                    "line": {"type": "integer"},
+                    "lines": {"type": "integer"},
+                },
+            },
+        ),
+        _skills_read,
+    ),
+    "prestige_skills_pivots": (
+        Tool(
+            name="prestige_skills_pivots",
+            description="Return cross-category pivot guidance for a primary skill.",
+            inputSchema={
+                "type": "object",
+                "required": ["category"],
+                "additionalProperties": False,
+                "properties": {
+                    "category": {
+                        "type": "string",
+                        "enum": [
+                            "crypto", "reverse", "forensics", "web", "pwn",
+                            "misc", "osint", "ai-ml", "malware",
+                        ],
+                    }
+                },
+            },
+        ),
+        _skills_pivots,
+    ),
+    "prestige_skills_apply": (
+        Tool(
+            name="prestige_skills_apply",
+            description=(
+                "Build a bounded skill strategy brief (primary skill, references, pivots) "
+                "and optionally record the routing decision on an investigation."
+            ),
+            inputSchema={
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "run_id": {"type": "string"},
+                    "evidence": {"type": "string"},
+                    "query": {"type": "string"},
+                    "magic_hex": {"type": "string"},
+                },
+            },
+        ),
+        _skills_apply,
     ),
 }
 

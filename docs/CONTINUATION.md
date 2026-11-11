@@ -21,7 +21,9 @@ requirements.
     `prestige_run_experiment`, `prestige_verify_candidate`,
     `prestige_start_analysis`, `prestige_get_analysis`, `prestige_cancel_analysis`,
     `prestige_request_operator`, `prestige_answer_operator`,
-    `prestige_resume_investigation`.
+    `prestige_resume_investigation`, `prestige_skills_discover`,
+    `prestige_skills_route`, `prestige_skills_search`, `prestige_skills_read`,
+    `prestige_skills_pivots`, `prestige_skills_apply`.
   - Model-driven investigations default to and are locked to `backend=fake`; no
     provider credentials are requested or persisted.
   - Operator-controlled scope: source paths restricted to `PRESTIGE_ALLOWED_DIRS`
@@ -42,6 +44,16 @@ requirements.
     pauses the run; `prestige_answer_operator` relays an answer as
     `operator_relayed`, while `prestige answer RUN_ID ...` records an
     operator-direct answer without the model. Answers are evidence, not verification.
+- **Owner skills integration**
+  - `SkillsBridge` discovers all nine categories plus `solve-challenge`,
+    `ctf-writeup` and `find-skills`; routes observed evidence to a primary skill
+    and supporting categories; returns bounded excerpts with path, line and
+    SHA-256 provenance; reads bounded sections; returns cross-category pivots.
+  - Live MCP tools: `prestige_skills_discover`, `prestige_skills_route`,
+    `prestige_skills_search`, `prestige_skills_read`, `prestige_skills_pivots`,
+    `prestige_skills_apply`. `apply` records a `skill_route` event so the
+    strategy choice is durable.
+  - The external checkout stays read-only; `skills.path` is operator-configured.
 - **Durable analysis jobs**
   - `JobManager` persists long-running Ghidra/radare2/python work outside the
     model conversation.
@@ -59,9 +71,9 @@ requirements.
     limits, bounded output.
   - `WorkspaceRunner` output directory made writable for the containerized user.
 - **Tests**
-  - Default suite: **156 passed, 3 skipped**.
-  - With `PRESTIGE_TEST_IMAGE`: **158 passed, 1 skipped**.
-  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **159 passed**.
+  - Default suite: **171 passed, 3 skipped**.
+  - With `PRESTIGE_TEST_IMAGE`: **172 passed, 1 skipped**.
+  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **174 passed**.
 - **Operator known-answer helper**
   - `prestige verify-candidate --expected-sha256 <digest> [--candidate-file PATH]`
     reads a candidate from stdin/file, reports only digests + `match`, and never
@@ -73,7 +85,7 @@ requirements.
 ```bash
 PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39 \
   python -m pytest -q
-# 159 passed in ~41 s
+# 174 passed in ~39 s
 ```
 
 ## Real challenge status
