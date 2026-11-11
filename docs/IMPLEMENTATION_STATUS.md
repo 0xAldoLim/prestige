@@ -13,13 +13,13 @@ optional legacy integrations, not core requirements.
 | A: installable spine | Working, tested | Python CLI, configuration, truthful doctor, immutable inventory, SQLite WAL, synthetic fixture worker |
 | B: OpenCode-native solving | Working, tested | `prestige agent` exposes MCP tools over stdio; `opencode.jsonc` registers a restricted `prestige` agent; no provider API key is required. Model selection remains OpenCode's responsibility. Optional standalone Codex/OpenAI-compatible adapters remain, not default |
 | C: lanes, verifier, recovery | Working for bounded offline tools | FAST/EXPERT/AUTO, one-way handoff, duplicate suppression, digest+replay verification, pause/resume, durable analysis jobs. General CTF reasoning depends on the selected OpenCode model |
-| D: scope, isolation, leases | Tested, fail closed | Trusted artifact resolver, operator source-path policy, MCP budgets, per-tool deadline caps, OpenCode agent permission checks. Reviewed Docker worker is pinned by digest. Remote broker and instance renewal remain disabled |
-| E: skills, research, learning | Partial | Read-only lexical retrieval, local-first accepted knowledge, exact upstream schema, static decoding generalizers, related-technique inbox. No helper-script execution, general exploit learning or live research broker |
+| D: scope, isolation, leases | Tested, fail closed | Trusted artifact resolver, operator source-path policy, MCP budgets, per-tool deadline caps, OpenCode agent permission checks. Reviewed Docker worker is pinned by digest. Operator-registered HTTP/TCP/SSH broker with persistent cross-process accounting, bindings, exclusions, cancellation and loopback tests; remote is disabled by default |
+| E: skills, research, learning | Partial | Full nine-category owner-skills MCP routing/search/read/pivots, local-first accepted knowledge with review/promotion, allowlisted research broker with pinned DNS/cache/TLS checks and static decoding generalizers. General exploit learning remains limited |
 | F: competition and comparisons | Partial | Local queue with bounded concurrency; deterministic priority/deadline/points policy; fixture harness and equality gates. B0/B1/P1/P2/P3 live comparisons and calibrated marginal value unimplemented |
-| G: advanced tools and portability | Partial | Isolated Python/allowlisted command execution, local `file`, allowlisted `radare2`, Ghidra headless, durable jobs and cancellation markers. Persistent GDB/PTY and a remote worker remain unimplemented |
+| G: advanced tools and portability | Tested | Isolated Python/allowlisted command execution, local `file`, allowlisted `radare2`, Ghidra headless, durable jobs, persistent Python/GDB sessions with ownership/orphan cleanup, and a reviewed GDB-capable worker image |
 | H: local models and attribution | Partial | User-declared pinned registry, loopback advisory adapter, hardware diagnostics, mocked tests, attribution/license audit. No downloaded weights, real inference benchmark or autonomous local worker |
 | I: human escalation | Tested | `prestige_request_operator` / `prestige_answer_operator` plus `prestige answer`; answers are evidence, not verification |
-| J: adversarial resilience | Partial | Offline corpus covers tool-output injection, fake system instructions, fake flags, decoy vulnerabilities, role override, encoded injection, context floods, policy tampering, cross-investigation access, false verification, credential requests and memory poisoning; zero observed boundary transitions. Gray Swan IPI Arena, AgentLSD and AgentDojo harnesses are not integrated |
+| J: adversarial resilience | Partial | Local 12-class corpus and measured report; local AgentDojo/AgentLSD/Gray Swan-style file adapters with fail-closed parsing. External harness repositories/live runs were not used; zero observed is not universal immunity |
 
 ## Validated boundaries
 
@@ -42,8 +42,9 @@ Active upstream sockets can be cancelled on interrupt/close.
 An explicit Docker audit passed with the pinned image
 `python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39`.
 It checks loopback-only interfaces, TCP, DNS, subprocess egress and read-only root.
-These are offline isolation checks; they do not validate a scoped remote broker or
-provider built-in tools. Docker alone is not a hardened VM guarantee.
+These are offline isolation checks; the remote broker is tested separately against
+loopback fixtures and separate MCP processes. Docker alone is not a hardened VM
+guarantee.
 
 ## Validation record
 
@@ -65,14 +66,15 @@ and 3.14.
   derive it autonomously. The `VENOM_ACTIVATION_PHRASE` branch was independently
   proven to be a decoy (SHA-256 mismatch at `0x141172048`). See
   [CONTINUATION.md](CONTINUATION.md).
+- **Held-out live acceptance**: crypto (with and without skills), forensics, and a
+  loopback web service were solved through the real OpenCode/MCP loop and verified
+  against operator commitments. One small sample; no accuracy or superiority claim.
 
 ## Highest-value next work
 
-1. Integrate adversarial scenario harnesses (Gray Swan IPI Arena, AgentLSD, AgentDojo)
-   while keeping the trust boundary outside the model.
-2. Add persistent debugger execution with hard resource bounds.
-3. Add an optional, explicitly configured online research broker; keep remote
-   competition infrastructure disabled.
+1. Validate the SSH adapter against a real operator-assigned SSH server.
+2. Run external Gray Swan/AgentLSD/AgentDojo harnesses and real B0/B1 comparisons with
+   recorded budgets; keep P1/P2/P3 contracts identical.
+3. Add an independent evaluator that proposes/retires hypotheses beyond model choice.
 4. Extend human escalation into a live operator UI without weakening evidence labels.
-5. Run controlled model comparisons only with recorded budgets, identical permissions
-   and measured usage; never fabricate benchmark results.
+5. Never fabricate benchmark results or universal adversarial immunity.
