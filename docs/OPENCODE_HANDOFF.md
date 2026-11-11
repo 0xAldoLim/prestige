@@ -23,7 +23,9 @@ Or invoke the registered custom command:
 
 No model or provider has been forced by this repository. No global OpenCode settings
 have been changed. The repository's `opencode.jsonc` registers the `prestige` MCP server
-and a restricted `prestige` agent that can call only `prestige_*` MCP tools.
+and a restricted `prestige` agent that can call only `prestige_*` MCP tools. See
+[PROVIDERS.md](PROVIDERS.md) for model-family and Claude guidance; a Claude subscription
+is not assumed to grant API credits and Claude is never mandatory.
 
 If OpenCode is not on PATH, install it through its official mechanism and authenticate
 a provider if required. Then paste:

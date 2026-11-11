@@ -492,6 +492,23 @@ async def test_mcp_state_survives_reconnect(tmp_path):
         assert body["artifacts"][0]["id"] == artifact_id
 
 
+async def test_mcp_schema_contains_no_provider_credentials(tmp_path):
+    async with _mcp_client(tmp_path) as session:
+        tools = await session.list_tools()
+        schema = json.dumps([tool.input_schema for tool in tools.tools])
+        for forbidden in (
+            "openai_api_key",
+            "anthropic_api_key",
+            "PRESTIGE_OPENAI_API_KEY",
+            "openai_base_url",
+            "openai_model",
+        ):
+            assert forbidden not in schema
+        create = next(tool for tool in tools.tools if tool.name == "prestige_create_investigation")
+        backend = create.input_schema["properties"].get("backend")
+        assert backend is None or backend.get("enum") == ["fake"]
+
+
 def test_agent_stdio_smoke(tmp_path):
     """The `prestige agent` CLI starts a stdio MCP server and answers initialize."""
     env = os.environ.copy()

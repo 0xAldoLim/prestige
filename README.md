@@ -107,7 +107,8 @@ opencode run --standalone --agent prestige --model opencode-go/kimi-k2.7-code \
 The `prestige` agent is configured in `opencode.jsonc` with permissions limited to
 `prestige_*` MCP tools; it cannot invoke host shell, read, write, browser or skill tools.
 Provider model selection is controlled by OpenCode; PRESTIGE never requests provider
-API keys through its MCP interface.
+API keys through its MCP interface. See [provider policy](docs/PROVIDERS.md) for Claude,
+Kimi, DeepSeek, GLM, Qwen, MiniMax and optional standalone backends.
 
 ## Offline quickstart
 
