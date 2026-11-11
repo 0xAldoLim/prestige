@@ -48,9 +48,9 @@ guarantee.
 
 ## Validation record
 
-- Default suite: **257 passed, 7 skipped**.
-- With `PRESTIGE_TEST_IMAGE`: **262 passed, 2 skipped**.
-- With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **264 passed**.
+- Default suite: **258 passed, 7 skipped**.
+- With `PRESTIGE_TEST_IMAGE`: **263 passed, 2 skipped**.
+- With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **265 passed**.
 - Ruff clean; wheel builds.
 
 See [VALIDATION.md](VALIDATION.md) for commands and exact outcomes. GitHub CI runs
