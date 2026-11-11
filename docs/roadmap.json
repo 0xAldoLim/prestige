@@ -3,7 +3,7 @@
   "updated": "2026-11-10",
   "release_ready": false,
   "baseline_commit": "7a32b4557840d0a49b3590346d843e2a0b6426c1",
-  "current_head": "c7b9103",
+  "current_head": "43cac3b",
   "revision_note": "Active OpenCode-native CTF agent: full owner-skills MCP integration, operator-scoped HTTP/TCP remote broker, persistent isolated sessions, research broker, reviewed learning, capped hypotheses, fair P1/P2/P3 harness and a measured adversarial corpus. IBoH solved; VENOM operator-supplied. 224 default / 228 Docker / 229 Ghidra tests.",
   "development_agent_target": "OpenCode",
   "primary_product_backend": "OpenCode-native MCP broker with trusted Python engine",
