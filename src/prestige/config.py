@@ -20,7 +20,7 @@ def load_config(home: Path) -> dict:
     if path.stat().st_size > 16384:
         raise PrestigeError("Configuration too large")
     result = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(result, dict) or set(result) - {"skills.path", "sandbox.image", "allowed_source_dirs"}:
+    if not isinstance(result, dict) or set(result) - {"skills.path", "sandbox.image", "allowed_source_dirs", "remote.enabled"}:
         raise PrestigeError("Unknown configuration fields")
     for key, value in result.items():
         if key == "allowed_source_dirs":
@@ -35,8 +35,10 @@ def load_config(home: Path) -> dict:
 
 
 def set_config(home: Path, key: str, value: str | list[str]) -> None:
-    if key not in {"skills.path", "sandbox.image", "allowed_source_dirs"}:
-        raise PrestigeError("Supported settings: skills.path, sandbox.image, allowed_source_dirs")
+    if key not in {"skills.path", "sandbox.image", "allowed_source_dirs", "remote.enabled"}:
+        raise PrestigeError(
+            "Supported settings: skills.path, sandbox.image, allowed_source_dirs, remote.enabled"
+        )
     config = load_config(home)
     if key == "skills.path":
         config[key] = str(Path(str(value)).expanduser().resolve(strict=True))

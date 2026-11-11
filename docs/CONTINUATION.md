@@ -67,6 +67,19 @@ requirements.
   - New MCP sessions recover the same durable run state from SQLite (tested by
     reconnecting mid-investigation).
   - Failure classification (`tool_timeout`, `policy_denied`, `prestige_error`, …).
+- **Authorized remote instances**
+  - Operator CLI: `prestige target register <json>`, `list`, `show`, `enable`,
+    `disable`, `revoke`. The model has only read-only `prestige_target_list`.
+  - MCP: `prestige_remote_http`, `prestige_remote_tcp`, `prestige_remote_status`,
+    `prestige_remote_cancel`.
+  - Enforced outside the model: exact scheme/host/port/path/method scope, pinned
+    DNS, metadata/private-address rejection, no automatic redirects, request,
+    concurrency, rate and deadline limits, expiry and cancellation.
+  - Raw responses are content-addressed artifacts; audit and blocked events are
+    persisted. Remote mode is disabled unless `PRESTIGE_REMOTE_ENABLED=1` or
+    `remote.enabled=true`.
+  - SSH registration is accepted but the adapter is blocked pending an
+    operator-reviewed SSH-enabled image.
 - **Isolated execution**
   - Reviewed Docker worker pinned by immutable digest:
     `python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39`.
@@ -74,9 +87,9 @@ requirements.
     limits, bounded output.
   - `WorkspaceRunner` output directory made writable for the containerized user.
 - **Tests**
-  - Default suite: **181 passed, 3 skipped**.
-  - With `PRESTIGE_TEST_IMAGE`: **182 passed, 1 skipped**.
-  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **184 passed**.
+  - Default suite: **193 passed, 3 skipped**.
+  - With `PRESTIGE_TEST_IMAGE`: **195 passed, 1 skipped**.
+  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **196 passed**.
 - **Operator known-answer helper**
   - `prestige verify-candidate --expected-sha256 <digest> [--candidate-file PATH]`
     reads a candidate from stdin/file, reports only digests + `match`, and never
@@ -88,7 +101,7 @@ requirements.
 ```bash
 PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39 \
   python -m pytest -q
-# 184 passed in ~37 s
+# 196 passed in ~46 s
 ```
 
 ## Real challenge status

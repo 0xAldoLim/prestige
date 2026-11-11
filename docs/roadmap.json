@@ -28,7 +28,7 @@
     {"id":"generic-verified-learning","status":"in progress","evidence":["src/prestige/knowledge.py"],"remaining":"Only reviewed decoding chains are generalized."},
     {"id":"research-broker","status":"not implemented","evidence":["src/prestige/research.py"],"remaining":"Separate bounded online broker/cache needed."},
     {"id":"persistent-debugger","status":"not implemented","evidence":[],"remaining":"File persistence exists; no durable PTY/GDB process."},
-    {"id":"scoped-remote-and-expiry","status":"not implemented","evidence":["tests/test_security.py"],"remaining":"Parser/lease units only; remote remains disabled."},
+    {"id":"scoped-remote-and-expiry","status":"integration-tested","evidence":["src/prestige/remote.py","tests/test_remote.py","src/prestige/cli.py"],"remaining":"Operator-registered HTTP/TCP instances, pinned DNS, redirect/metadata blocks, rate/request/concurrency/deadline limits, expiry/cancel and audit events are tested against loopback fixtures. SSH adapter remains blocked pending an operator-reviewed image; remote is disabled by default."},
     {"id":"scheduler","status":"in progress","evidence":["src/prestige/evaluation.py"],"remaining":"Bounded local priority queue only."},
     {"id":"real-baseline-benchmarks","status":"not implemented","evidence":["docs/BENCHMARKING.md"],"remaining":"B0/B1/P1/P2/P3 real evaluations absent."},
     {"id":"opencode-product-backend","status":"implemented","evidence":["src/prestige/mcp_server.py",".opencode/plugins/prestige/","opencode.jsonc"],"remaining":"Production hardening and adversarial review."},

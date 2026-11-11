@@ -11,6 +11,8 @@ The server speaks stdio MCP. It does not open a network listener.
 """
 
 import asyncio
+import base64
+import binascii
 import hashlib
 import json
 import time
@@ -22,7 +24,7 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import CallToolResult, ListToolsResult, TextContent, Tool
 
-from prestige.artifacts import Artifacts, ToolRegistry
+from prestige.artifacts import Artifacts, ToolRegistry, redact
 from prestige.commitments import expected_for
 from prestige.config import data_home, load_config
 from prestige.engine import new_run
@@ -30,6 +32,7 @@ from prestige.human import answer_operator, pending_request, request_operator
 from prestige.jobs import JobManager
 from prestige.knowledge import SkillsBridge
 from prestige.policy import validate_source_path
+from prestige.remote import broker_for, load_registrations
 from prestige.security import Rules
 from prestige.store import Store
 from prestige.types import Action, PolicyDenied, PrestigeError
@@ -617,6 +620,232 @@ async def _skills_apply(args: dict) -> dict:
         store.close()
 
 
+async def _target_list(args: dict) -> dict:
+    try:
+        from prestige.remote import remote_enabled
+
+        registrations = load_registrations(_home())
+        return {
+            "status": "ok",
+            "result": {
+                "remote_enabled": remote_enabled(_home()),
+                "registrations": [
+                    {
+                        "id": reg.id,
+                        "provenance": reg.provenance,
+                        "protocol": reg.protocol,
+                        "host": reg.host,
+                        "port": reg.port,
+                        "paths": list(reg.paths),
+                        "methods": list(reg.methods),
+                        "enabled": reg.enabled,
+                        "expires_at": reg.expires_at,
+                        "allowed_actions": list(reg.allowed_actions),
+                    }
+                    for reg in sorted(registrations.values(), key=lambda item: item.id)
+                ],
+            },
+        }
+    except Exception as error:
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
+
+
+def _registration(args: dict):
+    registration_id = args.get("registration_id")
+    registrations = load_registrations(_home())
+    if not isinstance(registration_id, str) or registration_id not in registrations:
+        raise PrestigeError("Unknown or unauthorized registration id")
+    return registrations[registration_id]
+
+
+def _decode_body(args: dict) -> bytes:
+    if args.get("body_base64") and args.get("body_text"):
+        raise PolicyDenied("Specify body_base64 or body_text, not both")
+    if args.get("body_base64"):
+        try:
+            return base64.b64decode(args["body_base64"], validate=True)
+        except (binascii.Error, ValueError) as error:
+            raise PolicyDenied("Invalid base64 body") from error
+    if args.get("body_text") is not None:
+        return str(args["body_text"]).encode("utf-8")
+    return b""
+
+
+def _body_preview(data: bytes) -> dict:
+    text = data.decode("utf-8", errors="replace")
+    printable = sum(1 for char in text if char.isprintable() or char in "\r\n\t")
+    if data and "\x00" not in text and printable / max(1, len(text)) > 0.8:
+        return {"encoding": "text", "text": redact(text[:8192])}
+    return {"encoding": "base64", "base64": base64.b64encode(data[:8192]).decode()}
+
+
+def _record_remote_failure(store: Store, args: dict, error: Exception) -> None:
+    run_id = args.get("run_id")
+    if not isinstance(run_id, str):
+        return
+    try:
+        store.event(
+            run_id,
+            "remote_blocked",
+            {
+                "registration_id": args.get("registration_id"),
+                "reason": f"{type(error).__name__}: {error}"[:500],
+                "trust": "fact",
+            },
+        )
+    except Exception:
+        pass
+
+
+async def _remote_http(args: dict) -> dict:
+    store = await _store()
+    try:
+        run_id = args["run_id"]
+        run = _run(store, run_id)
+        if _terminal(run):
+            raise PrestigeError("Investigation is terminal")
+        elapsed = _check_budget(run, store, run_id)
+        registration = _registration(args)
+        if (
+            "http" not in registration.allowed_actions
+            or registration.protocol not in {"http", "https"}
+        ):
+            raise PolicyDenied("Registration does not authorize HTTP")
+        broker = broker_for(_home(), registration)
+        timeout = args.get("timeout", 10)
+        if type(timeout) not in (int, float) or not 0 < timeout <= 30:
+            raise PolicyDenied("Invalid timeout")
+        timeout = min(float(timeout), max(0.1, run["settings"]["max_seconds"] - elapsed))
+        headers = args.get("headers") or {}
+        if not isinstance(headers, dict):
+            raise PolicyDenied("headers must be an object")
+        body = _decode_body(args)
+        response = await asyncio.to_thread(
+            broker.http,
+            str(args.get("method", "GET")),
+            str(args.get("path", "/")),
+            headers,
+            body,
+            float(timeout),
+        )
+        artifact = Artifacts(store, run_id).add(
+            response.pop("body"), "remote-http-response.bin"
+        )
+        store.event(
+            run_id,
+            "remote_request",
+            {
+                "registration_id": registration.id,
+                "protocol": registration.protocol,
+                "method": str(args.get("method", "GET")).upper(),
+                "path": str(args.get("path", "/")),
+                "status": response["status"],
+                "bytes": response["bytes"],
+                "redirect_blocked": response["redirect_blocked"],
+                "artifact": artifact,
+                "trust": "fact",
+            },
+        )
+        return _redact(
+            {
+                "status": "ok",
+                "result": {
+                    "registration_id": registration.id,
+                    "http_status": response["status"],
+                    "reason": response["reason"],
+                    "headers": response["headers"],
+                    "bytes": response["bytes"],
+                    "artifact": artifact,
+                    "followed_redirect": False,
+                    "redirect_blocked": response["redirect_blocked"],
+                    **_body_preview(Artifacts(store, run_id).read(artifact)),
+                },
+            }
+        )
+    except Exception as error:
+        _record_remote_failure(store, args, error)
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
+    finally:
+        store.close()
+
+
+async def _remote_tcp(args: dict) -> dict:
+    store = await _store()
+    try:
+        run_id = args["run_id"]
+        run = _run(store, run_id)
+        if _terminal(run):
+            raise PrestigeError("Investigation is terminal")
+        elapsed = _check_budget(run, store, run_id)
+        registration = _registration(args)
+        if (
+            "tcp" not in registration.allowed_actions
+            or registration.protocol not in {"tcp", "ssh"}
+        ):
+            raise PolicyDenied("Registration does not authorize TCP")
+        broker = broker_for(_home(), registration)
+        timeout = args.get("timeout", 10)
+        if type(timeout) not in (int, float) or not 0 < timeout <= 30:
+            raise PolicyDenied("Invalid timeout")
+        timeout = min(float(timeout), max(0.1, run["settings"]["max_seconds"] - elapsed))
+        data = _decode_body(args)
+        read_bytes = args.get("read_bytes", 4096)
+        response = await asyncio.to_thread(
+            broker.tcp, data, int(read_bytes), float(timeout)
+        )
+        artifact = Artifacts(store, run_id).add(response["data"], "remote-tcp-response.bin")
+        store.event(
+            run_id,
+            "remote_request",
+            {
+                "registration_id": registration.id,
+                "protocol": registration.protocol,
+                "method": "TCP",
+                "path": "-",
+                "status": "ok",
+                "bytes": response["bytes"],
+                "artifact": artifact,
+                "trust": "fact",
+            },
+        )
+        return _redact(
+            {
+                "status": "ok",
+                "result": {
+                    "registration_id": registration.id,
+                    "bytes": response["bytes"],
+                    "artifact": artifact,
+                    **_body_preview(response["data"]),
+                },
+            }
+        )
+    except Exception as error:
+        _record_remote_failure(store, args, error)
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
+    finally:
+        store.close()
+
+
+async def _remote_status(args: dict) -> dict:
+    try:
+        registration = _registration(args)
+        return {"status": "ok", "result": broker_for(_home(), registration).status()}
+    except Exception as error:
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
+
+
+async def _remote_cancel(args: dict) -> dict:
+    try:
+        registration = _registration(args)
+        cancelled = broker_for(_home(), registration).cancel()
+        return {
+            "status": "ok",
+            "result": {"registration_id": registration.id, "cancelled_sockets": cancelled},
+        }
+    except Exception as error:
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
+
+
 _TOOLS: dict[str, tuple[Tool, Any]] = {
     "prestige_create_investigation": (
         Tool(
@@ -912,6 +1141,91 @@ _TOOLS: dict[str, tuple[Tool, Any]] = {
             },
         ),
         _skills_apply,
+    ),
+    "prestige_target_list": (
+        Tool(
+            name="prestige_target_list",
+            description=(
+                "List operator-registered authorized challenge instances. Read-only; "
+                "the model cannot register or enable targets."
+            ),
+            inputSchema={"type": "object", "additionalProperties": False, "properties": {}},
+        ),
+        _target_list,
+    ),
+    "prestige_remote_http": (
+        Tool(
+            name="prestige_remote_http",
+            description=(
+                "Send an HTTP request to an operator-registered challenge instance. "
+                "Scope, methods, paths, rate and request limits are enforced outside "
+                "the model. Redirects are never followed automatically."
+            ),
+            inputSchema={
+                "type": "object",
+                "required": ["run_id", "registration_id", "path"],
+                "additionalProperties": False,
+                "properties": {
+                    "run_id": {"type": "string"},
+                    "registration_id": {"type": "string"},
+                    "method": {"type": "string"},
+                    "path": {"type": "string"},
+                    "headers": {"type": "object"},
+                    "body_text": {"type": "string"},
+                    "body_base64": {"type": "string"},
+                    "timeout": {"type": "number"},
+                },
+            },
+        ),
+        _remote_http,
+    ),
+    "prestige_remote_tcp": (
+        Tool(
+            name="prestige_remote_tcp",
+            description=(
+                "Exchange bounded bytes with an operator-registered TCP challenge "
+                "service. Off-scope destinations are rejected before connection."
+            ),
+            inputSchema={
+                "type": "object",
+                "required": ["run_id", "registration_id"],
+                "additionalProperties": False,
+                "properties": {
+                    "run_id": {"type": "string"},
+                    "registration_id": {"type": "string"},
+                    "data_base64": {"type": "string"},
+                    "read_bytes": {"type": "integer"},
+                    "timeout": {"type": "number"},
+                },
+            },
+        ),
+        _remote_tcp,
+    ),
+    "prestige_remote_status": (
+        Tool(
+            name="prestige_remote_status",
+            description="Show registration counters, expiry and cancellation state.",
+            inputSchema={
+                "type": "object",
+                "required": ["registration_id"],
+                "additionalProperties": False,
+                "properties": {"registration_id": {"type": "string"}},
+            },
+        ),
+        _remote_status,
+    ),
+    "prestige_remote_cancel": (
+        Tool(
+            name="prestige_remote_cancel",
+            description="Cancel in-flight remote work and revoke further use of the registration.",
+            inputSchema={
+                "type": "object",
+                "required": ["registration_id"],
+                "additionalProperties": False,
+                "properties": {"registration_id": {"type": "string"}},
+            },
+        ),
+        _remote_cancel,
     ),
 }
 

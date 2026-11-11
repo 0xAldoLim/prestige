@@ -110,6 +110,27 @@ Provider model selection is controlled by OpenCode; PRESTIGE never requests prov
 API keys through its MCP interface. See [provider policy](docs/PROVIDERS.md) for Claude,
 Kimi, DeepSeek, GLM, Qwen, MiniMax and optional standalone backends.
 
+## Authorized remote challenge instances
+
+Remote solving is opt-in and operator-registered. A registration records the exact
+target, provenance, protocol, host, port, allowed paths/methods, pinned DNS, request
+and rate limits, expiry and explicit exclusions. The model cannot register or enable
+targets; it can only use an existing registration through MCP.
+
+```bash
+prestige --home ./.prestige target register registration.json
+prestige --home ./.prestige target list
+prestige --home ./.prestige target enable TARGET_ID
+prestige --home ./.prestige target disable TARGET_ID
+prestige --home ./.prestige target revoke TARGET_ID
+PRESTIGE_REMOTE_ENABLED=1 python -m prestige agent
+```
+
+The broker enforces scope outside the model, blocks off-scope redirects, metadata and
+unregistered destinations, never follows redirects automatically, bounds responses,
+and cancels in-flight work on expiry or revocation. SSH registrations are accepted but
+the adapter remains disabled until an operator-reviewed SSH-enabled image is supplied.
+
 ## Offline quickstart
 
 The example is an explicitly synthetic hexadecimal encoding exercise. Its independently

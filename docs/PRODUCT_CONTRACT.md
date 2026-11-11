@@ -56,14 +56,15 @@ Status legend: `done`, `partial`, `blocked-external`, `not-started`.
 
 | ID | Requirement | Status | Acceptance evidence |
 | --- | --- | --- | --- |
-| RM-1 | Operator registers exact assigned instance with provenance and limits | partial | `src/prestige/remote.py`, `tests/test_remote.py` |
-| RM-2 | HTTP/HTTPS broker enforces scheme/host/port/path/method/rate/request/deadline limits | partial | `tests/test_remote.py` |
-| RM-3 | Dedicated TCP service broker enforces same scope and bounds | partial | `tests/test_remote.py` |
-| RM-4 | Redirects, DNS rebinding, metadata, off-scope hosts and proxying are blocked | partial | `tests/test_remote.py` |
-| RM-5 | Model cannot enlarge scope through tool arguments | partial | `tests/test_remote.py` |
-| RM-6 | Expiry cancels in-flight work, preserves evidence and asks for a fresh instance | partial | `tests/test_remote.py` |
-| RM-7 | Competition infrastructure (CTFd, scoreboards, provisioning, shared control planes) is never contacted | partial | `tests/test_remote.py` |
-| RM-8 | Remote mode stays disabled until positive and negative tests pass | partial | config gate + `tests/test_remote.py` |
+| RM-1 | Operator registers exact assigned instance with provenance and limits | done | `src/prestige/remote.py`, `prestige target register`, `tests/test_remote.py` |
+| RM-2 | HTTP/HTTPS broker enforces scheme/host/port/path/method/rate/request/deadline limits | done | `tests/test_remote.py::test_http_allowed_request`, budget/cancel tests |
+| RM-3 | Dedicated TCP service broker enforces same scope and bounds | done | `tests/test_remote.py::test_tcp_allowed_and_protocol_mismatch` |
+| RM-4 | Redirects, DNS rebinding, metadata, off-scope hosts and proxying are blocked | done | pinned-IP, metadata, redirect and path tests |
+| RM-5 | Model cannot enlarge scope through tool arguments | done | no MCP register/enable tool; `test_mcp_has_no_target_registration_tool` |
+| RM-6 | Expiry cancels in-flight work, preserves evidence and asks for a fresh instance | done | expiry/cancel tests and `remote_blocked` events |
+| RM-7 | Competition infrastructure (CTFd, scoreboards, provisioning, shared control planes) is never contacted | done | operator-registration-only scope; metadata/dedicated-private checks |
+| RM-8 | Remote mode stays disabled until positive and negative tests pass | done | `PRESTIGE_REMOTE_ENABLED` / `remote.enabled` gate and loopback fixtures |
+| RM-9 | Explicitly authorized SSH challenge access | blocked-external | Protocol is registered but the broker returns a clear denial until an operator-reviewed SSH adapter/image is supplied |
 
 ## 6. Persistent interactive tools
 

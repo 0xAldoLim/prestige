@@ -54,6 +54,13 @@ def parser():
     commitment_add.add_argument("expected_sha256")
     commitment_remove = commitment.add_parser("remove")
     commitment_remove.add_argument("artifact_sha256")
+    target = commands.add_parser("target").add_subparsers(dest="operation", required=True)
+    target.add_parser("list")
+    target_register = target.add_parser("register")
+    target_register.add_argument("file", type=Path)
+    for name in ("show", "enable", "disable", "revoke"):
+        item = target.add_parser(name)
+        item.add_argument("registration_id")
     config = commands.add_parser("config").add_subparsers(dest="operation", required=True)
     config.add_parser("show")
     setting = config.add_parser("set")
@@ -248,6 +255,62 @@ def dispatch(args, store: Store, config: dict):
         if args.operation == "remove":
             return remove_commitment(store.home, args.artifact_sha256)
         return list_commitments(store.home)
+    if args.command == "target":
+        from dataclasses import replace
+
+        from prestige.remote import (
+            Registration,
+            load_registrations,
+            remote_enabled,
+            save_registrations,
+        )
+
+        registrations = load_registrations(store.home)
+        if args.operation == "list":
+            return {
+                "remote_enabled": remote_enabled(store.home),
+                "registrations": [
+                    registration.to_dict()
+                    for registration in sorted(
+                        registrations.values(), key=lambda item: item.id
+                    )
+                ],
+            }
+        if args.operation == "register":
+            if not args.file.is_file() or args.file.stat().st_size > 262144:
+                raise PrestigeError("Registration file is missing or too large")
+            data = json.loads(args.file.read_text(encoding="utf-8"))
+            items = (
+                data["registrations"]
+                if isinstance(data, dict) and "registrations" in data
+                else [data]
+            )
+            if not isinstance(items, list):
+                raise PrestigeError("registrations must be a list")
+            registered = []
+            for item in items:
+                registration = Registration.from_dict(item)
+                registrations[registration.id] = registration
+                registered.append(registration.id)
+            save_registrations(store.home, registrations)
+            return {"registered": registered}
+        registration_id = args.registration_id
+        if registration_id not in registrations:
+            raise PrestigeError("Unknown registration id")
+        if args.operation == "revoke":
+            registrations.pop(registration_id)
+            save_registrations(store.home, registrations)
+            return {"registration_id": registration_id, "revoked": True}
+        if args.operation in {"enable", "disable"}:
+            registrations[registration_id] = replace(
+                registrations[registration_id], enabled=args.operation == "enable"
+            )
+            save_registrations(store.home, registrations)
+            return {
+                "registration_id": registration_id,
+                "enabled": args.operation == "enable",
+            }
+        return registrations[registration_id].to_dict()
     if args.command == "config":
         if args.operation == "set":
             set_config(store.home, args.key, args.value)
