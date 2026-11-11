@@ -11,7 +11,7 @@ from jsonschema import Draft202012Validator
 
 from prestige.artifacts import FLAG, redact, regular_file
 from prestige.store import Store, encoded
-from prestige.types import PolicyDenied
+from prestige.types import PolicyDenied, PrestigeError
 from prestige.verifier import replay
 
 CATEGORIES = ("crypto", "reverse", "forensics", "web", "pwn", "misc", "osint", "ai-ml", "malware")
@@ -318,6 +318,103 @@ class Knowledge:
             for x in records
             if any(word in x["record"].lower() for word in anchors)
         ][:4]
+
+    def review(self, status: str = "inbox") -> list[dict]:
+        if status not in {"inbox", "accepted", "rejected"}:
+            raise PolicyDenied("Unknown review status")
+        return [
+            {"id": row["id"], "status": row["status"], "record": json.loads(row["record"])}
+            for row in self.store.rows(
+                "SELECT id,record,status FROM knowledge WHERE status=? ORDER BY id", (status,)
+            )
+        ]
+
+    def _sanitized(self, record: dict) -> None:
+        serialized = encoded(record)
+        if FLAG.search(serialized.encode()) or re.search(
+            r"https?://|password|api_key|bearer|BEGIN [A-Z ]*PRIVATE KEY", serialized, re.I
+        ):
+            raise PolicyDenied("Learning record contains a flag, URL or credential")
+        schema = json.loads(
+            files("prestige").joinpath("data/learning.schema.json").read_text(encoding="utf-8")
+        )
+        Draft202012Validator(schema).validate(record)
+
+    def propose(self, record: dict, run_id: str) -> dict:
+        """Accept a model-proposed technique into the review inbox only."""
+        if not isinstance(record, dict):
+            raise PolicyDenied("Learning proposal must be an object")
+        if not isinstance(run_id, str) or not run_id:
+            raise PolicyDenied("Learning proposal requires an investigation run")
+        record = dict(record)
+        for key in ("title", "category", "technique", "core_insight", "verification_evidence"):
+            if not isinstance(record.get(key), str) or not record[key].strip():
+                raise PolicyDenied(f"Learning proposal requires {key}")
+        if record["category"] not in {
+            "ctf-ai-ml", "ctf-crypto", "ctf-forensics", "ctf-malware",
+            "ctf-misc", "ctf-osint", "ctf-pwn", "ctf-reverse", "ctf-web",
+        }:
+            raise PolicyDenied("Unknown learning category")
+        # The model can never declare its own proposal verified or accepted.
+        record["source_type"] = "model_proposed"
+        record["confidence"] = "low"
+        record["flag_verified"] = False
+        record["date_added"] = datetime.now(timezone.utc).date().isoformat()
+        record.setdefault("subcategories", [])
+        record.setdefault("trigger_conditions", ["Observed the described evidence"])
+        record.setdefault("challenge_context", "")
+        record.setdefault("observed_problem", "")
+        record.setdefault("commands_or_code", "")
+        record.setdefault("resulting_primitive", "")
+        record.setdefault("failure_modes", [])
+        record.setdefault("when_not_to_use", ["Unverified proposal; operator review required"])
+        record.setdefault("related_existing_techniques", [])
+        record.setdefault("source_reference", f"prestige:{run_id}" if run_id else "model_proposal")
+        record.setdefault("materially_contributed", False)
+        record.setdefault("understood", False)
+        record.setdefault("reproducible", False)
+        record.setdefault("reusable", True)
+        record["review_status"] = "inbox"
+        self._sanitized(record)
+        serialized = encoded(record)
+        record_id = hashlib.sha256(serialized.encode()).hexdigest()
+        if self.store.rows("SELECT id FROM knowledge WHERE id=?", (record_id,)):
+            return {"status": "duplicate", "id": record_id}
+        with self.store.transaction() as db:
+            db.execute(
+                "INSERT INTO knowledge VALUES(?,?,?,?)",
+                (record_id, run_id or "", serialized, "inbox"),
+            )
+        return {"status": "inbox", "id": record_id}
+
+    def promote(self, record_id: str, verified: bool = False) -> dict:
+        rows = self.store.rows(
+            "SELECT record,status FROM knowledge WHERE id=?", (record_id,)
+        )
+        if not rows:
+            raise PrestigeError("Unknown learning record")
+        record = json.loads(rows[0]["record"])
+        record["review_status"] = "accepted_by_operator"
+        if verified:
+            record["confidence"] = "verified"
+            record["understood"] = True
+            record["reproducible"] = True
+        serialized = encoded(record)
+        with self.store.transaction() as db:
+            db.execute(
+                "UPDATE knowledge SET record=?,status='accepted' WHERE id=?",
+                (serialized, record_id),
+            )
+        return {"id": record_id, "status": "accepted", "verified": verified}
+
+    def reject(self, record_id: str) -> dict:
+        rows = self.store.rows("SELECT id FROM knowledge WHERE id=?", (record_id,))
+        if not rows:
+            raise PrestigeError("Unknown learning record")
+        with self.store.transaction() as db:
+            db.execute("UPDATE knowledge SET status='rejected' WHERE id=?", (record_id,))
+        return {"id": record_id, "status": "rejected"}
+
 
     def capture(self, artifacts) -> dict:
         verified = self.store.rows(

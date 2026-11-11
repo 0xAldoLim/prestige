@@ -242,7 +242,15 @@ prestige knowledge search "RSA reused nonce"
 prestige knowledge list
 prestige knowledge inspect RECORD_ID
 prestige knowledge delete RECORD_ID
+prestige knowledge propose proposal.json --run RUN_ID
+prestige knowledge inbox
+prestige knowledge promote RECORD_ID --verified
+prestige knowledge reject RECORD_ID
 ```
+
+Model-proposed techniques always enter the inbox with `confidence=low`; only an
+operator can promote them. Sanitization rejects flags, URLs, credentials and private
+keys. Accepted records are searchable by later investigations.
 
 On Windows supply a quoted absolute Windows path. Retrieval is lexical and bounded,
 preserves source paths/hashes, and never executes the external repository's scripts.

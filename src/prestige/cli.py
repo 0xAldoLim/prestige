@@ -145,6 +145,15 @@ def parser():
     inspect.add_argument("id")
     delete = knowledge.add_parser("delete")
     delete.add_argument("id")
+    knowledge.add_parser("inbox")
+    propose = knowledge.add_parser("propose")
+    propose.add_argument("file", type=Path)
+    propose.add_argument("--run", required=True)
+    promote = knowledge.add_parser("promote")
+    promote.add_argument("id")
+    promote.add_argument("--verified", action="store_true")
+    reject = knowledge.add_parser("reject")
+    reject.add_argument("id")
     models = commands.add_parser("models").add_subparsers(dest="operation", required=True)
     models.add_parser("list")
     models.add_parser("doctor")
@@ -394,6 +403,18 @@ def dispatch(args, store: Store, config: dict):
             return {"local": knowledge.search(args.query), "skills": skills.search(args.query)}
         if args.operation == "list":
             return store.rows("SELECT id,status FROM knowledge")
+        if args.operation == "inbox":
+            return knowledge.review("inbox")
+        if args.operation == "propose":
+            if not args.file.is_file() or args.file.stat().st_size > 262144:
+                raise PrestigeError("Learning proposal file is missing or too large")
+            return knowledge.propose(
+                json.loads(args.file.read_text(encoding="utf-8")), args.run
+            )
+        if args.operation == "promote":
+            return knowledge.promote(args.id, verified=args.verified)
+        if args.operation == "reject":
+            return knowledge.reject(args.id)
         if args.operation == "delete":
             with store.transaction() as db:
                 count = db.execute("DELETE FROM knowledge WHERE id=?", (args.id,)).rowcount

@@ -1018,6 +1018,53 @@ async def _research_search(args: dict) -> dict:
         return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
 
 
+async def _knowledge_search(args: dict) -> dict:
+    store = await _store()
+    try:
+        query = str(args.get("query", ""))
+        if not query.strip():
+            raise PolicyDenied("Knowledge query must be non-empty")
+        from prestige.knowledge import Knowledge
+
+        bridge = SkillsBridge(load_config(_home()).get("skills.path"))
+        return {
+            "status": "ok",
+            "result": Knowledge(store, bridge).search(query),
+        }
+    except Exception as error:
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
+    finally:
+        store.close()
+
+
+async def _knowledge_propose(args: dict) -> dict:
+    store = await _store()
+    try:
+        record = args.get("record")
+        if not isinstance(record, dict):
+            raise PolicyDenied("record must be an object")
+        run_id = args.get("run_id")
+        if run_id:
+            run = _run(store, str(run_id))
+            if _terminal(run):
+                raise PrestigeError("Investigation is terminal")
+        from prestige.knowledge import Knowledge
+
+        bridge = SkillsBridge(load_config(_home()).get("skills.path"))
+        result = Knowledge(store, bridge).propose(record, str(run_id) if run_id else None)
+        if run_id:
+            store.event(
+                run_id,
+                "learning_proposal",
+                {"id": result.get("id"), "status": result["status"], "trust": "unverified"},
+            )
+        return {"status": "ok", "result": result}
+    except Exception as error:
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
+    finally:
+        store.close()
+
+
 _TOOLS: dict[str, tuple[Tool, Any]] = {
     "prestige_create_investigation": (
         Tool(
@@ -1526,6 +1573,38 @@ _TOOLS: dict[str, tuple[Tool, Any]] = {
             },
         ),
         _research_search,
+    ),
+    "prestige_knowledge_search": (
+        Tool(
+            name="prestige_knowledge_search",
+            description="Search operator-accepted local techniques for the current query.",
+            inputSchema={
+                "type": "object",
+                "required": ["query"],
+                "additionalProperties": False,
+                "properties": {"query": {"type": "string"}},
+            },
+        ),
+        _knowledge_search,
+    ),
+    "prestige_knowledge_propose": (
+        Tool(
+            name="prestige_knowledge_propose",
+            description=(
+                "Propose a reusable technique for operator review. Proposals always "
+                "enter the inbox and can never self-declare verification."
+            ),
+            inputSchema={
+                "type": "object",
+                "required": ["record", "run_id"],
+                "additionalProperties": False,
+                "properties": {
+                    "record": {"type": "object"},
+                    "run_id": {"type": "string"},
+                },
+            },
+        ),
+        _knowledge_propose,
     ),
 }
 

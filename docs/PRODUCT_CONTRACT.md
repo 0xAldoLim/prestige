@@ -81,9 +81,10 @@ Status legend: `done`, `partial`, `blocked-external`, `not-started`.
 | --- | --- | --- | --- |
 | RS-1 | Separate bounded research broker with allowlisted sources and cache | done | `src/prestige/research.py`, `tests/test_research.py` |
 | RS-2 | Research excerpts are source-attributed and untrusted | done | `tests/test_research.py` |
-| LN-1 | Verified techniques beyond base64/hex/XOR/ZIP can be proposed and reviewed | partial | `src/prestige/knowledge.py`, `tests/test_knowledge.py` |
-| LN-2 | Model cannot self-declare a technique verified | done | `Knowledge.capture`, review gates |
-| LN-3 | No flags, credentials or private endpoints enter shared knowledge | done | sanitization gates, `tests/test_engine.py` |
+| LN-1 | Verified techniques beyond base64/hex/XOR/ZIP can be proposed and reviewed | done | `src/prestige/knowledge.py`, `tests/test_knowledge.py` |
+| LN-2 | Model cannot self-declare a technique verified | done | proposals forced to `inbox` / `confidence=low`; no MCP promote tool |
+| LN-3 | No flags, credentials or private endpoints enter shared knowledge | done | sanitization gates, `tests/test_knowledge.py` |
+| LN-4 | Operator review/promotion/rejection stages | done | `prestige knowledge inbox/promote/reject`, `tests/test_knowledge.py` |
 
 ## 8. Adversarial resilience
 
