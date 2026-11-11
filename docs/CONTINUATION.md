@@ -45,9 +45,13 @@ requirements.
     limits, bounded output.
   - `WorkspaceRunner` output directory made writable for the containerized user.
 - **Tests**
-  - Default suite: **127 passed, 3 skipped**.
-  - With `PRESTIGE_TEST_IMAGE`: **129 passed, 1 skipped**.
-  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **130 passed**.
+  - Default suite: **133 passed, 3 skipped**.
+  - With `PRESTIGE_TEST_IMAGE`: **135 passed, 1 skipped**.
+  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **136 passed**.
+- **Operator known-answer helper**
+  - `prestige verify-candidate --expected-sha256 <digest> [--candidate-file PATH]`
+    reads a candidate from stdin/file, reports only digests + `match`, and never
+    persists or echoes the candidate value.
   - Ruff clean; wheel builds.
 
 ## Latest executed checks
@@ -55,7 +59,7 @@ requirements.
 ```bash
 PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39 \
   python -m pytest -q
-# 130 passed in ~41 s
+# 136 passed in ~43 s
 ```
 
 ## Real challenge status
@@ -180,6 +184,8 @@ ruff check .
 python -m build --wheel
 python -m prestige --home ./.prestige config set sandbox.image python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39
 python -m prestige agent
+# operator known-answer check (candidate read from stdin; nothing persisted)
+python -m prestige verify-candidate --expected-sha256 <64-hex-digest> < candidate.txt
 ```
 
 ## Known limitations

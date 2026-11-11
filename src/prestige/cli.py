@@ -2,7 +2,9 @@
 
 import argparse
 import asyncio
+import hashlib
 import json
+import re
 import shutil
 import sqlite3
 import sys
@@ -36,6 +38,9 @@ def parser():
     commands.add_parser("doctor")
     commands.add_parser("init")
     commands.add_parser("agent")
+    verify = commands.add_parser("verify-candidate")
+    verify.add_argument("--expected-sha256", required=True)
+    verify.add_argument("--candidate-file", type=Path)
     config = commands.add_parser("config").add_subparsers(dest="operation", required=True)
     config.add_parser("show")
     setting = config.add_parser("set")
@@ -188,6 +193,24 @@ def dispatch(args, store: Store, config: dict):
 
         asyncio.run(serve_stdio())
         return {"agent": "stopped"}
+    if args.command == "verify-candidate":
+        # Stateless known-answer check: accept an operator-supplied commitment and
+        # report only digests, never the candidate value.
+        if args.candidate_file:
+            data = args.candidate_file.read_bytes()
+        else:
+            data = sys.stdin.buffer.read(65537)
+        if len(data) > 65536:
+            raise PolicyDenied("Candidate input exceeds 64 KiB")
+        expected = args.expected_sha256.strip().lower()
+        if not re.fullmatch(r"[a-f0-9]{64}", expected):
+            raise PolicyDenied("Expected digest must be 64 lowercase hex characters")
+        digest = hashlib.sha256(data).hexdigest()
+        return {
+            "match": digest == expected,
+            "candidate_sha256": digest,
+            "expected_sha256": expected,
+        }
     if args.command == "config":
         if args.operation == "set":
             set_config(store.home, args.key, args.value)

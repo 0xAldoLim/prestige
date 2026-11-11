@@ -149,6 +149,34 @@ def test_cli_default_backend_is_fake_and_keyless(tmp_path, challenge, capsys, mo
     assert output["backend"] == "fake"
 
 
+def test_cli_verify_candidate_known_answer(tmp_path, capsys):
+    value = b"SYNTHETIC{known_answer}"
+    digest = hashlib.sha256(value).hexdigest()
+    candidate = tmp_path / "candidate.bin"
+    candidate.write_bytes(value)
+    args = ["--home", str(tmp_path / "state"), "verify-candidate"]
+    assert (
+        main(args + ["--expected-sha256", digest, "--candidate-file", str(candidate)]) == 0
+    )
+    output = json.loads(capsys.readouterr().out)
+    assert output["match"] is True
+    assert value.decode() not in json.dumps(output)
+
+    assert (
+        main(args + ["--expected-sha256", "0" * 64, "--candidate-file", str(candidate)]) == 0
+    )
+    output = json.loads(capsys.readouterr().out)
+    assert output["match"] is False
+
+
+def test_cli_verify_candidate_rejects_bad_digest(tmp_path, capsys):
+    candidate = tmp_path / "candidate.bin"
+    candidate.write_bytes(b"x")
+    args = ["--home", str(tmp_path / "state"), "verify-candidate"]
+    assert main(args + ["--expected-sha256", "not-a-digest", "--candidate-file", str(candidate)]) == 3
+    capsys.readouterr()
+
+
 def test_remote_disabled_even_with_rules(store, challenge):
     with pytest.raises(PolicyDenied):
         new_run(store, challenge[0], instance="https://instance.example:8443/")

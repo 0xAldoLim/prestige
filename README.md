@@ -137,6 +137,15 @@ prestige stop RUN_ID
 prestige security audit RUN_ID
 ```
 
+For a **stateless operator known-answer check**, compare a candidate read from stdin
+(or a file) against an operator-supplied digest. Nothing is persisted and only digests
+are printed:
+
+```text
+prestige verify-candidate --expected-sha256 <64-hex-digest> < candidate.txt
+prestige verify-candidate --expected-sha256 <64-hex-digest> --candidate-file candidate.txt
+```
+
 Place global options (`--home`, `--json`, `--quiet`, `--no-color`) **before** the command.
 Both `prestige` and `python -m prestige` work. Exit 0 means the command completed,
 including an honestly unsolved investigation; 2 indicates invalid input and 3 a policy block.

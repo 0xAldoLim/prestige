@@ -1,5 +1,6 @@
 import io
 import json
+import os
 import shutil
 import socket
 import stat
@@ -208,6 +209,52 @@ def test_cross_investigation_artifact_access_denied(store, challenge, tmp_path):
         registry_b.execute(Action("read", artifact_a, {}))
     with pytest.raises(PolicyDenied):
         artifacts_b.read(artifact_a)
+
+
+def test_allowed_source_dirs_accepts_list_config(tmp_path, monkeypatch):
+    from prestige.config import set_config
+    from prestige.policy import allowed_source_dirs
+
+    home = tmp_path / "state"
+    first = tmp_path / "first"
+    second = tmp_path / "second"
+    first.mkdir()
+    second.mkdir()
+    set_config(home, "allowed_source_dirs", [str(first), str(second)])
+    monkeypatch.delenv("PRESTIGE_ALLOWED_DIRS", raising=False)
+    dirs = allowed_source_dirs(home)
+    assert first.resolve() in dirs
+    assert second.resolve() in dirs
+
+
+def test_allowed_source_dirs_uses_os_pathsep(tmp_path, monkeypatch):
+    from prestige.policy import allowed_source_dirs
+
+    home = tmp_path / "state"
+    first = tmp_path / "first"
+    first.mkdir()
+    monkeypatch.setenv(
+        "PRESTIGE_ALLOWED_DIRS", f"{first}{os.pathsep}{tmp_path}"
+    )
+    dirs = allowed_source_dirs(home)
+    assert dirs[0] == first.resolve()
+    assert tmp_path.resolve() in dirs
+
+
+def test_validate_source_path_respects_policy(tmp_path, monkeypatch):
+    from prestige.policy import validate_source_path
+
+    home = tmp_path / "state"
+    allowed = tmp_path / "allowed"
+    allowed.mkdir()
+    inside = allowed / "challenge.bin"
+    inside.write_bytes(b"data")
+    outside = tmp_path / "outside.bin"
+    outside.write_bytes(b"data")
+    monkeypatch.setenv("PRESTIGE_ALLOWED_DIRS", str(allowed))
+    assert validate_source_path(inside, home) == inside.resolve()
+    with pytest.raises(PolicyDenied):
+        validate_source_path(outside, home)
 
 
 def test_oversized_artifact_and_zip_bomb(store, tmp_path):
