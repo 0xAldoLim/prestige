@@ -104,6 +104,12 @@ requirements.
     Sanitization rejects flags, URLs, credentials and private keys.
   - MCP: `prestige_knowledge_search` (accepted techniques only) and
     `prestige_knowledge_propose` (inbox only; no promote tool exposed).
+- **Condition comparison harness**
+  - `prestige benchmark conditions --suite ... --conditions P1,P2,P3` runs the
+    same suite under FAST/AUTO/EXPERT with a shared contract and records solves,
+    wall time, usage, verification and failures.
+  - B0/B1 are reported `not_run` unless an explicitly configured model adapter is
+    supplied; no model results are fabricated.
 - **Controlled research broker**
   - `ResearchBroker` fetches from operator-allowlisted HTTPS sources with no
     redirect following, rejects metadata/private destinations unless explicit
@@ -120,9 +126,9 @@ requirements.
     limits, bounded output.
   - `WorkspaceRunner` output directory made writable for the containerized user.
 - **Tests**
-  - Default suite: **216 passed, 5 skipped**.
-  - With `PRESTIGE_TEST_IMAGE`: **220 passed, 1 skipped**.
-  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **221 passed**.
+  - Default suite: **220 passed, 5 skipped**.
+  - With `PRESTIGE_TEST_IMAGE`: **224 passed, 1 skipped**.
+  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **225 passed**.
 - **Operator known-answer helper**
   - `prestige verify-candidate --expected-sha256 <digest> [--candidate-file PATH]`
     reads a candidate from stdin/file, reports only digests + `match`, and never
@@ -134,7 +140,7 @@ requirements.
 ```bash
 PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39 \
   python -m pytest -q
-# 221 passed in ~51 s
+# 225 passed in ~51 s
 ```
 
 ## Real challenge status

@@ -172,6 +172,7 @@ published digest is in `examples/local-challenge.verifier.json`, outside the cha
 prestige --home ./private/demo solve examples/local-challenge --backend fake --mode auto --offline
 prestige --home ./private/demo status
 prestige --home ./private/bench benchmark run --suite benchmarks/synthetic/suite.json --output ./private/fixture-results.json
+prestige --home ./private/bench benchmark conditions --suite benchmarks/synthetic/suite.json --conditions P1,P2,P3 --output ./private/conditions.json
 ```
 
 The first command finds a candidate but **does not claim a solve without a verifier**.

@@ -100,8 +100,8 @@ Status legend: `done`, `partial`, `blocked-external`, `not-started`.
 
 | ID | Requirement | Status | Acceptance evidence |
 | --- | --- | --- | --- |
-| BM-1 | B0/B1/P1/P2/P3 harness uses identical challenge/model/tool/budget contracts | partial | `src/prestige/evaluation.py`, `docs/BENCHMARKING.md` |
-| BM-2 | Real results recorded only when actually run | not-started | No paid comparison run; must not fabricate |
+| BM-1 | B0/B1/P1/P2/P3 harness uses identical challenge/model/tool/budget contracts | done | `src/prestige/evaluation.py`, `tests/test_conditions.py` |
+| BM-2 | Real results recorded only when actually run | not-started | B0/B1 report `not_run` without an explicitly configured adapter; no paid comparison run |
 
 ## 10. Release gates
 

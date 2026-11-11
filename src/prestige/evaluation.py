@@ -83,9 +83,18 @@ def compare(left: dict, right: dict) -> dict:
     }
 
 
-async def benchmark(store: Store, suite: Path, repetitions=1, seed=2026) -> dict:
+async def benchmark(
+    store: Store,
+    suite: Path,
+    repetitions=1,
+    seed=2026,
+    lane: str = "auto",
+    condition: str = "fixture-worker",
+) -> dict:
     if not 1 <= repetitions <= 20:
         raise PrestigeError("Repetitions must be in 1..20")
+    if lane not in {"fast", "auto", "expert"}:
+        raise PolicyDenied("Unknown benchmark lane")
     raw = suite.read_bytes()
     if len(raw) > 65536:
         raise PolicyDenied("Suite too large")
@@ -107,16 +116,16 @@ async def benchmark(store: Store, suite: Path, repetitions=1, seed=2026) -> dict
     random.Random(seed).shuffle(jobs)
     results = []
     for case, artifact, repeat in jobs:
-        run_id = new_run(store, artifact, expected=case["expected_sha256"])
+        run_id = new_run(store, artifact, expected=case["expected_sha256"], mode=lane)
         result = await solve(store, run_id)
         results.append({**result, "case": case["id"], "repeat": repeat, "points": case["points"]})
     return {
-        "condition": "fixture-worker",
+        "condition": condition,
         "model_evaluation": False,
         "contract": {
             "suite_hash": hashlib.sha256(raw + "".join(hashes).encode()).hexdigest(),
             "model": "fake",
-            "effort": "deterministic",
+            "effort": lane,
             "permissions": "bounded-offline-tools",
             "max_turns": 12,
             "max_seconds": 120,
@@ -127,6 +136,57 @@ async def benchmark(store: Store, suite: Path, repetitions=1, seed=2026) -> dict
         "metrics": metrics(results),
         "baselines": {key: "not run" for key in CONDITIONS},
     }
+
+
+async def run_conditions(
+    store: Store,
+    suite: Path,
+    conditions: tuple[str, ...] = ("P1", "P2", "P3"),
+    repetitions=1,
+    seed=2026,
+    adapter_factory=None,
+) -> dict:
+    """Run the same suite under named conditions with a shared contract.
+
+    P1/P2/P3 map to FAST/AUTO/EXPERT with the deterministic fixture worker. B0/B1
+    require an explicitly supplied model adapter; without one they are reported
+    as ``not_run`` rather than fabricated.
+    """
+    if not conditions or len(set(conditions)) != len(conditions):
+        raise PolicyDenied("Conditions must be unique and non-empty")
+    lanes = {"P1": "fast", "P2": "auto", "P3": "expert"}
+    reports = {}
+    for condition in conditions:
+        if condition not in CONDITIONS:
+            raise PolicyDenied("Unknown benchmark condition")
+        if condition in {"B0", "B1"} and adapter_factory is None:
+            reports[condition] = {
+                "condition": condition,
+                "status": "not_run",
+                "reason": "requires an explicitly configured model adapter",
+            }
+            continue
+        lane = lanes.get(condition, "auto")
+        reports[condition] = await benchmark(
+            store, suite, repetitions=repetitions, seed=seed, lane=lane, condition=condition
+        )
+        reports[condition]["model_evaluation"] = condition in {"B0", "B1"}
+    comparable = [key for key, value in reports.items() if value.get("results") is not None]
+    contract_keys = [key for key in EQUALITY_FIELDS if key != "effort"]
+    uniform = len(comparable) >= 2 and all(
+        reports[comparable[0]]["contract"].get(key)
+        == reports[other]["contract"].get(key)
+        for other in comparable[1:]
+        for key in contract_keys
+    )
+    return {
+        "schema_version": 1,
+        "report": "condition-comparison",
+        "conditions": reports,
+        "comparable": uniform,
+        "performance_claim": "none; fixture runs do not establish model superiority",
+    }
+
 
 
 async def run_queue(store: Store, jobs: list[dict], workers=1):

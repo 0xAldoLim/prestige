@@ -47,9 +47,9 @@ provider built-in tools. Docker alone is not a hardened VM guarantee.
 
 ## Validation record
 
-- Default suite: **216 passed, 5 skipped**.
-- With `PRESTIGE_TEST_IMAGE`: **220 passed, 1 skipped**.
-- With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **221 passed**.
+- Default suite: **220 passed, 5 skipped**.
+- With `PRESTIGE_TEST_IMAGE`: **224 passed, 1 skipped**.
+- With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **225 passed**.
 - Ruff clean; wheel builds.
 
 See [VALIDATION.md](VALIDATION.md) for commands and exact outcomes. GitHub CI runs

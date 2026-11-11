@@ -172,6 +172,12 @@ def parser():
     compare = bench.add_parser("compare")
     compare.add_argument("left", type=Path)
     compare.add_argument("right", type=Path)
+    conditions = bench.add_parser("conditions")
+    conditions.add_argument("--suite", type=Path, required=True)
+    conditions.add_argument("--conditions", default="P1,P2,P3")
+    conditions.add_argument("--repetitions", type=int, default=1)
+    conditions.add_argument("--seed", type=int, default=2026)
+    conditions.add_argument("--output", type=Path)
     security = commands.add_parser("security").add_subparsers(dest="operation", required=True)
     audit = security.add_parser("audit")
     audit.add_argument("run_id")
@@ -438,10 +444,18 @@ def dispatch(args, store: Store, config: dict):
             return {**manifest, "role": "advisory-only"}
         return advise(manifest, args.text.read_text(encoding="utf-8"))
     if args.command == "benchmark":
-        from prestige.evaluation import benchmark, compare
+        from prestige.evaluation import benchmark, compare, run_conditions
 
         if args.operation == "compare":
             return compare(json.loads(args.left.read_text()), json.loads(args.right.read_text()))
+        if args.operation == "conditions":
+            names = tuple(item.strip() for item in args.conditions.split(",") if item.strip())
+            result = asyncio.run(
+                run_conditions(store, args.suite, names, args.repetitions, args.seed)
+            )
+            if args.output:
+                args.output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+            return result
         result = asyncio.run(benchmark(store, args.suite, args.repetitions))
         args.output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
         return {"output": str(args.output), "metrics": result["metrics"], "model_evaluation": False}
