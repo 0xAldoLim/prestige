@@ -33,6 +33,7 @@ from prestige.jobs import JobManager
 from prestige.knowledge import SkillsBridge
 from prestige.policy import validate_source_path
 from prestige.remote import broker_for, load_registrations
+from prestige.research import ResearchBroker
 from prestige.security import Rules
 from prestige.sessions import (
     list_sessions,
@@ -958,6 +959,65 @@ async def _session_list(args: dict) -> dict:
         return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
 
 
+async def _research_sources(args: dict) -> dict:
+    try:
+        return {"status": "ok", "result": ResearchBroker(_home()).status()}
+    except Exception as error:
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
+
+
+async def _research_fetch(args: dict) -> dict:
+    store = None
+    try:
+        url = str(args["url"])
+        max_bytes = args.get("max_bytes", 65536)
+        timeout = args.get("timeout", 10)
+        result = await asyncio.to_thread(
+            ResearchBroker(_home()).fetch, url, int(max_bytes), float(timeout)
+        )
+        run_id = args.get("run_id")
+        if run_id:
+            store = await _store()
+            run = _run(store, run_id)
+            if _terminal(run):
+                raise PrestigeError("Investigation is terminal")
+            _check_budget(run, store, run_id)
+            artifact = Artifacts(store, run_id).add(
+                result["text"].encode("utf-8"), "research-excerpt.txt"
+            )
+            store.event(
+                run_id,
+                "research",
+                {
+                    "url": result["url"],
+                    "source": result["source"],
+                    "sha256": result["sha256"],
+                    "artifact": artifact,
+                    "cached": result["cached"],
+                    "trust": "external_untrusted",
+                },
+            )
+            result["artifact"] = artifact
+        return _redact({"status": "ok", "result": result})
+    except Exception as error:
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
+    finally:
+        if store is not None:
+            store.close()
+
+
+async def _research_search(args: dict) -> dict:
+    try:
+        query = str(args.get("query", ""))
+        limit = args.get("limit", 3)
+        return {
+            "status": "ok",
+            "result": ResearchBroker(_home()).search(query, int(limit)),
+        }
+    except Exception as error:
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
+
+
 _TOOLS: dict[str, tuple[Tool, Any]] = {
     "prestige_create_investigation": (
         Tool(
@@ -1419,6 +1479,53 @@ _TOOLS: dict[str, tuple[Tool, Any]] = {
             inputSchema={"type": "object", "additionalProperties": False, "properties": {}},
         ),
         _session_list,
+    ),
+    "prestige_research_sources": (
+        Tool(
+            name="prestige_research_sources",
+            description=(
+                "Show operator-configured research allowlist, enablement and cache size."
+            ),
+            inputSchema={"type": "object", "additionalProperties": False, "properties": {}},
+        ),
+        _research_sources,
+    ),
+    "prestige_research_fetch": (
+        Tool(
+            name="prestige_research_fetch",
+            description=(
+                "Fetch a bounded, source-attributed excerpt from an operator-allowlisted "
+                "technical source. Redirects are not followed. Text is untrusted."
+            ),
+            inputSchema={
+                "type": "object",
+                "required": ["url"],
+                "additionalProperties": False,
+                "properties": {
+                    "url": {"type": "string"},
+                    "run_id": {"type": "string"},
+                    "max_bytes": {"type": "integer"},
+                    "timeout": {"type": "number"},
+                },
+            },
+        ),
+        _research_fetch,
+    ),
+    "prestige_research_search": (
+        Tool(
+            name="prestige_research_search",
+            description="Search the local research cache for source-attributed snippets.",
+            inputSchema={
+                "type": "object",
+                "required": ["query"],
+                "additionalProperties": False,
+                "properties": {
+                    "query": {"type": "string"},
+                    "limit": {"type": "integer"},
+                },
+            },
+        ),
+        _research_search,
     ),
 }
 

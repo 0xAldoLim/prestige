@@ -61,6 +61,14 @@ def parser():
     for name in ("show", "enable", "disable", "revoke"):
         item = target.add_parser(name)
         item.add_argument("registration_id")
+    research = commands.add_parser("research").add_subparsers(
+        dest="operation", required=True
+    )
+    research.add_parser("sources")
+    research_fetch = research.add_parser("fetch")
+    research_fetch.add_argument("url")
+    research_search = research.add_parser("search")
+    research_search.add_argument("query")
     config = commands.add_parser("config").add_subparsers(dest="operation", required=True)
     config.add_parser("show")
     setting = config.add_parser("set")
@@ -311,6 +319,15 @@ def dispatch(args, store: Store, config: dict):
                 "enabled": args.operation == "enable",
             }
         return registrations[registration_id].to_dict()
+    if args.command == "research":
+        from prestige.research import ResearchBroker
+
+        broker = ResearchBroker(store.home)
+        if args.operation == "sources":
+            return broker.status()
+        if args.operation == "fetch":
+            return broker.fetch(args.url)
+        return broker.search(args.query)
     if args.command == "config":
         if args.operation == "set":
             set_config(store.home, args.key, args.value)

@@ -147,6 +147,22 @@ writable output mount. Output is persisted as content-addressed evidence. The pi
 Python slim image has no `gdb`; add a reviewed GDB-enabled image to use debugger
 commands.
 
+## Controlled research
+
+Research is separate from challenge traffic and disabled until the operator enables it:
+
+```bash
+prestige --home ./.prestige config set research.enabled true
+prestige --home ./.prestige config set research.allowed_hosts '["nvd.nist.gov","www.cve.org"]'
+prestige --home ./.prestige research sources
+prestige --home ./.prestige research fetch https://www.cve.org/CVERecord?id=CVE-2024-0001
+prestige --home ./.prestige research search nonce
+```
+
+Redirects are not followed, metadata/private destinations are rejected, responses are
+bounded, and excerpts are cached with SHA-256 provenance and marked `external_untrusted`.
+Retrieved text is reference material, never instructions or proof.
+
 ## Offline quickstart
 
 The example is an explicitly synthetic hexadecimal encoding exercise. Its independently

@@ -91,6 +91,15 @@ requirements.
   - The pinned Python slim image has no `gdb`; GDB requires an operator-reviewed
     image containing it. Session state is in-process and does not survive an MCP
     server restart (containers are removed on stop).
+- **Controlled research broker**
+  - `ResearchBroker` fetches from operator-allowlisted HTTPS sources with no
+    redirect following, rejects metadata/private destinations unless explicit
+    loopback testing is enabled, bounds responses and caches by URL with SHA-256
+    provenance and a TTL.
+  - MCP: `prestige_research_sources`, `prestige_research_fetch`,
+    `prestige_research_search`; optional `run_id` records the excerpt as evidence.
+  - CLI: `prestige research sources|fetch|search`. Research traffic is separate
+    from challenge-instance traffic and retrieved text is always untrusted.
 - **Isolated execution**
   - Reviewed Docker worker pinned by immutable digest:
     `python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39`.
@@ -98,9 +107,9 @@ requirements.
     limits, bounded output.
   - `WorkspaceRunner` output directory made writable for the containerized user.
 - **Tests**
-  - Default suite: **194 passed, 5 skipped**.
-  - With `PRESTIGE_TEST_IMAGE`: **198 passed, 1 skipped**.
-  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **199 passed**.
+  - Default suite: **200 passed, 5 skipped**.
+  - With `PRESTIGE_TEST_IMAGE`: **204 passed, 1 skipped**.
+  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **205 passed**.
 - **Operator known-answer helper**
   - `prestige verify-candidate --expected-sha256 <digest> [--candidate-file PATH]`
     reads a candidate from stdin/file, reports only digests + `match`, and never
@@ -112,7 +121,7 @@ requirements.
 ```bash
 PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39 \
   python -m pytest -q
-# 199 passed in ~46 s
+# 205 passed in ~52 s
 ```
 
 ## Real challenge status

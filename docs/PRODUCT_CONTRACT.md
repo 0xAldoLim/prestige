@@ -79,8 +79,8 @@ Status legend: `done`, `partial`, `blocked-external`, `not-started`.
 
 | ID | Requirement | Status | Acceptance evidence |
 | --- | --- | --- | --- |
-| RS-1 | Separate bounded research broker with allowlisted sources and cache | partial | `src/prestige/research.py`, `tests/test_research.py` |
-| RS-2 | Research excerpts are source-attributed and untrusted | partial | `tests/test_research.py` |
+| RS-1 | Separate bounded research broker with allowlisted sources and cache | done | `src/prestige/research.py`, `tests/test_research.py` |
+| RS-2 | Research excerpts are source-attributed and untrusted | done | `tests/test_research.py` |
 | LN-1 | Verified techniques beyond base64/hex/XOR/ZIP can be proposed and reviewed | partial | `src/prestige/knowledge.py`, `tests/test_knowledge.py` |
 | LN-2 | Model cannot self-declare a technique verified | done | `Knowledge.capture`, review gates |
 | LN-3 | No flags, credentials or private endpoints enter shared knowledge | done | sanitization gates, `tests/test_engine.py` |
