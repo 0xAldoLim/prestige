@@ -149,6 +149,46 @@ def test_cli_default_backend_is_fake_and_keyless(tmp_path, challenge, capsys, mo
     assert output["backend"] == "fake"
 
 
+def test_cli_human_request_and_answer(store, challenge, capsys):
+    from prestige.human import pending_request, request_operator
+
+    path, _, _ = challenge
+    run_id = new_run(store, path)
+    payload = request_operator(store, run_id, "Which flag format?", ["SAS{}", "other"])
+    assert store.run(run_id)["status"] == "waiting_for_operator"
+    assert pending_request(store, run_id)["request_id"] == payload["request_id"]
+
+    assert main(["--home", str(store.home), "answer", run_id, "SAS{operator}"]) == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["status"] == "ready"
+    assert output["trust"] == "operator_direct"
+    assert store.run(run_id)["status"] == "ready"
+    assert pending_request(store, run_id) is None
+
+
+def test_cli_human_answer_rejects_wrong_request(store, challenge, capsys):
+    from prestige.human import request_operator
+
+    path, _, _ = challenge
+    run_id = new_run(store, path)
+    request_operator(store, run_id, "Blocked on scope?")
+    assert (
+        main(
+            [
+                "--home",
+                str(store.home),
+                "answer",
+                run_id,
+                "yes",
+                "--request-id",
+                "deadbeef",
+            ]
+        )
+        == 2
+    )
+    capsys.readouterr()
+
+
 def test_cli_verify_candidate_known_answer(tmp_path, capsys):
     value = b"SYNTHETIC{known_answer}"
     digest = hashlib.sha256(value).hexdigest()

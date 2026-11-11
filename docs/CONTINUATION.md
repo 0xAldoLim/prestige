@@ -36,6 +36,10 @@ requirements.
   - Candidate verification reports an explicit `stage`
     (`discovered`, `derived`, `reproduced`, `independently_verified`) plus
     `checker: unavailable`; a digest match never implies official checker acceptance.
+  - Human escalation: `prestige_request_operator` records a durable question and
+    pauses the run; `prestige_answer_operator` relays an answer as
+    `operator_relayed`, while `prestige answer RUN_ID ...` records an
+    operator-direct answer without the model. Answers are evidence, not verification.
 - **Durable analysis jobs**
   - `JobManager` persists long-running Ghidra/radare2/python work outside the
     model conversation.
@@ -51,9 +55,9 @@ requirements.
     limits, bounded output.
   - `WorkspaceRunner` output directory made writable for the containerized user.
 - **Tests**
-  - Default suite: **135 passed, 3 skipped**.
-  - With `PRESTIGE_TEST_IMAGE`: **137 passed, 1 skipped**.
-  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **138 passed**.
+  - Default suite: **138 passed, 3 skipped**.
+  - With `PRESTIGE_TEST_IMAGE`: **140 passed, 1 skipped**.
+  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **141 passed**.
 - **Operator known-answer helper**
   - `prestige verify-candidate --expected-sha256 <digest> [--candidate-file PATH]`
     reads a candidate from stdin/file, reports only digests + `match`, and never
@@ -65,7 +69,7 @@ requirements.
 ```bash
 PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39 \
   python -m pytest -q
-# 138 passed in ~42 s
+# 141 passed in ~43 s
 ```
 
 ## Real challenge status

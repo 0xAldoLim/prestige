@@ -38,6 +38,10 @@ def parser():
     commands.add_parser("doctor")
     commands.add_parser("init")
     commands.add_parser("agent")
+    answer = commands.add_parser("answer")
+    answer.add_argument("run_id")
+    answer.add_argument("answer_text", nargs="?")
+    answer.add_argument("--request-id")
     verify = commands.add_parser("verify-candidate")
     verify.add_argument("--expected-sha256", required=True)
     verify.add_argument("--candidate-file", type=Path)
@@ -193,6 +197,18 @@ def dispatch(args, store: Store, config: dict):
 
         asyncio.run(serve_stdio())
         return {"agent": "stopped"}
+    if args.command == "answer":
+        from prestige.human import answer_operator, pending_request
+
+        pending = pending_request(store, args.run_id)
+        if not pending:
+            raise PrestigeError("No pending operator request")
+        request_id = args.request_id or pending["request_id"]
+        text = args.answer_text if args.answer_text is not None else sys.stdin.read().strip()
+        payload = answer_operator(
+            store, args.run_id, request_id, text, trust="operator_direct"
+        )
+        return {"status": "ready", **payload}
     if args.command == "verify-candidate":
         # Stateless known-answer check: accept an operator-supplied commitment and
         # report only digests, never the candidate value.
@@ -254,7 +270,11 @@ def dispatch(args, store: Store, config: dict):
             "SELECT id,status,lane,backend,turns FROM runs ORDER BY created DESC LIMIT 30"
         )
     if args.command in {"status", "report"}:
-        return report(store, args.run_id, getattr(args, "reveal", False))
+        from prestige.human import pending_request
+
+        body = report(store, args.run_id, getattr(args, "reveal", False))
+        body["pending_operator_request"] = pending_request(store, args.run_id)
+        return body
     if args.command == "logs":
         return store.events(args.run_id)
     if args.command in {"pause", "stop"}:

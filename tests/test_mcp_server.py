@@ -60,6 +60,11 @@ async def test_mcp_lists_prestige_tools(tmp_path):
             "prestige_get_status",
             "prestige_run_experiment",
             "prestige_verify_candidate",
+            "prestige_start_analysis",
+            "prestige_get_analysis",
+            "prestige_cancel_analysis",
+            "prestige_request_operator",
+            "prestige_answer_operator",
         }
 
 
@@ -410,6 +415,55 @@ def _match(pattern: str, value: str) -> bool:
     if pattern.endswith("*"):
         return value.startswith(pattern[:-1])
     return pattern == value
+
+
+async def test_mcp_operator_request_and_relay(tmp_path):
+    path = tmp_path / "challenge.txt"
+    path.write_bytes(b"data")
+
+    async with _mcp_client(tmp_path) as session:
+        created = await session.call_tool(
+            "prestige_create_investigation", {"source_path": str(path)}
+        )
+        run_id = json.loads(created.content[0].text)["run_id"]
+
+        requested = json.loads(
+            (
+                await session.call_tool(
+                    "prestige_request_operator",
+                    {
+                        "run_id": run_id,
+                        "question": "Is this challenge in scope?",
+                        "options": ["yes", "no"],
+                    },
+                )
+            ).content[0].text
+        )
+        assert requested["status"] == "waiting_for_operator"
+        request_id = requested["request_id"]
+
+        status = json.loads(
+            (await session.call_tool("prestige_get_status", {"run_id": run_id})).content[0].text
+        )
+        assert status["status"] == "waiting_for_operator"
+        assert status["pending_operator_request"]["request_id"] == request_id
+
+        answered = json.loads(
+            (
+                await session.call_tool(
+                    "prestige_answer_operator",
+                    {"run_id": run_id, "request_id": request_id, "answer": "yes"},
+                )
+            ).content[0].text
+        )
+        assert answered["status"] == "ready"
+        assert answered["trust"] == "operator_relayed"
+
+        status2 = json.loads(
+            (await session.call_tool("prestige_get_status", {"run_id": run_id})).content[0].text
+        )
+        assert status2["status"] == "ready"
+        assert status2["pending_operator_request"] is None
 
 
 def test_agent_stdio_smoke(tmp_path):

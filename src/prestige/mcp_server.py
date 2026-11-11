@@ -23,6 +23,7 @@ from mcp.types import CallToolResult, ListToolsResult, TextContent, Tool
 from prestige.artifacts import Artifacts, ToolRegistry
 from prestige.config import data_home, load_config
 from prestige.engine import new_run
+from prestige.human import answer_operator, pending_request, request_operator
 from prestige.jobs import JobManager
 from prestige.policy import validate_source_path
 from prestige.security import Rules
@@ -208,6 +209,7 @@ async def _get_status(args: dict) -> dict:
                 "hypotheses": hypotheses,
                 "progress": progress,
                 "candidates": candidates,
+                "pending_operator_request": pending_request(store, run_id),
             }
         )
     finally:
@@ -349,6 +351,56 @@ async def _cancel_analysis(args: dict) -> dict:
         store.close()
 
 
+async def _request_operator(args: dict) -> dict:
+    store = await _store()
+    try:
+        run_id = args["run_id"]
+        run = _run(store, run_id)
+        if _terminal(run):
+            raise PrestigeError("Investigation is terminal")
+        _check_budget(run, store, run_id)
+        payload = request_operator(
+            store, run_id, str(args["question"]), args.get("options") or []
+        )
+        return {
+            "status": "waiting_for_operator",
+            "request_id": payload["request_id"],
+            "question": payload["question"],
+            "options": payload["options"],
+        }
+    except PolicyDenied as error:
+        return {"status": "denied", "reason": str(error)}
+    except Exception as error:
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
+    finally:
+        store.close()
+
+
+async def _answer_operator(args: dict) -> dict:
+    store = await _store()
+    try:
+        run_id = args["run_id"]
+        _run(store, run_id)
+        payload = answer_operator(
+            store,
+            run_id,
+            str(args["request_id"]),
+            str(args["answer"]),
+            trust="operator_relayed",
+        )
+        return {
+            "status": "ready",
+            "request_id": payload["request_id"],
+            "trust": payload["trust"],
+        }
+    except PolicyDenied as error:
+        return {"status": "denied", "reason": str(error)}
+    except Exception as error:
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
+    finally:
+        store.close()
+
+
 _TOOLS: dict[str, tuple[Tool, Any]] = {
     "prestige_create_investigation": (
         Tool(
@@ -475,6 +527,47 @@ _TOOLS: dict[str, tuple[Tool, Any]] = {
             },
         ),
         _cancel_analysis,
+    ),
+    "prestige_request_operator": (
+        Tool(
+            name="prestige_request_operator",
+            description=(
+                "Pause an investigation and record a structured question for the human "
+                "operator. Use when evidence is genuinely blocked on missing scope, "
+                "credentials or an authorization decision."
+            ),
+            inputSchema={
+                "type": "object",
+                "required": ["run_id", "question"],
+                "additionalProperties": False,
+                "properties": {
+                    "run_id": {"type": "string"},
+                    "question": {"type": "string"},
+                    "options": {"type": "array", "items": {"type": "string"}},
+                },
+            },
+        ),
+        _request_operator,
+    ),
+    "prestige_answer_operator": (
+        Tool(
+            name="prestige_answer_operator",
+            description=(
+                "Relay a human operator's answer to a pending request. Answers are "
+                "recorded as operator_relayed, not as independently verified evidence."
+            ),
+            inputSchema={
+                "type": "object",
+                "required": ["run_id", "request_id", "answer"],
+                "additionalProperties": False,
+                "properties": {
+                    "run_id": {"type": "string"},
+                    "request_id": {"type": "string"},
+                    "answer": {"type": "string"},
+                },
+            },
+        ),
+        _answer_operator,
     ),
 }
 
