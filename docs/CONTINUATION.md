@@ -8,7 +8,7 @@ requirements.
 
 ## Current HEAD
 
-- Validated code HEAD: `c27e36d` (this docs-only refresh is the commit containing this line).
+- Validated code HEAD: `c7b9103` (this docs-only refresh is the commit containing this line).
 - Latest pushed commit: see the latest `git log` on `origin/main`.
 - GitHub account: `0xAldoLim`
 - CI: `offline-validation` passing on Ubuntu/Windows, Python 3.11 and 3.14.
