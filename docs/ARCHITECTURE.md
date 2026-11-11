@@ -45,6 +45,30 @@ images and provider credentials are operator-controlled. MCP budgets persist acr
 sessions and cap tool attempts, wall time and per-tool deadlines. Artifact contents and
 tool output are untrusted data.
 
+## Adversarial resilience
+
+`src/prestige/deception.py` deterministically classifies untrusted text for instruction
+overrides, authority/verification claims, scope probes, credential or exfiltration
+requests, tool-output conflicts, cross-model handoffs, hidden/encoded instructions and
+decoys. Findings carry `policy_effect: "none"`; they are evidence about data, not
+authority. `src/prestige/trust.py` centralizes the rule that only operator-controlled
+origins may authorize policy or verification.
+
+MCP creation, experiments, skills, research and verification attach bounded deception
+summaries. `prestige_deception_scan` can re-scan an artifact or recorded event. The
+evaluator refuses to treat an observation containing instruction/verification claims as
+supporting or falsifying evidence and cross-checks hypotheses that share support.
+`Knowledge.propose` stores actionable model proposals as `quarantined`; operators can
+release or quarantine records, and a contaminated run can quarantine its inbox. Cached
+research can be quarantined and is then excluded from search.
+
+`src/prestige/adversarial_adapters.py` parses native AgentDojo suite YAML and static
+`GOAL` literals, Gray Swan behavior JSON/attack YAML, and AgentLSD-style pairs without
+executing upstream code. `run_corpus`/`run_pairs` report attack success, detection,
+clean-side false positives, added tool calls, legitimate completion and recovery.
+`src/prestige/opencode_harness.py` optionally runs the real OpenCode loop and reads
+outcomes from PRESTIGE state; no solve is inferred from model text.
+
 ## Lanes and duplicate suppression
 
 AUTO keeps the same canonical artifact/evidence store when moving from FAST to EXPERT.

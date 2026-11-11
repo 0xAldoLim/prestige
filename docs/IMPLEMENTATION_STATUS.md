@@ -14,12 +14,12 @@ optional legacy integrations, not core requirements.
 | B: OpenCode-native solving | Working, tested | `prestige agent` exposes MCP tools over stdio; `opencode.jsonc` registers a restricted `prestige` agent; no provider API key is required. Model selection remains OpenCode's responsibility. Optional standalone Codex/OpenAI-compatible adapters remain, not default |
 | C: lanes, verifier, recovery | Working for bounded offline tools | FAST/EXPERT/AUTO with distinct tools/budgets, independent evidence-based hypothesis evaluator, one-way handoff, duplicate suppression, digest+replay verification, pause/resume, durable analysis jobs. General reasoning depends on the selected OpenCode model |
 | D: scope, isolation, leases | Tested, fail closed | Trusted artifact resolver, operator source-path policy, MCP budgets, per-tool deadline caps, OpenCode agent permission checks. Reviewed Docker worker is pinned by digest. Operator-registered HTTP/TCP/SSH broker with persistent cross-process accounting, bindings, exclusions, cancellation and loopback tests; remote is disabled by default |
-| E: skills, research, learning | Partial | Full nine-category owner-skills MCP routing/search/read/pivots, local-first accepted knowledge with review/promotion, allowlisted research broker with pinned DNS/cache/TLS checks and static decoding generalizers. General exploit learning remains limited |
+| E: skills, research, learning | Partial | Full nine-category owner-skills MCP routing/search/read/pivots, local-first accepted knowledge with review/promotion, allowlisted research broker with pinned DNS/cache/TLS checks and static decoding generalizers. Poisoned proposals and cached research can be quarantined. General exploit learning remains limited |
 | F: competition and comparisons | Partial | Local queue, fixture P1/P2/P3 contracts and operator-command B0/B1 adapters with unknown-usage handling. No real B0/B1 run or calibrated marginal value yet |
 | G: advanced tools and portability | Tested | Isolated Python/allowlisted command execution, local `file`, allowlisted `radare2`, Ghidra headless, durable jobs, persistent Python/GDB sessions with ownership/orphan cleanup, and a reviewed GDB-capable worker image |
 | H: local models and attribution | Partial | User-declared pinned registry, loopback advisory adapter, hardware diagnostics, mocked tests, attribution/license audit. No downloaded weights, real inference benchmark or autonomous local worker |
 | I: human escalation | Tested | `prestige_request_operator` / `prestige_answer_operator` plus `prestige answer`; answers are evidence, not verification |
-| J: adversarial resilience | Partial | Local 12-class corpus, matched clean/adversarial pairs through the trusted workflow, and local AgentDojo/AgentLSD/Gray Swan-style adapters. External harness repositories/live runs were not used; zero observed is not universal immunity |
+| J: adversarial resilience | Partial | Deterministic deception detector, central trust boundary, evaluator evidence cross-check, poisoned-memory quarantine, native AgentDojo/Gray Swan data adapters (upstream code not executed), process-level paired MCP run, and an optional live OpenCode harness. No official external benchmark or live model adversarial comparison was run; finite results are not universal immunity |
 
 ## Validated boundaries
 
@@ -48,9 +48,9 @@ guarantee.
 
 ## Validation record
 
-- Default suite: **283 passed, 8 skipped**.
-- With `PRESTIGE_TEST_IMAGE`: **288 passed, 3 skipped**.
-- With GDB + SSHD + Docker + Ghidra opt-ins: **291 passed**.
+- Default suite: **331 passed, 8 skipped**.
+- With `PRESTIGE_TEST_IMAGE`: **336 passed, 3 skipped**.
+- With GDB + SSHD + Docker + Ghidra opt-ins: **339 passed**.
 - Ruff clean; wheel builds.
 
 See [VALIDATION.md](VALIDATION.md) for commands and exact outcomes. GitHub CI runs

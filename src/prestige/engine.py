@@ -7,6 +7,8 @@ from pathlib import Path
 
 from prestige.artifacts import Artifacts, ToolRegistry, redact
 from prestige.backends import FakeBackend
+from prestige.deception import scan as deception_scan
+from prestige.deception import summary as deception_summary
 from prestige.knowledge import Knowledge, SkillsBridge
 from prestige.progress import Budget, Progress, fingerprint
 from prestige.security import Rules, require_remote
@@ -194,12 +196,17 @@ async def solve(
             material = []
             for item in artifacts.list():
                 prefix = artifacts.view(item["id"], 0, min(4096, item["size"]))
+                text = prefix.decode("utf-8", errors="replace")
+                content_scan = deception_scan(text, "artifact")
                 material.append(
                     {
                         "id": item["id"],
                         "bytes": item["size"],
                         "magic_hex": prefix[:16].hex(),
-                        "preview": redact(prefix.decode("utf-8", errors="replace")),
+                        "preview": redact(text),
+                        "trust": "external_untrusted",
+                        "instruction_authority": "data_only",
+                        "deception": deception_summary(content_scan),
                     }
                 )
             query = " ".join(x["tool"] for x in actions[-3:]) or "file encoding"
@@ -268,9 +275,31 @@ async def solve(
                     if runner is not None:
                         runner.cancel()
                     raise
-                store.event(
-                    run_id, "observation", {"action": key, "result": result, "trust": "fact"}
+                content_scan = deception_scan(
+                    json.dumps(result, sort_keys=True, default=str), "tool_output"
                 )
+                store.event(
+                    run_id,
+                    "observation",
+                    {
+                        "action": key,
+                        "result": result,
+                        "trust": "fact",
+                        "deception": deception_summary(content_scan),
+                    },
+                )
+                if content_scan["actionable"]:
+                    store.event(
+                        run_id,
+                        "deception",
+                        {
+                            "origin": "tool_output",
+                            "risk": content_scan["risk"],
+                            "categories": content_scan["categories"],
+                            "trust": "tool_output_untrusted",
+                            "policy_effect": "none",
+                        },
+                    )
                 recovery = progress.observe(action, len(artifacts.list()) > before)
             except PolicyDenied as error:
                 store.event(run_id, "policy_denied", {"action": key, "reason": str(error)})

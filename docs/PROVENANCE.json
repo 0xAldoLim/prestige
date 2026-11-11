@@ -265,5 +265,39 @@
     ],
     "date_checked": "2026-10-28",
     "review_scope": "Documentation-checked file conventions; OpenCode startup not tested"
+  },
+  {
+    "feature_id": "agentdojo-adapter",
+    "upstream_name": "AgentDojo",
+    "upstream_url": "https://github.com/ethz-spylab/agentdojo",
+    "upstream_commit_or_version": "089ed468cf3ed0322acc66b0211f26d9d90dbf60",
+    "authors_or_maintainers": "Edoardo Debenedetti, Jie Zhang, Mislav Balunovic, Luca Beurer-Kellner, Marc Fischer, Florian Tramer",
+    "concept_or_files_reused": "Important-instructions template shape; suite YAML and static GOAL extraction; adapted, no upstream execution",
+    "license_type": "MIT",
+    "original_copyright_holder": "2024 Edoardo Debenedetti, Jie Zhang, Mislav Balunovic, Luca Beurer-Kellner, Marc Fischer, and Florian Tramer",
+    "license_copy_path": "licenses/agentdojo-MIT.txt",
+    "modifications": "Local parser and scenario mapping; no upstream Python imported",
+    "implementation_files": [
+      "src/prestige/adversarial_adapters.py"
+    ],
+    "date_checked": "2026-11-11",
+    "review_scope": "Source/license inspection; local adaptation only, not an official benchmark run"
+  },
+  {
+    "feature_id": "gray-swan-adapter",
+    "upstream_name": "Gray Swan IPI Arena",
+    "upstream_url": "https://github.com/GraySwanAI/ipi_arena_os",
+    "upstream_commit_or_version": "5e2e285910d581c97767195f1d113ef323f9ab07",
+    "authors_or_maintainers": "Gray Swan AI and contributors",
+    "concept_or_files_reused": "Behavior JSON and attack config schemas; adapted, no upstream execution",
+    "license_type": "MIT",
+    "original_copyright_holder": "2025 Gray Swan AI",
+    "license_copy_path": "licenses/ipi-arena-MIT.txt",
+    "modifications": "Local parser/loader; no upstream code imported",
+    "implementation_files": [
+      "src/prestige/adversarial_adapters.py"
+    ],
+    "date_checked": "2026-11-11",
+    "review_scope": "Source/license inspection; local adaptation only, not an official arena run"
   }
 ]

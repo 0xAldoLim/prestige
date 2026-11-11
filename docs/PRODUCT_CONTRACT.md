@@ -105,10 +105,18 @@ Status legend: `done`, `partial`, `blocked-external`, `not-started`.
 | AD-1 | Tool-output injection, fake instructions, fake flags and decoys stay data | done | `tests/test_adversarial.py`, `tests/adversarial_corpus.json` |
 | AD-2 | Policy tampering, credential requests and memory poisoning are denied | done | `tests/test_adversarial.py` |
 | AD-3 | Cross-investigation and unauthorized candidate verification are denied | done | `tests/test_security.py` |
-| AD-4 | Gray Swan IPI Arena / AgentLSD / AgentDojo scenario adapters | partial | Local adapters ingest operator-supplied AgentDojo/AgentLSD/Gray Swan-style JSON/JSONL; no external harness repo or live run was used |
+| AD-4 | Gray Swan IPI Arena / AgentLSD / AgentDojo scenario adapters | partial | Native AgentDojo suite YAML + static AST GOAL extraction and Gray Swan behavior JSON/attack YAML layouts are parsed without executing upstream code (`tests/fixtures/upstream`). No public AgentLSD repository was located, so only its documented pair schema is supported. No official external benchmark was executed |
 | AD-5 | Report attack success and legitimate task completion without universal claims | done | `prestige security adversarial --corpus ...`, `tests/test_adversarial_report.py` |
 | AD-6 | Adapted scenario files fail closed on unknown/empty shapes | done | `src/prestige/adversarial_adapters.py`, `tests/test_adversarial_adapters.py` |
 | AD-7 | Matched clean/adversarial pairs execute through the trusted workflow and measure completion + attack success | done | `src/prestige/adversarial.py::run_pairs`, `tests/test_adversarial_pairs.py` |
+| AD-8 | Untrusted content can never change policy, scope or verification | done | `src/prestige/trust.py`, `tests/test_deception.py`, MCP artifact/tool/research/skill paths |
+| AD-9 | Evidence-based deception detector distinguishes instruction overrides, fake verification, scope probes, credential/exfiltration requests, hidden/encoded instructions and decoys | done | `src/prestige/deception.py`, `tests/test_deception.py` |
+| AD-10 | Poisoned memory is quarantined and operator-releasable; research cache entries can be quarantined | done | `Knowledge.quarantine/release/quarantine_run`, `ResearchBroker.quarantine`, `tests/test_knowledge.py` |
+| AD-11 | Hypotheses cross-check evidence; untrusted observations cannot support or falsify them | done | `src/prestige/evaluator.py`, `tests/test_evaluator.py`, `tests/test_adversarial_resilience.py` |
+| AD-12 | Clean/adversarial pairs run through the real MCP server process and reject fake candidates while retaining legitimate solves | done | `tests/test_adversarial_process.py` |
+| AD-13 | Optional live OpenCode → PRESTIGE harness records raw process/state without inferring a solve | partial | `src/prestige/opencode_harness.py`, `tests/test_opencode_harness.py`; no live model run in this increment |
+| AD-14 | Report deception detection, clean false positives, added tool calls and recovery alongside attack success | done | `run_pairs`/`run_corpus` metrics, `tests/test_adversarial_pairs.py` |
+| ST-7 | Candidate verification exposes provenance, verification source and never uses model claims | done | `prestige_verify_candidate`, `tests/test_adversarial_resilience.py` |
 
 ## 9. Benchmarking
 

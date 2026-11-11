@@ -8,7 +8,7 @@ records a categorical confidence and an actionable recommendation.
 import json
 import re
 
-from prestige import hypotheses
+from prestige import deception, hypotheses
 from prestige.store import Store
 
 _STOPWORDS = {
@@ -72,11 +72,28 @@ def _is_duplicate(observations: list[dict], current: dict) -> bool:
     return False
 
 
+def _cross_check(active: list[dict]) -> dict:
+    shared = []
+    for index, first in enumerate(active):
+        first_support = {item.lower() for item in first.get("supports", [])}
+        for second in active[index + 1 :]:
+            overlap = sorted(first_support & {item.lower() for item in second.get("supports", [])})
+            if overlap:
+                shared.append(
+                    {
+                        "hypotheses": [first["id"], second["id"]],
+                        "shared_support": overlap[:5],
+                    }
+                )
+    return {"competing_pairs": shared, "competing": bool(shared)}
+
+
 def evaluate(store: Store, run_id: str) -> dict:
     run = store.run(run_id)
     observations = [event for event in store.events(run_id) if event["kind"] == "observation"]
+    active = hypotheses.active(store, run_id)
     evaluations = []
-    for hypothesis in hypotheses.active(store, run_id):
+    for hypothesis in active:
         if not hypothesis.get("test_tool"):
             evaluations.append(
                 {
@@ -117,6 +134,10 @@ def evaluate(store: Store, run_id: str) -> dict:
         support_hits = prediction & observed_tokens
         contradiction_hits = contradiction & observed_tokens
         duplicate = _is_duplicate(observations, observation)
+        content_scan = deception.scan(payload, "observation")
+        untrusted_evidence = bool(
+            content_scan["actionable"] or content_scan["verification_claim_detected"]
+        )
         if _result_failed(result):
             confidence = "inconclusive"
             recommendation = "retry_or_revise"
@@ -125,6 +146,13 @@ def evaluate(store: Store, run_id: str) -> dict:
             confidence = "inconclusive"
             recommendation = "revise_duplicate_experiment"
             reason = "the experiment repeated an observation without new information"
+        elif content_scan["actionable"] or content_scan["verification_claim_detected"]:
+            confidence = "inconclusive"
+            recommendation = "cross_check_untrusted_evidence"
+            reason = (
+                "the observation contained instruction-like or fake-verification text; "
+                "it cannot support or falsify a hypothesis until independently checked"
+            )
         elif contradiction_hits:
             confidence = "contradicted"
             recommendation = "revise_or_reject"
@@ -154,6 +182,12 @@ def evaluate(store: Store, run_id: str) -> dict:
             "support_matches": sorted(support_hits),
             "contradiction_matches": sorted(contradiction_hits),
             "duplicate": duplicate,
+            "evidence_trust": "untrusted_content"
+            if untrusted_evidence
+            else "recorded_observation",
+            "deception": deception.summary(content_scan),
+            "unobserved_supports": sorted(prediction - observed_tokens)[:8],
+            "unobserved_contradictions": sorted(contradiction - observed_tokens)[:8],
         }
         hypotheses.update(
             store,
@@ -168,20 +202,33 @@ def evaluate(store: Store, run_id: str) -> dict:
         store.event(run_id, "hypothesis_evaluation", payload_record)
         evaluations.append(payload_record)
     if not evaluations:
-        return {"evaluations": [], "recommendation": "no_active_hypotheses"}
+        return {
+            "evaluations": [],
+            "recommendation": "no_active_hypotheses",
+            "cross_check": _cross_check(active),
+        }
     recommendations = {item["recommendation"] for item in evaluations}
+    cross_check = _cross_check(active)
     if "revise_or_reject" in recommendations:
         overall = "revise_or_reject"
+    elif "cross_check_untrusted_evidence" in recommendations:
+        overall = "cross_check_untrusted_evidence"
     elif "revise_duplicate_experiment" in recommendations:
         overall = "revise_duplicate_experiment"
     elif "retry_or_revise" in recommendations:
         overall = "retry_or_revise"
+    elif cross_check["competing"]:
+        overall = "run_discriminating_test"
     elif "continue" in recommendations:
         overall = "continue"
     else:
         overall = "run_discriminating_test"
     if (
-        overall in {"run_discriminating_test", "revise_duplicate_experiment"}
+        overall in {
+            "run_discriminating_test",
+            "revise_duplicate_experiment",
+            "cross_check_untrusted_evidence",
+        }
         and run.get("lane") in {"fast", "auto"}
         and run.get("mode") != "expert"
     ):
@@ -189,5 +236,6 @@ def evaluate(store: Store, run_id: str) -> dict:
     return {
         "evaluations": evaluations,
         "recommendation": overall,
-        "active": len(hypotheses.active(store, run_id)),
+        "cross_check": cross_check,
+        "active": len(active),
     }

@@ -545,7 +545,12 @@ def dispatch(args, store: Store, config: dict):
             from prestige.adversarial_adapters import adapt
 
             if args.format == "paired":
-                pairs = json.loads(args.corpus.read_text(encoding="utf-8"))
+                if args.corpus.is_dir():
+                    from prestige.adversarial_adapters import adapt_pairs
+
+                    pairs = adapt_pairs(args.corpus, "agentlsd")
+                else:
+                    pairs = json.loads(args.corpus.read_text(encoding="utf-8"))
                 return asyncio.run(run_pairs(store, pairs))
             scenarios = adapt(args.corpus, args.format)
             return asyncio.run(run_corpus(store, scenarios))

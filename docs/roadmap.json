@@ -1,48 +1,416 @@
 {
   "schema_version": 1,
-  "updated": "2026-11-10",
+  "updated": "2026-11-11",
   "release_ready": false,
   "baseline_commit": "7a32b4557840d0a49b3590346d843e2a0b6426c1",
-  "current_head": "43cac3b",
-  "revision_note": "Active OpenCode-native CTF agent: full owner-skills MCP integration, operator-scoped HTTP/TCP remote broker, persistent isolated sessions, research broker, reviewed learning, capped hypotheses, fair P1/P2/P3 harness and a measured adversarial corpus. IBoH solved; VENOM operator-supplied. 224 default / 228 Docker / 229 Ghidra tests.",
+  "current_head": "2f5a7c9",
+  "revision_note": "Active OpenCode-native CTF agent with remote scope/expiry/TLS controls, an independent evidence evaluator, operator-command B0/B1 adapters, paired adversarial execution, a deterministic deception detector and trust boundary, quarantine of poisoned memory, native AgentDojo/Gray Swan data adapters, and an optional live OpenCode harness. No official external benchmark or live adversarial model comparison has been run. 331 default / 336 Docker / 339 all opt-ins.",
   "development_agent_target": "OpenCode",
   "primary_product_backend": "OpenCode-native MCP broker with trusted Python engine",
   "items": [
-    {"id":"offline-spine","status":"integration-tested","evidence":["tests/test_engine.py","tests/test_store_evaluation.py"],"remaining":"General CTF reasoning is not provided by the fake fixture worker."},
-    {"id":"real-inference-smoke","status":"integration-tested","evidence":["docs/CONTINUATION.md"],"remaining":"Real model-driven challenge solving validated through OpenCode; standalone OpenAI/Codex remains optional."},
-    {"id":"opencode-native-mcp","status":"integration-tested","evidence":["src/prestige/mcp_server.py","tests/test_mcp_server.py",".opencode/plugins/prestige/index.ts","opencode.jsonc"],"remaining":"None blocking."},
-    {"id":"artifact-security","status":"tested","evidence":["src/prestige/artifacts.py","src/prestige/policy.py","tests/test_security.py"],"remaining":"Continue adversarial regression tests."},
-    {"id":"mcp-budget-enforcement","status":"tested","evidence":["src/prestige/mcp_server.py","tests/test_mcp_server.py"],"remaining":"Token accounting for OpenCode-native usage is provider-side."},
-    {"id":"candidate-verification-stages","status":"tested","evidence":["src/prestige/mcp_server.py","tests/test_mcp_server.py"],"remaining":"Stages are discovered/derived/reproduced/independently_verified with checker=unavailable; no official checker is integrated."},
-    {"id":"trusted-verification-commitments","status":"tested","evidence":["src/prestige/commitments.py","tests/test_commitments.py","src/prestige/cli.py"],"remaining":"Expected digests come from operator commitments keyed by source-artifact SHA-256; the model cannot supply or override them. CLI add/list/remove tested."},
-    {"id":"human-requests","status":"tested","evidence":["src/prestige/human.py","src/prestige/mcp_server.py","src/prestige/cli.py","tests/test_mcp_server.py","tests/test_engine.py"],"remaining":"Requests are durable and answers are labeled operator_relayed or operator_direct; there is no live operator UI beyond the MCP/CLI relay."},
-    {"id":"durable-analysis-jobs","status":"integration-tested","evidence":["src/prestige/jobs.py","tests/test_jobs.py","tests/test_mcp_server.py"],"remaining":"Duplicate jobs and deterministic experiment observations are suppressed; queued jobs can be cancelled, but cancellation cannot interrupt an already-running subprocess."},
-    {"id":"resume-investigation","status":"tested","evidence":["src/prestige/mcp_server.py","tests/test_mcp_server.py"],"remaining":"prestige_resume_investigation reconstructs bounded context and remaining budget without resetting it; it does not restart or repeat expensive work."},
-    {"id":"isolated-workspace-tools","status":"integration-tested","evidence":["tests/test_workspace_tools.py","tests/test_integrations.py"],"remaining":"Requires the pinned Docker image for real container execution; persistent debugger still future work."},
-    {"id":"ghidra-headless","status":"integration-tested","evidence":["src/prestige/ghidra_adapter.py","tests/test_engine.py"],"remaining":"Targeted decompile job arguments need alignment with GhidraAdapter (model passed function instead of target)."},
-    {"id":"live-public-cli","status":"implemented","evidence":["src/prestige/cli.py","src/prestige/engine.py"],"remaining":"CLI solve defaults to fake; Codex/OpenAI remain opt-in."},
-    {"id":"venom-investigation","status":"operator-provided-answer","evidence":["docs/CONTINUATION.md","binary structural checks"],"remaining":"Flag came from an operator-supplied writeup, not autonomous derivation. Activation-phrase branch proven to be a decoy (SHA-256 mismatch at 0x141172048). Real path (debugger handlers, licence context, modified ChaCha20, SKIB resource) is documented but not reproduced end-to-end."},
-    {"id":"iboh-investigation","status":"solved","evidence":["docs/CONTINUATION.md","run 1646ef39be614ef7"],"remaining":"Candidate independently verified by forward reconstruction; no official checker available."},
-    {"id":"reasoning-lanes","status":"integration-tested","evidence":["src/prestige/strategy.py","src/prestige/hypotheses.py","tests/test_strategy.py","tests/test_hypotheses.py"],"remaining":"FAST/EXPERT have distinct tool sets and budget caps; AUTO starts FAST and escalates only on request. Structured hypotheses and durable resume exist; autonomous evaluator-driven hypothesis selection remains partial."},
-    {"id":"skills-retrieval","status":"integration-tested","evidence":["src/prestige/knowledge.py","tests/test_skills.py","tests/test_integrations.py","live held-out crypto/forensics runs"],"remaining":"All nine categories, entrypoints, routing, bounded reads, provenance and cross-category pivots are exposed through live MCP tools; external checkout remains read-only and operator-configured."},
-    {"id":"generic-verified-learning","status":"integration-tested","evidence":["src/prestige/knowledge.py","tests/test_knowledge.py"],"remaining":"Model proposals across all nine categories enter an inbox with confidence=low; operator promotion makes them searchable; sanitization rejects flags/URLs/credentials. Automatic verified capture still handles only reviewed deterministic decoding chains."},
-    {"id":"research-broker","status":"integration-tested","evidence":["src/prestige/research.py","tests/test_research.py","src/prestige/cli.py"],"remaining":"Allowlisted HTTPS fetch, no redirects, metadata/private blocks, bounded excerpts, SHA-256 provenance, URL cache, pinned DNS resolution, ignored proxy environment, TLS verification and DNS-rebinding tests use loopback fixtures. No live public-source fetch was run; production sources require operator allowlisting and enablement."},
-    {"id":"persistent-debugger","status":"integration-tested","evidence":["src/prestige/sessions.py","tests/test_sessions.py","docker/gdb-worker.Dockerfile","tests/test_gdb_session.py"],"remaining":"Persistent Python and GDB sessions are investigation-owned, survive model turns, persist metadata for orphan cleanup, and a real GDB breakpoint/register/backtrace session passes with a locally built reviewed image. SSH remains a separate adapter."},
-    {"id":"http-canonical-scope","status":"tested","evidence":["src/prestige/remote.py","tests/test_remote.py"],"remaining":"Canonical path/query parsing rejects encoded/absolute/authority/fragment/control forms; legitimate queries remain allowed."},
-    {"id":"remote-expiry-lifecycle","status":"tested","evidence":["src/prestige/remote.py","tests/test_remote.py","tests/test_harmony.py"],"remaining":"Expiry is rechecked after rate waits and before connection; expired instances cannot connect and trigger an operator request."},
-    {"id":"https-cancellation","status":"tested","evidence":["src/prestige/remote.py","tests/test_remote.py","tests/test_remote_process.py"],"remaining":"TLS socket is monitored for cancellation/expiry; CA-signed and cross-process HTTPS tests pass."},
-    {"id":"hypothesis-evaluator","status":"tested","evidence":["src/prestige/evaluator.py","tests/test_evaluator.py"],"remaining":"Categorical evidence-based confidence and recommendations; model cannot set evaluator fields."},
-    {"id":"b0-b1-benchmark-adapters","status":"tested","evidence":["src/prestige/benchmark_adapter.py","tests/test_conditions.py"],"remaining":"Operator-command B0/B1 adapters with unknown usage preserved; no real baseline run yet."},
-    {"id":"adversarial-pairs","status":"tested","evidence":["src/prestige/adversarial.py","tests/test_adversarial_pairs.py"],"remaining":"Matched clean/adversarial pairs run through the trusted workflow; local only."},
-    {"id":"integrated-harmony","status":"integration-tested","evidence":["tests/test_harmony.py"],"remaining":"Offline, skills, evaluator, web query, exclusion, TCP, expiry and verification work together deterministically; live evidence remains the four held-out runs."},
-    {"id":"scoped-remote-and-expiry","status":"integration-tested","evidence":["src/prestige/remote.py","tests/test_remote.py","tests/test_remote_process.py","src/prestige/cli.py","live held-out web run"],"remaining":"Operator-registered HTTP/TCP instances, pinned DNS, redirect/metadata/exclusion blocks, persistent request/rate accounting, atomic cross-process concurrency leases, per-investigation bindings, in-flight cross-process cancellation and audit events are tested against loopback fixtures and separate MCP processes. SSH adapter with operator key/known_hosts, pinned destination and no forwarding/password auth is adapter-tested and validated against a real loopback sshd; an operator-assigned external SSH endpoint has not been used. Remote is disabled by default."},
-    {"id":"scheduler","status":"in progress","evidence":["src/prestige/evaluation.py"],"remaining":"Bounded local priority queue only."},
-    {"id":"heldout-live","status":"integration-tested","evidence":["docs/CONTINUATION.md","docs/PRODUCT_CONTRACT.md","local private transcripts"],"remaining":"One crypto challenge solved and commitment-verified with and without skills, one forensics challenge solved/verified, and one loopback web service solved through the real remote broker. One sample; no accuracy or superiority claim."},
-    {"id":"real-baseline-benchmarks","status":"partial","evidence":["src/prestige/evaluation.py","tests/test_conditions.py","benchmarks/synthetic/suite.json","one matched live crypto pair"],"remaining":"P1/P2/P3 condition comparison with shared contracts is implemented and tested; B0/B1 require an explicitly configured model adapter and are reported not_run. No paid model comparison has been run."},
-    {"id":"opencode-product-backend","status":"implemented","evidence":["src/prestige/mcp_server.py",".opencode/plugins/prestige/","opencode.jsonc"],"remaining":"Production hardening and adversarial review."},
-    {"id":"local-model-laboratory","status":"in progress","evidence":["src/prestige/local_models.py"],"remaining":"Advisory transport/mock tests only."},
-    {"id":"opencode-development-handoff","status":"implemented and tested","evidence":["AGENTS.md",".opencode/commands/prestige-resume.md","docs/OPENCODE_HANDOFF.md"],"remaining":"Keep docs aligned with OpenCode-native claims."},
-    {"id":"adversarial-resilience","status":"integration-tested","evidence":["tests/test_adversarial.py","tests/test_adversarial_report.py","tests/adversarial_corpus.json","src/prestige/adversarial.py"],"remaining":"Local corpus measures zero boundary violations, zero fake solves and one legitimate control across 12 attack classes. Local AgentDojo/AgentLSD/Gray Swan-style file adapters are implemented and tested; external harness repositories and live runs were not used. Zero observed is not universal immunity."},
-    {"id":"claude-compatibility","status":"architecture-ready","evidence":["docs/PROVIDERS.md","tests/test_mcp_server.py"],"remaining":"OpenCode owns model selection, so a configured Claude model works without PRESTIGE credentials. No Anthropic adapter is shipped or required; no subscription is assumed to grant API credits."}
+    {
+      "id": "offline-spine",
+      "status": "integration-tested",
+      "evidence": [
+        "tests/test_engine.py",
+        "tests/test_store_evaluation.py"
+      ],
+      "remaining": "General CTF reasoning is not provided by the fake fixture worker."
+    },
+    {
+      "id": "real-inference-smoke",
+      "status": "integration-tested",
+      "evidence": [
+        "docs/CONTINUATION.md"
+      ],
+      "remaining": "Real model-driven challenge solving validated through OpenCode; standalone OpenAI/Codex remains optional."
+    },
+    {
+      "id": "opencode-native-mcp",
+      "status": "integration-tested",
+      "evidence": [
+        "src/prestige/mcp_server.py",
+        "tests/test_mcp_server.py",
+        ".opencode/plugins/prestige/index.ts",
+        "opencode.jsonc"
+      ],
+      "remaining": "None blocking."
+    },
+    {
+      "id": "artifact-security",
+      "status": "tested",
+      "evidence": [
+        "src/prestige/artifacts.py",
+        "src/prestige/policy.py",
+        "tests/test_security.py"
+      ],
+      "remaining": "Continue adversarial regression tests."
+    },
+    {
+      "id": "mcp-budget-enforcement",
+      "status": "tested",
+      "evidence": [
+        "src/prestige/mcp_server.py",
+        "tests/test_mcp_server.py"
+      ],
+      "remaining": "Token accounting for OpenCode-native usage is provider-side."
+    },
+    {
+      "id": "candidate-verification-stages",
+      "status": "tested",
+      "evidence": [
+        "src/prestige/mcp_server.py",
+        "tests/test_mcp_server.py"
+      ],
+      "remaining": "Stages are discovered/derived/reproduced/independently_verified with checker=unavailable; no official checker is integrated."
+    },
+    {
+      "id": "trusted-verification-commitments",
+      "status": "tested",
+      "evidence": [
+        "src/prestige/commitments.py",
+        "tests/test_commitments.py",
+        "src/prestige/cli.py"
+      ],
+      "remaining": "Expected digests come from operator commitments keyed by source-artifact SHA-256; the model cannot supply or override them. CLI add/list/remove tested."
+    },
+    {
+      "id": "human-requests",
+      "status": "tested",
+      "evidence": [
+        "src/prestige/human.py",
+        "src/prestige/mcp_server.py",
+        "src/prestige/cli.py",
+        "tests/test_mcp_server.py",
+        "tests/test_engine.py"
+      ],
+      "remaining": "Requests are durable and answers are labeled operator_relayed or operator_direct; there is no live operator UI beyond the MCP/CLI relay."
+    },
+    {
+      "id": "durable-analysis-jobs",
+      "status": "integration-tested",
+      "evidence": [
+        "src/prestige/jobs.py",
+        "tests/test_jobs.py",
+        "tests/test_mcp_server.py"
+      ],
+      "remaining": "Duplicate jobs and deterministic experiment observations are suppressed; queued jobs can be cancelled, but cancellation cannot interrupt an already-running subprocess."
+    },
+    {
+      "id": "resume-investigation",
+      "status": "tested",
+      "evidence": [
+        "src/prestige/mcp_server.py",
+        "tests/test_mcp_server.py"
+      ],
+      "remaining": "prestige_resume_investigation reconstructs bounded context and remaining budget without resetting it; it does not restart or repeat expensive work."
+    },
+    {
+      "id": "isolated-workspace-tools",
+      "status": "integration-tested",
+      "evidence": [
+        "tests/test_workspace_tools.py",
+        "tests/test_integrations.py"
+      ],
+      "remaining": "Requires the pinned Docker image for real container execution; persistent debugger still future work."
+    },
+    {
+      "id": "ghidra-headless",
+      "status": "integration-tested",
+      "evidence": [
+        "src/prestige/ghidra_adapter.py",
+        "tests/test_engine.py"
+      ],
+      "remaining": "Targeted decompile job arguments need alignment with GhidraAdapter (model passed function instead of target)."
+    },
+    {
+      "id": "live-public-cli",
+      "status": "implemented",
+      "evidence": [
+        "src/prestige/cli.py",
+        "src/prestige/engine.py"
+      ],
+      "remaining": "CLI solve defaults to fake; Codex/OpenAI remain opt-in."
+    },
+    {
+      "id": "venom-investigation",
+      "status": "operator-provided-answer",
+      "evidence": [
+        "docs/CONTINUATION.md",
+        "binary structural checks"
+      ],
+      "remaining": "Flag came from an operator-supplied writeup, not autonomous derivation. Activation-phrase branch proven to be a decoy (SHA-256 mismatch at 0x141172048). Real path (debugger handlers, licence context, modified ChaCha20, SKIB resource) is documented but not reproduced end-to-end."
+    },
+    {
+      "id": "iboh-investigation",
+      "status": "solved",
+      "evidence": [
+        "docs/CONTINUATION.md",
+        "run 1646ef39be614ef7"
+      ],
+      "remaining": "Candidate independently verified by forward reconstruction; no official checker available."
+    },
+    {
+      "id": "reasoning-lanes",
+      "status": "integration-tested",
+      "evidence": [
+        "src/prestige/strategy.py",
+        "src/prestige/hypotheses.py",
+        "tests/test_strategy.py",
+        "tests/test_hypotheses.py"
+      ],
+      "remaining": "FAST/EXPERT have distinct tool sets and budget caps; AUTO starts FAST and escalates only on request. Structured hypotheses and durable resume exist; autonomous evaluator-driven hypothesis selection remains partial."
+    },
+    {
+      "id": "skills-retrieval",
+      "status": "integration-tested",
+      "evidence": [
+        "src/prestige/knowledge.py",
+        "tests/test_skills.py",
+        "tests/test_integrations.py",
+        "live held-out crypto/forensics runs"
+      ],
+      "remaining": "All nine categories, entrypoints, routing, bounded reads, provenance and cross-category pivots are exposed through live MCP tools; external checkout remains read-only and operator-configured."
+    },
+    {
+      "id": "generic-verified-learning",
+      "status": "integration-tested",
+      "evidence": [
+        "src/prestige/knowledge.py",
+        "tests/test_knowledge.py"
+      ],
+      "remaining": "Model proposals across all nine categories enter an inbox with confidence=low; operator promotion makes them searchable; sanitization rejects flags/URLs/credentials. Automatic verified capture still handles only reviewed deterministic decoding chains."
+    },
+    {
+      "id": "research-broker",
+      "status": "integration-tested",
+      "evidence": [
+        "src/prestige/research.py",
+        "tests/test_research.py",
+        "src/prestige/cli.py"
+      ],
+      "remaining": "Allowlisted HTTPS fetch, no redirects, metadata/private blocks, bounded excerpts, SHA-256 provenance, URL cache, pinned DNS resolution, ignored proxy environment, TLS verification and DNS-rebinding tests use loopback fixtures. No live public-source fetch was run; production sources require operator allowlisting and enablement."
+    },
+    {
+      "id": "persistent-debugger",
+      "status": "integration-tested",
+      "evidence": [
+        "src/prestige/sessions.py",
+        "tests/test_sessions.py",
+        "docker/gdb-worker.Dockerfile",
+        "tests/test_gdb_session.py"
+      ],
+      "remaining": "Persistent Python and GDB sessions are investigation-owned, survive model turns, persist metadata for orphan cleanup, and a real GDB breakpoint/register/backtrace session passes with a locally built reviewed image. SSH remains a separate adapter."
+    },
+    {
+      "id": "http-canonical-scope",
+      "status": "tested",
+      "evidence": [
+        "src/prestige/remote.py",
+        "tests/test_remote.py"
+      ],
+      "remaining": "Canonical path/query parsing rejects encoded/absolute/authority/fragment/control forms; legitimate queries remain allowed."
+    },
+    {
+      "id": "remote-expiry-lifecycle",
+      "status": "tested",
+      "evidence": [
+        "src/prestige/remote.py",
+        "tests/test_remote.py",
+        "tests/test_harmony.py"
+      ],
+      "remaining": "Expiry is rechecked after rate waits and before connection; expired instances cannot connect and trigger an operator request."
+    },
+    {
+      "id": "https-cancellation",
+      "status": "tested",
+      "evidence": [
+        "src/prestige/remote.py",
+        "tests/test_remote.py",
+        "tests/test_remote_process.py"
+      ],
+      "remaining": "TLS socket is monitored for cancellation/expiry; CA-signed and cross-process HTTPS tests pass."
+    },
+    {
+      "id": "hypothesis-evaluator",
+      "status": "tested",
+      "evidence": [
+        "src/prestige/evaluator.py",
+        "tests/test_evaluator.py"
+      ],
+      "remaining": "Categorical evidence-based confidence and recommendations; model cannot set evaluator fields."
+    },
+    {
+      "id": "b0-b1-benchmark-adapters",
+      "status": "tested",
+      "evidence": [
+        "src/prestige/benchmark_adapter.py",
+        "tests/test_conditions.py"
+      ],
+      "remaining": "Operator-command B0/B1 adapters with unknown usage preserved; no real baseline run yet."
+    },
+    {
+      "id": "adversarial-pairs",
+      "status": "tested",
+      "evidence": [
+        "src/prestige/adversarial.py",
+        "tests/test_adversarial_pairs.py"
+      ],
+      "remaining": "Matched clean/adversarial pairs run through the trusted workflow; local only."
+    },
+    {
+      "id": "integrated-harmony",
+      "status": "integration-tested",
+      "evidence": [
+        "tests/test_harmony.py"
+      ],
+      "remaining": "Offline, skills, evaluator, web query, exclusion, TCP, expiry and verification work together deterministically; live evidence remains the four held-out runs."
+    },
+    {
+      "id": "scoped-remote-and-expiry",
+      "status": "integration-tested",
+      "evidence": [
+        "src/prestige/remote.py",
+        "tests/test_remote.py",
+        "tests/test_remote_process.py",
+        "src/prestige/cli.py",
+        "live held-out web run"
+      ],
+      "remaining": "Operator-registered HTTP/TCP instances, pinned DNS, redirect/metadata/exclusion blocks, persistent request/rate accounting, atomic cross-process concurrency leases, per-investigation bindings, in-flight cross-process cancellation and audit events are tested against loopback fixtures and separate MCP processes. SSH adapter with operator key/known_hosts, pinned destination and no forwarding/password auth is adapter-tested and validated against a real loopback sshd; an operator-assigned external SSH endpoint has not been used. Remote is disabled by default."
+    },
+    {
+      "id": "scheduler",
+      "status": "in progress",
+      "evidence": [
+        "src/prestige/evaluation.py"
+      ],
+      "remaining": "Bounded local priority queue only."
+    },
+    {
+      "id": "heldout-live",
+      "status": "integration-tested",
+      "evidence": [
+        "docs/CONTINUATION.md",
+        "docs/PRODUCT_CONTRACT.md",
+        "local private transcripts"
+      ],
+      "remaining": "One crypto challenge solved and commitment-verified with and without skills, one forensics challenge solved/verified, and one loopback web service solved through the real remote broker. One sample; no accuracy or superiority claim."
+    },
+    {
+      "id": "real-baseline-benchmarks",
+      "status": "partial",
+      "evidence": [
+        "src/prestige/evaluation.py",
+        "tests/test_conditions.py",
+        "benchmarks/synthetic/suite.json",
+        "one matched live crypto pair"
+      ],
+      "remaining": "P1/P2/P3 condition comparison with shared contracts is implemented and tested; B0/B1 require an explicitly configured model adapter and are reported not_run. No paid model comparison has been run."
+    },
+    {
+      "id": "opencode-product-backend",
+      "status": "implemented",
+      "evidence": [
+        "src/prestige/mcp_server.py",
+        ".opencode/plugins/prestige/",
+        "opencode.jsonc"
+      ],
+      "remaining": "Production hardening and adversarial review."
+    },
+    {
+      "id": "local-model-laboratory",
+      "status": "in progress",
+      "evidence": [
+        "src/prestige/local_models.py"
+      ],
+      "remaining": "Advisory transport/mock tests only."
+    },
+    {
+      "id": "opencode-development-handoff",
+      "status": "implemented and tested",
+      "evidence": [
+        "AGENTS.md",
+        ".opencode/commands/prestige-resume.md",
+        "docs/OPENCODE_HANDOFF.md"
+      ],
+      "remaining": "Keep docs aligned with OpenCode-native claims."
+    },
+    {
+      "id": "adversarial-resilience",
+      "status": "integration-tested",
+      "evidence": [
+        "tests/test_adversarial.py",
+        "tests/test_adversarial_report.py",
+        "tests/adversarial_corpus.json",
+        "src/prestige/adversarial.py"
+      ],
+      "remaining": "Local corpus measures zero boundary violations, zero fake solves and one legitimate control across 12 attack classes. Local AgentDojo/AgentLSD/Gray Swan-style file adapters are implemented and tested; external harness repositories and live runs were not used. Zero observed is not universal immunity."
+    },
+    {
+      "id": "claude-compatibility",
+      "status": "architecture-ready",
+      "evidence": [
+        "docs/PROVIDERS.md",
+        "tests/test_mcp_server.py"
+      ],
+      "remaining": "OpenCode owns model selection, so a configured Claude model works without PRESTIGE credentials. No Anthropic adapter is shipped or required; no subscription is assumed to grant API credits."
+    },
+    {
+      "id": "deception-detector",
+      "status": "tested",
+      "evidence": [
+        "src/prestige/deception.py",
+        "tests/test_deception.py"
+      ],
+      "remaining": "Deterministic classification only; not a calibrated classifier and not a universal injection detector."
+    },
+    {
+      "id": "trust-boundary",
+      "status": "tested",
+      "evidence": [
+        "src/prestige/trust.py",
+        "tests/test_deception.py",
+        "tests/test_adversarial_resilience.py"
+      ],
+      "remaining": "Only operator/commitment origins authorize policy; untrusted text remains data across MCP paths."
+    },
+    {
+      "id": "adversarial-memory-quarantine",
+      "status": "tested",
+      "evidence": [
+        "src/prestige/knowledge.py",
+        "src/prestige/research.py",
+        "tests/test_knowledge.py"
+      ],
+      "remaining": "Knowledge proposals and research cache can be quarantined/released; operator review remains required."
+    },
+    {
+      "id": "upstream-adversarial-adapters",
+      "status": "tested",
+      "evidence": [
+        "src/prestige/adversarial_adapters.py",
+        "tests/fixtures/upstream",
+        "tests/test_adversarial_adapters.py"
+      ],
+      "remaining": "Native AgentDojo suite/AST and Gray Swan behavior layouts are parsed locally; AgentLSD upstream not located; no official external run."
+    },
+    {
+      "id": "paired-adversarial-process",
+      "status": "integration-tested",
+      "evidence": [
+        "tests/test_adversarial_process.py",
+        "tests/test_adversarial_pairs.py"
+      ],
+      "remaining": "Real MCP server process retains legitimate solve and rejects fake candidate; model-driven live run separately pending."
+    },
+    {
+      "id": "live-opencode-adversarial-harness",
+      "status": "partial",
+      "evidence": [
+        "src/prestige/opencode_harness.py",
+        "tests/test_opencode_harness.py"
+      ],
+      "remaining": "Harness implemented and unit-tested with a fake executable; no live model comparison run in this increment."
+    }
   ]
 }

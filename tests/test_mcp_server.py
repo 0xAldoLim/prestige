@@ -67,6 +67,7 @@ async def test_mcp_lists_prestige_tools(tmp_path):
             "prestige_answer_operator",
             "prestige_resume_investigation",
             "prestige_evaluate_hypotheses",
+            "prestige_deception_scan",
         }
 
 

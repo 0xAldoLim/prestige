@@ -54,6 +54,14 @@ class Store:
             CREATE TABLE IF NOT EXISTS knowledge (
                 id TEXT PRIMARY KEY, run_id TEXT NOT NULL REFERENCES runs(id),
                 record TEXT NOT NULL, status TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS quarantined (
+                id TEXT PRIMARY KEY,
+                kind TEXT NOT NULL,
+                source TEXT NOT NULL,
+                reason TEXT NOT NULL,
+                record TEXT,
+                at REAL NOT NULL
+            );
             CREATE TABLE IF NOT EXISTS models (id TEXT PRIMARY KEY, manifest TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS competitions (name TEXT PRIMARY KEY, data TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS jobs (

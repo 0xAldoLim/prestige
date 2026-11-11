@@ -3,6 +3,7 @@
 import hashlib
 import json
 import re
+import time
 from datetime import datetime, timezone
 from importlib.resources import files
 from pathlib import Path
@@ -10,6 +11,7 @@ from pathlib import Path
 from jsonschema import Draft202012Validator
 
 from prestige.artifacts import FLAG, redact, regular_file
+from prestige.deception import scan as deception_scan
 from prestige.store import Store, encoded
 from prestige.types import PolicyDenied, PrestigeError
 from prestige.verifier import replay
@@ -320,7 +322,7 @@ class Knowledge:
         ][:4]
 
     def review(self, status: str = "inbox") -> list[dict]:
-        if status not in {"inbox", "accepted", "rejected"}:
+        if status not in {"inbox", "accepted", "rejected", "quarantined"}:
             raise PolicyDenied("Unknown review status")
         return [
             {"id": row["id"], "status": row["status"], "record": json.loads(row["record"])}
@@ -377,15 +379,43 @@ class Knowledge:
         record["review_status"] = "inbox"
         self._sanitized(record)
         serialized = encoded(record)
+        scan = deception_scan(serialized, "model_proposal")
+        status = "inbox"
+        if scan["actionable"]:
+            status = "quarantined"
+            record["quarantine_reason"] = (
+                "model proposal contained instruction-like or verification-claim content"
+            )
+            serialized = encoded(record)
         record_id = hashlib.sha256(serialized.encode()).hexdigest()
         if self.store.rows("SELECT id FROM knowledge WHERE id=?", (record_id,)):
             return {"status": "duplicate", "id": record_id}
         with self.store.transaction() as db:
             db.execute(
                 "INSERT INTO knowledge VALUES(?,?,?,?)",
-                (record_id, run_id or "", serialized, "inbox"),
+                (record_id, run_id or "", serialized, status),
             )
-        return {"status": "inbox", "id": record_id}
+            if status == "quarantined":
+                db.execute(
+                    "INSERT OR REPLACE INTO quarantined VALUES(?,?,?,?,?,?)",
+                    (
+                        record_id,
+                        "knowledge",
+                        run_id or "",
+                        "deception:" + ",".join(scan["categories"]),
+                        serialized,
+                        time.time(),
+                    ),
+                )
+        return {
+            "status": status,
+            "id": record_id,
+            **(
+                {"deception": scan["categories"], "policy_effect": "none"}
+                if status == "quarantined"
+                else {}
+            ),
+        }
 
     def promote(self, record_id: str, verified: bool = False) -> dict:
         rows = self.store.rows(
@@ -414,6 +444,57 @@ class Knowledge:
         with self.store.transaction() as db:
             db.execute("UPDATE knowledge SET status='rejected' WHERE id=?", (record_id,))
         return {"id": record_id, "status": "rejected"}
+
+    def quarantine(self, record_id: str, reason: str) -> dict:
+        rows = self.store.rows(
+            "SELECT record,status FROM knowledge WHERE id=?", (record_id,)
+        )
+        if not rows:
+            raise PrestigeError("Unknown learning record")
+        with self.store.transaction() as db:
+            db.execute("UPDATE knowledge SET status='quarantined' WHERE id=?", (record_id,))
+            db.execute(
+                "INSERT OR REPLACE INTO quarantined VALUES(?,?,?,?,?,?)",
+                (
+                    record_id,
+                    "knowledge",
+                    "operator",
+                    str(reason)[:300],
+                    rows[0]["record"],
+                    time.time(),
+                ),
+            )
+        return {"id": record_id, "status": "quarantined"}
+
+    def release(self, record_id: str) -> dict:
+        rows = self.store.rows("SELECT id FROM knowledge WHERE id=?", (record_id,))
+        if not rows:
+            raise PrestigeError("Unknown learning record")
+        with self.store.transaction() as db:
+            db.execute("UPDATE knowledge SET status='inbox' WHERE id=?", (record_id,))
+            db.execute("DELETE FROM quarantined WHERE id=?", (record_id,))
+        return {"id": record_id, "status": "inbox"}
+
+    def quarantine_run(self, run_id: str, reason: str) -> dict:
+        """Quarantine unverified records produced by a contaminated investigation."""
+        rows = self.store.rows(
+            "SELECT id,record FROM knowledge WHERE run_id=? AND status='inbox'", (run_id,)
+        )
+        with self.store.transaction() as db:
+            for row in rows:
+                db.execute("UPDATE knowledge SET status='quarantined' WHERE id=?", (row["id"],))
+                db.execute(
+                    "INSERT OR REPLACE INTO quarantined VALUES(?,?,?,?,?,?)",
+                    (
+                        row["id"],
+                        "knowledge",
+                        run_id,
+                        str(reason)[:300],
+                        row["record"],
+                        time.time(),
+                    ),
+                )
+        return {"quarantined": len(rows), "run_id": run_id}
 
 
     def capture(self, artifacts) -> dict:
@@ -490,6 +571,11 @@ class Knowledge:
             r"https?://|password|api_key|bearer", serialized, re.I
         ):
             return {"status": "withheld", "reason": "Sanitization gate"}
+        scan = deception_scan(serialized, "model_proposal")
+        if scan["actionable"]:
+            status = "quarantined"
+            record["quarantine_reason"] = "captured record contained deception signals"
+            serialized = encoded(record)
         schema = json.loads(
             files("prestige").joinpath("data/learning.schema.json").read_text(encoding="utf-8")
         )
@@ -499,4 +585,16 @@ class Knowledge:
                 "INSERT OR IGNORE INTO knowledge VALUES(?,?,?,?)",
                 (record_id, artifacts.run_id, serialized, status),
             )
+            if status == "quarantined":
+                db.execute(
+                    "INSERT OR REPLACE INTO quarantined VALUES(?,?,?,?,?,?)",
+                    (
+                        record_id,
+                        "knowledge",
+                        artifacts.run_id,
+                        "deception:" + ",".join(scan["categories"]),
+                        serialized,
+                        time.time(),
+                    ),
+                )
         return {"status": status, "id": record_id}

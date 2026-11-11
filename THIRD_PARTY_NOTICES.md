@@ -13,8 +13,20 @@ Conceptual influences include OpenCode-for-CTF, D-CIPHER, EnIGMA, CTFAgent, Pent
 CTFusion, AgentLSD, OWASP and Arditi et al. Precise scope and source links appear in
 `docs/ATTRIBUTION.md` and `docs/PROVENANCE.json`.
 
+The AgentDojo `important_instructions` template shape is adapted from
+`ethz-spylab/agentdojo` commit `089ed468cf3ed0322acc66b0211f26d9d90dbf60`
+(MIT, Copyright (c) 2024 Edoardo Debenedetti and contributors). The exact notice is in
+`licenses/agentdojo-MIT.txt`. Native AgentDojo scenario parsing is a local adaptation,
+not an official benchmark execution.
+
+Gray Swan IPI Arena behavior/config schemas are adapted from `GraySwanAI/ipi_arena_os`
+commit `5e2e285910d581c97767195f1d113ef323f9ab07` (MIT, Copyright (c) 2025 Gray Swan AI).
+The exact notice is in `licenses/ipi-arena-MIT.txt`. No upstream code is imported or
+executed; no official arena run is claimed.
+
 Runtime dependencies retain their respective licenses. `jsonschema` is MIT-licensed;
-the optional `openai-codex` SDK and pinned runtime are Apache-2.0. Dependency packages
-are installed separately, not copied into PRESTIGE distributions. Build/test dependencies
-are development-only. Model licenses must be reviewed for the exact installed revision;
-a user-declared registry value is not a redistribution audit.
+`PyYAML` is MIT-licensed; the optional `openai-codex` SDK and pinned runtime are
+Apache-2.0. Dependency packages are installed separately, not copied into PRESTIGE
+distributions. Build/test dependencies are development-only. Model licenses must be
+reviewed for the exact installed revision; a user-declared registry value is not a
+redistribution audit.

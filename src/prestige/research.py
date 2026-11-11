@@ -135,6 +135,8 @@ class ResearchBroker:
             return None
         if data.get("url") != url or not isinstance(data.get("text"), str):
             return None
+        if data.get("quarantined"):
+            return None
         if time.time() - float(data.get("fetched_at", 0)) > TTL_SECONDS:
             return None
         return data
@@ -254,6 +256,8 @@ class ResearchBroker:
                 data = json.loads(path.read_text(encoding="utf-8"))
             except (ValueError, UnicodeError):
                 continue
+            if data.get("quarantined"):
+                continue
             text = data.get("text", "")
             lines = text.splitlines()
             for index, line in enumerate(lines):
@@ -278,3 +282,24 @@ class ResearchBroker:
             "allowed_hosts": sorted(self.allowed),
             "cached_documents": len(files),
         }
+
+    def quarantine(self, url: str, reason: str) -> dict:
+        """Quarantine a cached document; its text is excluded from later search."""
+        path = self._cache_path(url)
+        if not path.is_file():
+            raise PolicyDenied("Unknown cached research document")
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data["quarantined"] = True
+        data["quarantine_reason"] = str(reason)[:300]
+        path.write_text(json.dumps(data), encoding="utf-8")
+        return {"url": url, "quarantined": True}
+
+    def release(self, url: str) -> dict:
+        path = self._cache_path(url)
+        if not path.is_file():
+            raise PolicyDenied("Unknown cached research document")
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data.pop("quarantined", None)
+        data.pop("quarantine_reason", None)
+        path.write_text(json.dumps(data), encoding="utf-8")
+        return {"url": url, "quarantined": False}

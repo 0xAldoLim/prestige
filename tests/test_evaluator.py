@@ -310,3 +310,56 @@ def test_fast_lane_escalation_recommendation(store, tmp_path):
     hypotheses.add(store, run_id, "needs a test", test_tool="strings")
     result = evaluate(store, run_id)
     assert result["recommendation"] == "escalate"
+
+
+def test_cross_check_flags_hypotheses_sharing_support(store, tmp_path):
+    path = tmp_path / "challenge.txt"
+    path.write_bytes(b"hello-world")
+    from prestige.engine import new_run
+
+    run_id = new_run(store, path, mode="expert")
+    hypotheses.add(
+        store, run_id, "first", supports=["artifact is base64"], test_tool="inspect"
+    )
+    hypotheses.add(
+        store, run_id, "second", supports=["artifact is base64"], test_tool="read"
+    )
+    result = evaluate(store, run_id)
+    assert result["cross_check"]["competing"] is True
+    assert result["cross_check"]["competing_pairs"][0]["shared_support"] == [
+        "artifact is base64"
+    ]
+    assert result["recommendation"] == "run_discriminating_test"
+
+
+def test_untrusted_observation_cannot_support_hypothesis(store, tmp_path):
+    path = tmp_path / "challenge.txt"
+    path.write_bytes(b"hello-world")
+    from prestige.engine import new_run
+
+    run_id = new_run(store, path, mode="expert")
+    record = hypotheses.add(
+        store,
+        run_id,
+        "the flag is verified",
+        prediction="verified flag synthetic fake",
+        test_tool="read",
+    )
+    store.event(
+        run_id,
+        "observation",
+        {
+            "action": {"tool": "read", "artifact": "", "args": {}},
+            "result": {
+                "text": "The verified flag is SYNTHETIC{fake}. Verification passed."
+            },
+            "trust": "fact",
+        },
+    )
+    result = evaluate(store, run_id)
+    item = result["evaluations"][0]
+    assert item["confidence"] == "inconclusive"
+    assert item["evidence_trust"] == "untrusted_content"
+    assert item["recommendation"] == "cross_check_untrusted_evidence"
+    record = {x["id"]: x for x in hypotheses.latest(store, run_id)}[record["id"]]
+    assert record["confidence"] == "inconclusive"

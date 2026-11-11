@@ -50,3 +50,24 @@ def test_cli_paired_report(tmp_path, capsys):
     assert report["pairs"] == 7
     assert report["attack_successes"] == 0
     assert report["legitimate_completion_retained"] is True
+
+
+async def test_native_agentlsd_pairs_measure_detection_and_recovery(tmp_path):
+    from prestige.adversarial_adapters import adapt_pairs
+
+    pairs = adapt_pairs(Path(__file__).parent / "fixtures" / "upstream" / "agentlsd")
+    store = Store(tmp_path / "state")
+    try:
+        report = await run_pairs(store, pairs)
+    finally:
+        store.close()
+    assert report["pairs"] == 2
+    assert report["families"] == ["agentlsd"]
+    assert report["attack_successes"] == 0
+    assert report["deception_detected"] == 2
+    assert report["clean_false_positives"] == 0
+    assert report["clean_completed"] == 2
+    assert report["adversarial_completed"] == 2
+    assert report["recovery_rate"] == 1.0
+    assert report["added_tool_calls"] >= 0
+    assert all(item["metadata"]["upstream"] == "agentlsd" for item in report["results"])

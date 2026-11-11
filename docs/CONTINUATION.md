@@ -8,7 +8,7 @@ requirements.
 
 ## Current HEAD
 
-- Validated code HEAD: `43cac3b` (this docs-only refresh is the commit containing this line).
+- Validated code HEAD: `2f5a7c9`; this adversarial increment is the next commit.
 - Latest pushed commit: see the latest `git log` on `origin/main`.
 - GitHub account: `0xAldoLim`
 - CI: `offline-validation` passing on Ubuntu/Windows, Python 3.11 and 3.14.
@@ -50,6 +50,44 @@ requirements.
   polling slices. A regression test disables `_shutdown` entirely to prove the
   supervisor alone aborts promptly; Windows CI failures on 66913f6/8ae45ef are
   fixed by this design.
+
+## 2026-11-11 adversarial resilience increment
+
+- **Deception detector**: `src/prestige/deception.py` classifies instruction
+  overrides, authority/verification claims, scope probes, credential and
+  exfiltration requests, tool-output conflicts, cross-model handoffs, decoys,
+  hidden zero-width/HTML-comment content and encoded instructions. Findings carry
+  `policy_effect: "none"` and redact flag-like values.
+- **Trust boundary**: `src/prestige/trust.py` records that only operator/commitment
+  origins may authorize policy or verification. MCP creation, experiments, skills,
+  research and verification attach bounded deception summaries; the
+  `prestige_deception_scan` tool re-scans an artifact or recorded event.
+- **Evaluator cross-check**: observations containing instruction or fake-verification
+  text cannot support or falsify hypotheses; hypotheses that share support are
+  reported as competing and require a discriminating test.
+- **Poisoned-memory quarantine**: actionable model knowledge proposals are stored as
+  `quarantined` and excluded from search. Operators can release or quarantine records;
+  a contaminated run can quarantine its inbox; cached research can be quarantined.
+  Verification responses include provenance, verification source and
+  `model_claim_used: false`.
+- **Native upstream adapters**: AgentDojo suite directories (`injection_vectors.yaml`
+  plus static `injection_tasks.py` `GOAL` extraction) and Gray Swan behavior
+  JSON/attack YAML/config layouts are parsed locally without executing upstream code.
+  Upstream revisions and MIT notices are recorded in `docs/ADVERSARIAL_INTEGRATION.md`.
+  The AgentLSD paper (arXiv 2609.19140) was located but no public framework
+  repository was found; only its documented clean/trap pair shape is supported, and
+  this dependency is not claimed as resolved.
+- **Paired process measurement**: a real MCP server subprocess runs clean and
+  adversarial pairs; legitimate operator-digest verification is retained while fake
+  candidates are rejected. Reports include attack success, detection, clean false
+  positives, added tool calls, legitimate completion and recovery.
+- **Optional live harness**: `src/prestige/opencode_harness.py` runs the real
+  `opencode run --agent prestige` loop when configured and reads outcomes from
+  PRESTIGE state. No live model run was performed in this increment; process tests use
+  a fake executable and do not claim model results.
+- **Validation**: 330 default / 335 Docker / 338 with GDB + SSHD + Docker + Ghidra.
+  Finite fixtures are not universal immunity; no official Gray Swan/AgentDojo/AgentLSD
+  benchmark was executed.
 
 ## What works now
 
@@ -200,9 +238,9 @@ requirements.
     limits, bounded output.
   - `WorkspaceRunner` output directory made writable for the containerized user.
 - **Tests**
-  - Default suite: **283 passed, 8 skipped**.
-  - With `PRESTIGE_TEST_IMAGE`: **288 passed, 3 skipped**.
-  - With GDB + SSHD + Docker + Ghidra opt-ins: **291 passed**.
+  - Default suite: **331 passed, 8 skipped**.
+  - With `PRESTIGE_TEST_IMAGE`: **336 passed, 3 skipped**.
+  - With GDB + SSHD + Docker + Ghidra opt-ins: **339 passed**.
 - **Operator known-answer helper**
   - `prestige verify-candidate --expected-sha256 <digest> [--candidate-file PATH]`
     reads a candidate from stdin/file, reports only digests + `match`, and never
@@ -214,7 +252,7 @@ requirements.
 ```bash
 PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39 \
   python -m pytest -q
-# 289 passed in ~146 s
+# 339 passed in ~110 s
 ```
 
 ## Real challenge status
