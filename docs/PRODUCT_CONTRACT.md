@@ -99,8 +99,9 @@ Status legend: `done`, `partial`, `blocked-external`, `not-started`.
 | AD-1 | Tool-output injection, fake instructions, fake flags and decoys stay data | done | `tests/test_adversarial.py`, `tests/adversarial_corpus.json` |
 | AD-2 | Policy tampering, credential requests and memory poisoning are denied | done | `tests/test_adversarial.py` |
 | AD-3 | Cross-investigation and unauthorized candidate verification are denied | done | `tests/test_security.py` |
-| AD-4 | Gray Swan IPI Arena / AgentLSD / AgentDojo scenario adapters | partial | Local corpus; external harness repos not integrated |
+| AD-4 | Gray Swan IPI Arena / AgentLSD / AgentDojo scenario adapters | partial | Local adapters ingest operator-supplied AgentDojo/AgentLSD/Gray Swan-style JSON/JSONL; no external harness repo or live run was used |
 | AD-5 | Report attack success and legitimate task completion without universal claims | done | `prestige security adversarial --corpus ...`, `tests/test_adversarial_report.py` |
+| AD-6 | Adapted scenario files fail closed on unknown/empty shapes | done | `src/prestige/adversarial_adapters.py`, `tests/test_adversarial_adapters.py` |
 
 ## 9. Benchmarking
 

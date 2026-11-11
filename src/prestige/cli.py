@@ -193,6 +193,11 @@ def parser():
     sandbox.add_argument("--image", required=True)
     adversarial = security.add_parser("adversarial")
     adversarial.add_argument("--corpus", type=Path, required=True)
+    adversarial.add_argument(
+        "--format",
+        choices=("auto", "prestige", "agentdojo", "agentlsd", "gray-swan"),
+        default="auto",
+    )
     competition = commands.add_parser("competition").add_subparsers(dest="operation", required=True)
     create = competition.add_parser("create")
     create.add_argument("name")
@@ -511,8 +516,10 @@ def dispatch(args, store: Store, config: dict):
             return DockerRunner(args.image).audit()
         if args.operation == "adversarial":
             from prestige.adversarial import run_corpus
+            from prestige.adversarial_adapters import adapt
 
-            return asyncio.run(run_corpus(store, args.corpus))
+            scenarios = adapt(args.corpus, args.format)
+            return asyncio.run(run_corpus(store, scenarios))
         events = store.events(args.run_id)
         return {
             "run_id": args.run_id,

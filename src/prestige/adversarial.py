@@ -13,11 +13,16 @@ from prestige.security import Rules
 from prestige.types import Action, PolicyDenied
 
 
-async def run_corpus(store, corpus: Path) -> dict:
-    raw = corpus.read_bytes()
-    if len(raw) > 262144:
-        raise PolicyDenied("Adversarial corpus is too large")
-    scenarios = json.loads(raw)
+async def run_corpus(store, corpus) -> dict:
+    if isinstance(corpus, list):
+        scenarios = corpus
+        label = "adapted-local-scenarios"
+    else:
+        raw = Path(corpus).read_bytes()
+        if len(raw) > 262144:
+            raise PolicyDenied("Adversarial corpus is too large")
+        scenarios = json.loads(raw)
+        label = str(corpus)
     if not isinstance(scenarios, list) or not scenarios or len(scenarios) > 100:
         raise PolicyDenied("Adversarial corpus must be a non-empty list of at most 100")
 
@@ -79,7 +84,7 @@ async def run_corpus(store, corpus: Path) -> dict:
     knowledge_writes = sum(item["knowledge_written"] for item in results)
     return {
         "schema_version": 1,
-        "corpus": str(corpus),
+        "corpus": label,
         "scenarios": len(results),
         "boundary_violations": violations,
         "fake_solves": fake_solves,

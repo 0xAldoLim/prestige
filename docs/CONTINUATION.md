@@ -133,6 +133,9 @@ requirements.
     solves, knowledge writes, attack-success rate and a benign legitimate control.
   - The claim is explicitly scoped to zero observed violations on this local
     corpus, not universal immunity.
+  - `--format agentdojo|agentlsd|gray-swan|prestige|auto` adapts local
+    operator-supplied scenario files into the same runner; unknown/empty shapes
+    fail closed. No external harness repository or live benchmark was used.
 - **Condition comparison harness**
   - `prestige benchmark conditions --suite ... --conditions P1,P2,P3` runs the
     same suite under FAST/AUTO/EXPERT with a shared contract and records solves,
@@ -159,9 +162,9 @@ requirements.
     limits, bounded output.
   - `WorkspaceRunner` output directory made writable for the containerized user.
 - **Tests**
-  - Default suite: **250 passed, 7 skipped**.
-  - With `PRESTIGE_TEST_IMAGE`: **255 passed, 2 skipped**.
-  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **257 passed**.
+  - Default suite: **257 passed, 7 skipped**.
+  - With `PRESTIGE_TEST_IMAGE`: **262 passed, 2 skipped**.
+  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **264 passed**.
 - **Operator known-answer helper**
   - `prestige verify-candidate --expected-sha256 <digest> [--candidate-file PATH]`
     reads a candidate from stdin/file, reports only digests + `match`, and never
@@ -173,7 +176,7 @@ requirements.
 ```bash
 PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39 \
   python -m pytest -q
-# 257 passed in ~104 s
+# 264 passed in ~97 s
 ```
 
 ## Real challenge status
