@@ -12,14 +12,14 @@ optional legacy integrations, not core requirements.
 | --- | --- | --- |
 | A: installable spine | Working, tested | Python CLI, configuration, truthful doctor, immutable inventory, SQLite WAL, synthetic fixture worker |
 | B: OpenCode-native solving | Working, tested | `prestige agent` exposes MCP tools over stdio; `opencode.jsonc` registers a restricted `prestige` agent; no provider API key is required. Model selection remains OpenCode's responsibility. Optional standalone Codex/OpenAI-compatible adapters remain, not default |
-| C: lanes, verifier, recovery | Working for bounded offline tools | FAST/EXPERT/AUTO, one-way handoff, duplicate suppression, digest+replay verification, pause/resume, durable analysis jobs. General CTF reasoning depends on the selected OpenCode model |
+| C: lanes, verifier, recovery | Working for bounded offline tools | FAST/EXPERT/AUTO with distinct tools/budgets, independent evidence-based hypothesis evaluator, one-way handoff, duplicate suppression, digest+replay verification, pause/resume, durable analysis jobs. General reasoning depends on the selected OpenCode model |
 | D: scope, isolation, leases | Tested, fail closed | Trusted artifact resolver, operator source-path policy, MCP budgets, per-tool deadline caps, OpenCode agent permission checks. Reviewed Docker worker is pinned by digest. Operator-registered HTTP/TCP/SSH broker with persistent cross-process accounting, bindings, exclusions, cancellation and loopback tests; remote is disabled by default |
 | E: skills, research, learning | Partial | Full nine-category owner-skills MCP routing/search/read/pivots, local-first accepted knowledge with review/promotion, allowlisted research broker with pinned DNS/cache/TLS checks and static decoding generalizers. General exploit learning remains limited |
-| F: competition and comparisons | Partial | Local queue with bounded concurrency; deterministic priority/deadline/points policy; fixture harness and equality gates. B0/B1/P1/P2/P3 live comparisons and calibrated marginal value unimplemented |
+| F: competition and comparisons | Partial | Local queue, fixture P1/P2/P3 contracts and operator-command B0/B1 adapters with unknown-usage handling. No real B0/B1 run or calibrated marginal value yet |
 | G: advanced tools and portability | Tested | Isolated Python/allowlisted command execution, local `file`, allowlisted `radare2`, Ghidra headless, durable jobs, persistent Python/GDB sessions with ownership/orphan cleanup, and a reviewed GDB-capable worker image |
 | H: local models and attribution | Partial | User-declared pinned registry, loopback advisory adapter, hardware diagnostics, mocked tests, attribution/license audit. No downloaded weights, real inference benchmark or autonomous local worker |
 | I: human escalation | Tested | `prestige_request_operator` / `prestige_answer_operator` plus `prestige answer`; answers are evidence, not verification |
-| J: adversarial resilience | Partial | Local 12-class corpus and measured report; local AgentDojo/AgentLSD/Gray Swan-style file adapters with fail-closed parsing. External harness repositories/live runs were not used; zero observed is not universal immunity |
+| J: adversarial resilience | Partial | Local 12-class corpus, matched clean/adversarial pairs through the trusted workflow, and local AgentDojo/AgentLSD/Gray Swan-style adapters. External harness repositories/live runs were not used; zero observed is not universal immunity |
 
 ## Validated boundaries
 
@@ -48,9 +48,9 @@ guarantee.
 
 ## Validation record
 
-- Default suite: **259 passed, 8 skipped**.
-- With `PRESTIGE_TEST_IMAGE`: **264 passed, 3 skipped**.
-- With GDB + SSHD + Docker + Ghidra opt-ins: **267 passed**.
+- Default suite: **282 passed, 8 skipped**.
+- With `PRESTIGE_TEST_IMAGE`: **287 passed, 3 skipped**.
+- With GDB + SSHD + Docker + Ghidra opt-ins: **289 passed**.
 - Ruff clean; wheel builds.
 
 See [VALIDATION.md](VALIDATION.md) for commands and exact outcomes. GitHub CI runs
@@ -72,9 +72,10 @@ and 3.14.
 
 ## Highest-value next work
 
-1. Validate the SSH adapter against a real operator-assigned SSH server.
-2. Run external Gray Swan/AgentLSD/AgentDojo harnesses and real B0/B1 comparisons with
-   recorded budgets; keep P1/P2/P3 contracts identical.
-3. Add an independent evaluator that proposes/retires hypotheses beyond model choice.
+1. Run external Gray Swan/AgentLSD/AgentDojo harnesses and real B0/B1 comparisons
+   with recorded budgets; keep P1/P2/P3 contracts identical.
+2. Validate the SSH adapter against an operator-assigned external endpoint.
+3. Replace model-driven hypothesis selection with an evaluator-driven selector while
+   preserving the model's technical reasoning.
 4. Extend human escalation into a live operator UI without weakening evidence labels.
 5. Never fabricate benchmark results or universal adversarial immunity.

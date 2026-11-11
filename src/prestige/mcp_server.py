@@ -918,7 +918,13 @@ async def _remote_tcp(args: dict) -> dict:
         if type(timeout) not in (int, float) or not 0 < timeout <= 30:
             raise PolicyDenied("Invalid timeout")
         timeout = min(float(timeout), max(0.1, run["settings"]["max_seconds"] - elapsed))
-        data = _decode_body(args)
+        if args.get("data_base64"):
+            try:
+                data = base64.b64decode(args["data_base64"], validate=True)
+            except (binascii.Error, ValueError) as error:
+                raise PolicyDenied("Invalid base64 TCP data") from error
+        else:
+            data = b""
         read_bytes = args.get("read_bytes", 4096)
         response = await asyncio.to_thread(
             broker.tcp, data, int(read_bytes), float(timeout), run_id

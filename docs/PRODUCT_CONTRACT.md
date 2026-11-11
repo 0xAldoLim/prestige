@@ -38,6 +38,7 @@ Status legend: `done`, `partial`, `blocked-external`, `not-started`.
 | ST-3 | FAST/AUTO/EXPERT differ operationally, not only by label | done | `src/prestige/strategy.py`, `prestige_escalate`, `tests/test_strategy.py` |
 | ST-4 | Repeated non-informative experiments are suppressed | done | `tests/test_engine.py::test_repeated_actions_suppressed`, `tests/test_mcp_server.py::test_mcp_suppresses_duplicate_deterministic_experiments` |
 | ST-5 | Investigation state survives session interruption and resumes without budget reset | done | `tests/test_mcp_server.py::test_mcp_state_survives_reconnect`, `test_mcp_resume_reconstructs_context_without_resetting_budget` |
+| ST-6 | Independent evidence evaluator derives categorical confidence and recommendations | done | `src/prestige/evaluator.py`, `prestige_evaluate_hypotheses`, `tests/test_evaluator.py` |
 
 ## 4. Owner skills integration
 
@@ -71,6 +72,10 @@ Status legend: `done`, `partial`, `blocked-external`, `not-started`.
 | RM-13 | Targets are bound to a specific investigation | done | `prestige target bind`; `test_unbound_run_cannot_use_registration` |
 | RM-14 | Failed DNS/connect attempts release concurrency and still consume request budget | done | `test_connect_failure_releases_concurrency_and_keeps_budget` |
 | RM-15 | SSH key/known_hosts/user and destination are operator-controlled | done | `tests/test_ssh.py` |
+| RM-16 | HTTP request targets are canonicalized; queries cannot bypass path exclusions | done | `canonical_request_target`, `tests/test_remote.py` query/encoded/authority cases |
+| RM-17 | Expiry/revocation is rechecked after rate waits and before connection; expired instances cannot connect | done | `tests/test_remote.py::test_expiry_during_rate_wait_prevents_connection` |
+| RM-18 | In-flight HTTPS cancellation controls the TLS socket and releases the lease | done | CA-signed HTTPS tests incl. cross-process cancellation |
+| RM-19 | Expiry automatically requests operator assistance without probing for a replacement | done | `test_expired_mcp_request_asks_for_operator` |
 
 ## 6. Persistent interactive tools
 
@@ -102,12 +107,14 @@ Status legend: `done`, `partial`, `blocked-external`, `not-started`.
 | AD-4 | Gray Swan IPI Arena / AgentLSD / AgentDojo scenario adapters | partial | Local adapters ingest operator-supplied AgentDojo/AgentLSD/Gray Swan-style JSON/JSONL; no external harness repo or live run was used |
 | AD-5 | Report attack success and legitimate task completion without universal claims | done | `prestige security adversarial --corpus ...`, `tests/test_adversarial_report.py` |
 | AD-6 | Adapted scenario files fail closed on unknown/empty shapes | done | `src/prestige/adversarial_adapters.py`, `tests/test_adversarial_adapters.py` |
+| AD-7 | Matched clean/adversarial pairs execute through the trusted workflow and measure completion + attack success | done | `src/prestige/adversarial.py::run_pairs`, `tests/test_adversarial_pairs.py` |
 
 ## 9. Benchmarking
 
 | ID | Requirement | Status | Acceptance evidence |
 | --- | --- | --- | --- |
-| BM-1 | Comparable real-agent B0/B1/P1/P2/P3 evaluation | partial | One matched live crypto pair (skills vs no `skills.path`) solved 1/1 each under identical model/budget; no B0/B1 adapter or statistical comparison exists |
+| BM-1 | Comparable real-agent B0/B1/P1/P2/P3 evaluation | partial | P1/P2/P3 fixture lanes share a contract; a matched live crypto pair solved 1/1 each. B0/B1 command adapters are implemented; no real B0/B1 run exists |
+| BM-3 | B0/B1 reusable operator-command adapters with unknown-usage handling | done | `src/prestige/benchmark_adapter.py`, `tests/test_conditions.py` |
 | BM-2 | Real results recorded only when actually run | not-started | B0/B1 report `not_run` without an explicitly configured adapter; no paid comparison run |
 
 ## 10. Release gates
@@ -132,3 +139,11 @@ Status legend: `done`, `partial`, `blocked-external`, `not-started`.
 
 Live results are one small sample. They demonstrate that the integrated loop works;
 they do not establish accuracy, superiority or benchmark performance.
+
+## 12. Integrated harmony
+
+| ID | Requirement | Status | Evidence |
+| --- | --- | --- | --- |
+| HM-1 | One local environment combines offline analysis, web query parameters, TCP, expiry, forbidden target and injection | done | `tests/test_harmony.py` |
+| HM-2 | Skill routing, hypothesis evaluation, remote query/exclusion, TCP, expiry operator request and verification work together | done | `tests/test_harmony.py` |
+| HM-3 | Live model evidence remains the four held-out runs in CONTINUATION | done | `docs/CONTINUATION.md`; no scripted-tool claim |

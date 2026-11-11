@@ -13,6 +13,38 @@ requirements.
 - GitHub account: `0xAldoLim`
 - CI: `offline-validation` passing on Ubuntu/Windows, Python 3.11 and 3.14.
 
+## 2026-11-11 hardening increment
+
+- **HTTP request-target canonicalization**: `canonical_request_target` separates
+  path/query and rejects absolute/authority forms, percent-encoded paths,
+  traversal, duplicate separators, fragments, backslashes, control/non-ASCII
+  characters and malformed query encodings. Exclusions apply to the canonical
+  path; legitimate queries such as `/check?code=5a` remain allowed.
+- **Full-lifecycle expiry**: expiry/revocation is rechecked after rate-limit waits
+  and immediately before DNS resolution/connection. Expired registrations cannot
+  create new connections; the MCP handler records `remote_expired` and asks the
+  operator for a fresh registration instead of probing for one.
+- **HTTPS cancellation**: the monitor starts before the TLS handshake and switches
+  to the wrapped TLS socket. CA-signed local tests cover valid requests, hostname
+  mismatch, untrusted certificates, in-flight cancellation, lease release and
+  cross-process HTTPS cancellation.
+- **Independent hypothesis evaluator**: `src/prestige/evaluator.py` matches recorded
+  observations against declared test/prediction/contradiction anchors, assigns
+  categorical confidence (`unresolved`, `supported`, `contradicted`,
+  `inconclusive`) and recommends continue/revise/reject/escalate. Tool failures are
+  inconclusive, duplicates are detected, model-written confidence/evidence fields
+  are rejected, and evaluation events survive restart.
+- **Benchmark adapters**: `CommandConditionAdapter` runs an operator-supplied B0/B1
+  baseline command with a shared contract, parses measured results and keeps missing
+  usage unknown. The CLI accepts `--adapter-command`; no baseline host permissions
+  are granted by PRESTIGE.
+- **Paired adversarial execution**: clean/adversarial pairs run through the trusted
+  solve workflow; the report measures attack success, policy violations, legitimate
+  completion and verification. `--format paired` loads the paired corpus.
+- **Integrated harmony test**: one local environment combines offline decoding,
+  skill routing, hypothesis evaluation, query-authorized web access, exclusions,
+  TCP, expiry/operator assistance and verification.
+
 ## What works now
 
 - **OpenCode-native MCP broker**
@@ -162,9 +194,9 @@ requirements.
     limits, bounded output.
   - `WorkspaceRunner` output directory made writable for the containerized user.
 - **Tests**
-  - Default suite: **259 passed, 8 skipped**.
-  - With `PRESTIGE_TEST_IMAGE`: **264 passed, 3 skipped**.
-  - With GDB + SSHD + Docker + Ghidra opt-ins: **267 passed**.
+  - Default suite: **282 passed, 8 skipped**.
+  - With `PRESTIGE_TEST_IMAGE`: **287 passed, 3 skipped**.
+  - With GDB + SSHD + Docker + Ghidra opt-ins: **289 passed**.
 - **Operator known-answer helper**
   - `prestige verify-candidate --expected-sha256 <digest> [--candidate-file PATH]`
     reads a candidate from stdin/file, reports only digests + `match`, and never
@@ -176,7 +208,7 @@ requirements.
 ```bash
 PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39 \
   python -m pytest -q
-# 267 passed in ~102 s
+# 289 passed in ~146 s
 ```
 
 ## Real challenge status

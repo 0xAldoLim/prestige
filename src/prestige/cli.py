@@ -186,6 +186,10 @@ def parser():
     conditions.add_argument("--repetitions", type=int, default=1)
     conditions.add_argument("--seed", type=int, default=2026)
     conditions.add_argument("--output", type=Path)
+    conditions.add_argument("--adapter-command", help="Operator-approved B0/B1 baseline command")
+    conditions.add_argument("--adapter-model", default="operator-baseline")
+    conditions.add_argument("--adapter-turns", type=int, default=12)
+    conditions.add_argument("--adapter-seconds", type=int, default=120)
     security = commands.add_parser("security").add_subparsers(dest="operation", required=True)
     audit = security.add_parser("audit")
     audit.add_argument("run_id")
@@ -195,7 +199,7 @@ def parser():
     adversarial.add_argument("--corpus", type=Path, required=True)
     adversarial.add_argument(
         "--format",
-        choices=("auto", "prestige", "agentdojo", "agentlsd", "gray-swan"),
+        choices=("auto", "prestige", "agentdojo", "agentlsd", "gray-swan", "paired"),
         default="auto",
     )
     competition = commands.add_parser("competition").add_subparsers(dest="operation", required=True)
@@ -499,9 +503,31 @@ def dispatch(args, store: Store, config: dict):
         if args.operation == "compare":
             return compare(json.loads(args.left.read_text()), json.loads(args.right.read_text()))
         if args.operation == "conditions":
+            import shlex
+
             names = tuple(item.strip() for item in args.conditions.split(",") if item.strip())
+            adapter_factory = None
+            if args.adapter_command:
+                from prestige.benchmark_adapter import CommandConditionAdapter
+
+                command = shlex.split(args.adapter_command)
+                def adapter_factory(condition):
+                    return CommandConditionAdapter(
+                        command,
+                        condition,
+                        args.adapter_model,
+                        args.adapter_turns,
+                        args.adapter_seconds,
+                    )
             result = asyncio.run(
-                run_conditions(store, args.suite, names, args.repetitions, args.seed)
+                run_conditions(
+                    store,
+                    args.suite,
+                    names,
+                    args.repetitions,
+                    args.seed,
+                    adapter_factory=adapter_factory,
+                )
             )
             if args.output:
                 args.output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
@@ -515,9 +541,12 @@ def dispatch(args, store: Store, config: dict):
 
             return DockerRunner(args.image).audit()
         if args.operation == "adversarial":
-            from prestige.adversarial import run_corpus
+            from prestige.adversarial import run_corpus, run_pairs
             from prestige.adversarial_adapters import adapt
 
+            if args.format == "paired":
+                pairs = json.loads(args.corpus.read_text(encoding="utf-8"))
+                return asyncio.run(run_pairs(store, pairs))
             scenarios = adapt(args.corpus, args.format)
             return asyncio.run(run_corpus(store, scenarios))
         events = store.events(args.run_id)
