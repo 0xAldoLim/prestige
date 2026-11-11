@@ -91,8 +91,10 @@ requirements.
   - Raw responses are content-addressed artifacts; audit and blocked events are
     persisted. Remote mode is disabled unless `PRESTIGE_REMOTE_ENABLED=1` or
     `remote.enabled=true`.
-  - SSH registration is accepted but the adapter is blocked pending an
-    operator-reviewed SSH-enabled image.
+  - SSH uses `prestige_remote_ssh` with operator-provided key/user/known_hosts,
+    pinned DNS, `HostKeyAlias`, no forwarding/password auth and bounded output.
+    Adapter tests use a fake `ssh` executable; a real SSH server endpoint has not
+    been validated.
 - **Persistent interactive sessions**
   - `prestige_session_start/send/read/stop/list` keep a Python/GDB-class process
     alive inside the reviewed Docker worker across model turns.
@@ -157,9 +159,9 @@ requirements.
     limits, bounded output.
   - `WorkspaceRunner` output directory made writable for the containerized user.
 - **Tests**
-  - Default suite: **246 passed, 7 skipped**.
-  - With `PRESTIGE_TEST_IMAGE`: **251 passed, 2 skipped**.
-  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **253 passed**.
+  - Default suite: **250 passed, 7 skipped**.
+  - With `PRESTIGE_TEST_IMAGE`: **255 passed, 2 skipped**.
+  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **257 passed**.
 - **Operator known-answer helper**
   - `prestige verify-candidate --expected-sha256 <digest> [--candidate-file PATH]`
     reads a candidate from stdin/file, reports only digests + `match`, and never
@@ -171,7 +173,7 @@ requirements.
 ```bash
 PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39 \
   python -m pytest -q
-# 253 passed in ~102 s
+# 257 passed in ~104 s
 ```
 
 ## Real challenge status

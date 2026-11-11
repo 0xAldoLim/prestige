@@ -12,6 +12,7 @@ import os
 import re
 import socket
 import ssl
+import subprocess
 import threading
 import time
 import uuid
@@ -80,6 +81,9 @@ class Registration:
     rate_per_second: float = 2.0
     expires_at: float | None = None
     exclusions: tuple[str, ...] = ()
+    ssh_user: str = ""
+    ssh_key_path: str = ""
+    ssh_known_hosts: str = ""
     enabled: bool = False
     max_response_bytes: int = 65536
 
@@ -121,6 +125,9 @@ class Registration:
             exclusions=tuple(
                 _text(item, "exclusions", 200) for item in _list(data.get("exclusions", []), "exclusions")
             ),
+            ssh_user=str(data.get("ssh_user", "")).strip(),
+            ssh_key_path=str(data.get("ssh_key_path", "")).strip(),
+            ssh_known_hosts=str(data.get("ssh_known_hosts", "")).strip(),
             enabled=bool(data.get("enabled", False)),
             max_response_bytes=_int(
                 data.get("max_response_bytes", 65536), "max_response_bytes", 1024, _MAX_RESPONSE
@@ -130,6 +137,17 @@ class Registration:
             raise RemoteDenied("Unsupported protocol")
         if not 0.1 <= registration.rate_per_second <= 100:
             raise RemoteDenied("Invalid rate limit")
+        if registration.protocol == "ssh":
+            if not registration.ssh_user or not registration.ssh_key_path or not registration.ssh_known_hosts:
+                raise RemoteDenied("SSH registration requires user, key and known_hosts")
+            key = Path(registration.ssh_key_path).expanduser()
+            known = Path(registration.ssh_known_hosts).expanduser()
+            if not key.is_file() or not known.is_file():
+                raise RemoteDenied("SSH key or known_hosts file is missing")
+            if key.stat().st_mode & 0o077:
+                raise RemoteDenied("SSH key must not be group/world accessible")
+        elif registration.ssh_user or registration.ssh_key_path or registration.ssh_known_hosts:
+            raise RemoteDenied("SSH fields are only valid for protocol ssh")
         if registration.protocol in {"tcp", "ssh"} and registration.methods != ("GET", "POST", "HEAD"):
             # Methods are meaningless for stream protocols; ignore but keep deterministic.
             pass
@@ -541,6 +559,106 @@ class RemoteBroker:
                 monitor.stop()
             if sock is not None:
                 self._release(sock)
+            release(self.home, token)
+
+    # ---- SSH ------------------------------------------------------------
+    def ssh(self, command: str, timeout: float = 20.0, run_id: str | None = None) -> dict:
+        self._check(run_id)
+        if self.registration.protocol != "ssh":
+            raise RemoteDenied("Registration is not an SSH service")
+        if not isinstance(command, str) or not command.strip() or len(command) > 4096:
+            raise RemoteDenied("SSH command is empty or too large")
+        address = self._resolve()[0]
+        token = reserve(self.home, self.registration, run_id, self.registration.max_seconds)
+        process = None
+        stop = threading.Event()
+        cancelled = threading.Event()
+
+        def monitor():
+            while not stop.wait(0.2):
+                expired = (
+                    self.registration.expires_at is not None
+                    and time.time() >= self.registration.expires_at
+                )
+                if expired or registration_cancelled(self.home, self.registration.id):
+                    cancelled.set()
+                    if process is not None:
+                        try:
+                            process.kill()
+                        except OSError:
+                            pass
+                    return
+
+        thread = threading.Thread(target=monitor, daemon=True)
+        thread.start()
+        args = [
+            "ssh",
+            "-F",
+            "/dev/null",
+            "-T",
+            "-i",
+            self.registration.ssh_key_path,
+            "-o",
+            "StrictHostKeyChecking=yes",
+            "-o",
+            f"UserKnownHostsFile={self.registration.ssh_known_hosts}",
+            "-o",
+            "BatchMode=yes",
+            "-o",
+            "IdentitiesOnly=yes",
+            "-o",
+            "PasswordAuthentication=no",
+            "-o",
+            "KbdInteractiveAuthentication=no",
+            "-o",
+            "ForwardAgent=no",
+            "-o",
+            "ClearAllForwardings=yes",
+            "-o",
+            "UpdateHostKeys=no",
+            "-o",
+            f"HostKeyAlias={self.registration.host}",
+            "-o",
+            "ConnectTimeout=10",
+            "-o",
+            "ServerAliveInterval=5",
+            "-o",
+            "ServerAliveCountMax=1",
+            "-p",
+            str(self.registration.port),
+            f"{self.registration.ssh_user}@{address}",
+            command,
+        ]
+        try:
+            process = subprocess.Popen(
+                args,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            try:
+                stdout, stderr = process.communicate(
+                    timeout=min(timeout, self.registration.max_seconds)
+                )
+            except subprocess.TimeoutExpired:
+                process.kill()
+                stdout, stderr = process.communicate()
+                if cancelled.is_set():
+                    raise RemoteExpired("Remote request cancelled or instance expired")
+                raise PrestigeError("SSH command exceeded its deadline")
+            if cancelled.is_set():
+                raise RemoteExpired("Remote request cancelled or instance expired")
+            return {
+                "returncode": process.returncode,
+                "stdout": stdout[:32768].decode("utf-8", errors="replace"),
+                "stderr": stderr[:8192].decode("utf-8", errors="replace"),
+                "cancelled": False,
+            }
+        except OSError as error:
+            raise PrestigeError(f"SSH command failed: {error}") from error
+        finally:
+            stop.set()
+            thread.join(timeout=1)
             release(self.home, token)
 
     # ---- lifecycle ------------------------------------------------------

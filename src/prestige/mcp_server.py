@@ -917,6 +917,63 @@ async def _remote_tcp(args: dict) -> dict:
         store.close()
 
 
+async def _remote_ssh(args: dict) -> dict:
+    store = await _store()
+    try:
+        run_id = args["run_id"]
+        run = _run(store, run_id)
+        if _terminal(run):
+            raise PrestigeError("Investigation is terminal")
+        elapsed = _check_budget(run, store, run_id)
+        registration = _registration(args, run_id)
+        if "ssh" not in registration.allowed_actions or registration.protocol != "ssh":
+            raise PolicyDenied("Registration does not authorize SSH")
+        broker = broker_for(_home(), registration)
+        timeout = args.get("timeout", 20)
+        if type(timeout) not in (int, float) or not 0 < timeout <= 30:
+            raise PolicyDenied("Invalid timeout")
+        timeout = min(float(timeout), max(0.1, run["settings"]["max_seconds"] - elapsed))
+        result = await asyncio.to_thread(
+            broker.ssh, str(args["command"]), timeout, run_id
+        )
+        artifact = Artifacts(store, run_id).add(
+            result["stdout"].encode("utf-8"), "remote-ssh-output.txt"
+        )
+        store.event(
+            run_id,
+            "remote_request",
+            {
+                "registration_id": registration.id,
+                "protocol": "ssh",
+                "method": "SSH",
+                "command_sha256": hashlib.sha256(
+                    str(args["command"]).encode("utf-8")
+                ).hexdigest(),
+                "returncode": result["returncode"],
+                "bytes": len(result["stdout"]),
+                "artifact": artifact,
+                "trust": "fact",
+            },
+        )
+        return _redact(
+            {
+                "status": "ok",
+                "result": {
+                    "registration_id": registration.id,
+                    "returncode": result["returncode"],
+                    "stdout": result["stdout"],
+                    "stderr": result["stderr"],
+                    "artifact": artifact,
+                },
+            }
+        )
+    except Exception as error:
+        _record_remote_failure(store, args, error)
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
+    finally:
+        store.close()
+
+
 async def _remote_status(args: dict) -> dict:
     try:
         run_id = args["run_id"]
@@ -1626,6 +1683,28 @@ _TOOLS: dict[str, tuple[Tool, Any]] = {
             },
         ),
         _remote_tcp,
+    ),
+    "prestige_remote_ssh": (
+        Tool(
+            name="prestige_remote_ssh",
+            description=(
+                "Run a bounded command on an operator-registered, investigation-bound "
+                "SSH challenge instance. Host keys, key file, user and destination are "
+                "operator-controlled; no forwarding or password auth is allowed."
+            ),
+            inputSchema={
+                "type": "object",
+                "required": ["run_id", "registration_id", "command"],
+                "additionalProperties": False,
+                "properties": {
+                    "run_id": {"type": "string"},
+                    "registration_id": {"type": "string"},
+                    "command": {"type": "string"},
+                    "timeout": {"type": "number"},
+                },
+            },
+        ),
+        _remote_ssh,
     ),
     "prestige_remote_status": (
         Tool(
