@@ -203,3 +203,11 @@ def test_cli_research_sources(home, server, capsys):
     assert main(["--home", str(home), "research", "search", "nonce"]) == 0
     hits = json.loads(capsys.readouterr().out)
     assert hits
+
+
+def test_config_accepts_json_list_for_research(tmp_path):
+    from prestige.config import load_config, set_config
+
+    home = tmp_path / "state"
+    set_config(home, "research.allowed_hosts", '["a.example","b.example"]')
+    assert load_config(home)["research.allowed_hosts"] == ["a.example", "b.example"]

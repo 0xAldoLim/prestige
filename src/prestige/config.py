@@ -55,6 +55,15 @@ def set_config(home: Path, key: str, value: str | list[str]) -> None:
             "remote.enabled, research.enabled, research.allowed_hosts"
         )
     config = load_config(home)
+    if key in {"allowed_source_dirs", "research.allowed_hosts"} and isinstance(value, str):
+        stripped = value.strip()
+        if stripped.startswith("["):
+            try:
+                value = json.loads(stripped)
+            except ValueError as error:
+                raise PrestigeError(f"{key} must be a valid JSON list of strings") from error
+            if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+                raise PrestigeError(f"{key} must be a JSON list of strings")
     if key == "skills.path":
         config[key] = str(Path(str(value)).expanduser().resolve(strict=True))
     elif key == "allowed_source_dirs" and isinstance(value, list):
