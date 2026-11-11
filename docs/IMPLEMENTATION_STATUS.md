@@ -19,7 +19,7 @@ optional legacy integrations, not core requirements.
 | G: advanced tools and portability | Partial | Isolated Python/allowlisted command execution, local `file`, allowlisted `radare2`, Ghidra headless, durable jobs and cancellation markers. Persistent GDB/PTY and a remote worker remain unimplemented |
 | H: local models and attribution | Partial | User-declared pinned registry, loopback advisory adapter, hardware diagnostics, mocked tests, attribution/license audit. No downloaded weights, real inference benchmark or autonomous local worker |
 | I: human escalation | Tested | `prestige_request_operator` / `prestige_answer_operator` plus `prestige answer`; answers are evidence, not verification |
-| J: adversarial resilience | Partial | Offline regression suite covers artifact injection, fake flags, scope escalation, output bounds, command allowlisting and candidate-value redaction. Gray Swan IPI Arena, AgentLSD and AgentDojo harnesses are not integrated |
+| J: adversarial resilience | Partial | Offline corpus covers tool-output injection, fake system instructions, fake flags, decoy vulnerabilities, role override, encoded injection, context floods, policy tampering, cross-investigation access, false verification, credential requests and memory poisoning; zero observed boundary transitions. Gray Swan IPI Arena, AgentLSD and AgentDojo harnesses are not integrated |
 
 ## Validated boundaries
 
@@ -47,9 +47,9 @@ provider built-in tools. Docker alone is not a hardened VM guarantee.
 
 ## Validation record
 
-- Default suite: **139 passed, 3 skipped**.
-- With `PRESTIGE_TEST_IMAGE`: **141 passed, 1 skipped**.
-- With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **142 passed**.
+- Default suite: **151 passed, 3 skipped**.
+- With `PRESTIGE_TEST_IMAGE`: **153 passed, 1 skipped**.
+- With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **154 passed**.
 - Ruff clean; wheel builds.
 
 See [VALIDATION.md](VALIDATION.md) for commands and exact outcomes. GitHub CI runs

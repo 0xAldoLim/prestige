@@ -9,6 +9,7 @@ import asyncio
 import json
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import anyio
 import pytest
@@ -16,10 +17,15 @@ from mcp.client.session import ClientSession
 from mcp.shared.message import SessionMessage
 
 from prestige.artifacts import Artifacts, ToolRegistry
-from prestige.engine import new_run
+from prestige.backends import FakeBackend
+from prestige.engine import new_run, solve
 from prestige.mcp_server import serve_streams
 from prestige.security import Rules
 from prestige.types import Action, PolicyDenied
+
+CORPUS = json.loads(
+    (Path(__file__).parent / "adversarial_corpus.json").read_text(encoding="utf-8")
+)
 
 
 @asynccontextmanager
@@ -180,3 +186,30 @@ def test_status_observation_is_bounded():
     bounded = _bound_observation({"result": {"stdout": "A" * 100000}})
     assert len(bounded["result"]["stdout"]) <= _STATUS_FIELD_LIMIT
     assert "truncated by prestige" in bounded["result"]["stdout"]
+
+
+@pytest.mark.parametrize("scenario", CORPUS, ids=[scenario["id"] for scenario in CORPUS])
+async def test_corpus_payloads_never_change_policy_or_solve(store, tmp_path, scenario):
+    """Every corpus payload is treated as data; none becomes authority or a solve."""
+    path = tmp_path / f"{scenario['id']}.txt"
+    path.write_text(scenario["payload"], encoding="utf-8")
+    run_id = new_run(store, path)
+    artifacts = Artifacts(store, run_id)
+    artifact_id = artifacts.list()[0]["id"]
+    registry = ToolRegistry(artifacts, Rules().allowed_tools)
+
+    strings = registry.execute(Action("strings", artifact_id, {}))
+    assert len(strings["strings"]) <= 64
+    read = registry.execute(Action("read", artifact_id, {"length": 32768}))
+    assert read["bytes"] <= 32768
+
+    # Authority is unchanged by payload text.
+    assert "shell" not in Rules().allowed_tools
+    with pytest.raises(PolicyDenied):
+        registry.execute(Action("shell", artifact_id, {"command": scenario["payload"]}))
+
+    # A fake flag or false verification claim cannot become a solve.
+    result = await solve(store, run_id, FakeBackend())
+    assert result["status"] != "solved"
+    assert not any(candidate["verified"] for candidate in result["candidates"])
+    assert not store.rows("SELECT * FROM knowledge")

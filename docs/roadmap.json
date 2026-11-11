@@ -32,7 +32,7 @@
     {"id":"opencode-product-backend","status":"implemented","evidence":["src/prestige/mcp_server.py",".opencode/plugins/prestige/","opencode.jsonc"],"remaining":"Production hardening and adversarial review."},
     {"id":"local-model-laboratory","status":"in progress","evidence":["src/prestige/local_models.py"],"remaining":"Advisory transport/mock tests only."},
     {"id":"opencode-development-handoff","status":"implemented and tested","evidence":["AGENTS.md",".opencode/commands/prestige-resume.md","docs/OPENCODE_HANDOFF.md"],"remaining":"Keep docs aligned with OpenCode-native claims."},
-    {"id":"adversarial-resilience","status":"partial","evidence":["tests/test_adversarial.py","tests/test_security.py"],"remaining":"Offline regression suite covers artifact injection, fake flags, scope escalation, tool-output bounds and command allowlisting. Gray Swan IPI Arena, AgentLSD and AgentDojo scenario harnesses are not yet integrated."},
+    {"id":"adversarial-resilience","status":"partial","evidence":["tests/test_adversarial.py","tests/adversarial_corpus.json","tests/test_security.py"],"remaining":"Offline corpus covers tool-output injection, fake system instructions, fake flags, decoy vulnerabilities, role override, encoded injection, context floods, policy tampering, cross-investigation access, false verification, credential requests and memory poisoning; zero observed boundary transitions. Gray Swan IPI Arena, AgentLSD and AgentDojo scenario harnesses are not yet integrated."},
     {"id":"claude-compatibility","status":"not implemented","evidence":[],"remaining":"Architecture preserves optional Anthropic adapter; no API key required for OpenCode workflow."}
   ]
 }
