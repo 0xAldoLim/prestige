@@ -173,7 +173,65 @@ async def test_mcp_verify_candidate_with_digest(tmp_path):
         )
         body = json.loads(result.content[0].text)
         assert body["verified"] is True
+        assert body["stage"] == "independently_verified"
+        assert body["reproduced"] is False
+        assert body["checker"] == "unavailable"
         assert "candidate" not in body
+
+
+async def test_mcp_verify_candidate_stages_without_digest(tmp_path):
+    value = b"SYNTHETIC{stage_evidence}"
+    path = tmp_path / "challenge.txt"
+    path.write_bytes(base64.b64encode(value))
+
+    async with _mcp_client(tmp_path) as session:
+        created = await session.call_tool(
+            "prestige_create_investigation", {"source_path": str(path)}
+        )
+        run_id = json.loads(created.content[0].text)["run_id"]
+        status = await session.call_tool("prestige_get_status", {"run_id": run_id})
+        source_id = json.loads(status.content[0].text)["artifacts"][0]["id"]
+
+        derived = await session.call_tool(
+            "prestige_run_experiment",
+            {"run_id": run_id, "tool": "base64", "artifact_id": source_id, "args": {}},
+        )
+        derived_id = json.loads(derived.content[0].text)["result"]["artifact"]
+
+        reproduced = json.loads(
+            (
+                await session.call_tool(
+                    "prestige_verify_candidate",
+                    {
+                        "run_id": run_id,
+                        "candidate": value.decode(),
+                        "artifact_id": derived_id,
+                        "derivation_artifact": derived_id,
+                    },
+                )
+            ).content[0].text
+        )
+        assert reproduced["verified"] is False
+        assert reproduced["expected_available"] is False
+        assert reproduced["reproduced"] is True
+        assert reproduced["stage"] == "reproduced"
+        assert "candidate" not in reproduced
+
+        mismatch = json.loads(
+            (
+                await session.call_tool(
+                    "prestige_verify_candidate",
+                    {
+                        "run_id": run_id,
+                        "candidate": "different",
+                        "artifact_id": derived_id,
+                        "derivation_artifact": derived_id,
+                    },
+                )
+            ).content[0].text
+        )
+        assert mismatch["reproduced"] is False
+        assert mismatch["stage"] == "derived"
 
 
 async def test_mcp_investigation_loop_with_derived_evidence(tmp_path):

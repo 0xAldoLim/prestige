@@ -33,6 +33,9 @@ requirements.
     terminal-state checks and persistent attempt accounting.
   - OpenCode `prestige` agent permissions deny shell/read/write/browser/skill and
     allow only `prestige_*` MCP tools.
+  - Candidate verification reports an explicit `stage`
+    (`discovered`, `derived`, `reproduced`, `independently_verified`) plus
+    `checker: unavailable`; a digest match never implies official checker acceptance.
 - **Durable analysis jobs**
   - `JobManager` persists long-running Ghidra/radare2/python work outside the
     model conversation.
@@ -48,9 +51,9 @@ requirements.
     limits, bounded output.
   - `WorkspaceRunner` output directory made writable for the containerized user.
 - **Tests**
-  - Default suite: **134 passed, 3 skipped**.
-  - With `PRESTIGE_TEST_IMAGE`: **136 passed, 1 skipped**.
-  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **137 passed**.
+  - Default suite: **135 passed, 3 skipped**.
+  - With `PRESTIGE_TEST_IMAGE`: **137 passed, 1 skipped**.
+  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **138 passed**.
 - **Operator known-answer helper**
   - `prestige verify-candidate --expected-sha256 <digest> [--candidate-file PATH]`
     reads a candidate from stdin/file, reports only digests + `match`, and never
@@ -62,7 +65,7 @@ requirements.
 ```bash
 PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39 \
   python -m pytest -q
-# 137 passed in ~40 s
+# 138 passed in ~42 s
 ```
 
 ## Real challenge status

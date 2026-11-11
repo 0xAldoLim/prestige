@@ -264,14 +264,34 @@ async def _verify_candidate(args: dict) -> dict:
         _check_budget(run, store, run_id)
         value = args["candidate"].encode("utf-8")
         artifact_id = args.get("artifact_id", "")
+        derivation_id = args.get("derivation_artifact", "")
         expected = run["settings"].get("expected_digest")
         verified = False
         if expected:
             import hashlib
 
             verified = hashlib.sha256(value).hexdigest() == expected
+        reproduced = False
+        if derivation_id:
+            # Byte-level derivation replay: the referenced artifact must contain
+            # exactly the candidate bytes. This is not an official checker.
+            reproduced = Artifacts(store, run_id).read(derivation_id) == value
+        if verified:
+            stage = "independently_verified"
+        elif reproduced:
+            stage = "reproduced"
+        elif artifact_id:
+            stage = "derived"
+        else:
+            stage = "discovered"
         store.candidate(run_id, artifact_id, value, verified)
-        return {"verified": verified, "expected_available": bool(expected)}
+        return {
+            "verified": verified,
+            "expected_available": bool(expected),
+            "reproduced": reproduced,
+            "stage": stage,
+            "checker": "unavailable",
+        }
     except PolicyDenied as error:
         return {"status": "denied", "reason": str(error)}
     except Exception as error:
@@ -400,6 +420,7 @@ _TOOLS: dict[str, tuple[Tool, Any]] = {
                     "run_id": {"type": "string"},
                     "candidate": {"type": "string"},
                     "artifact_id": {"type": "string"},
+                    "derivation_artifact": {"type": "string"},
                 },
             },
         ),
