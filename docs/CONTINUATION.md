@@ -162,9 +162,9 @@ requirements.
     limits, bounded output.
   - `WorkspaceRunner` output directory made writable for the containerized user.
 - **Tests**
-  - Default suite: **258 passed, 8 skipped**.
-  - With `PRESTIGE_TEST_IMAGE`: **263 passed, 3 skipped**.
-  - With GDB + SSHD + Docker + Ghidra opt-ins: **266 passed**.
+  - Default suite: **259 passed, 8 skipped**.
+  - With `PRESTIGE_TEST_IMAGE`: **264 passed, 3 skipped**.
+  - With GDB + SSHD + Docker + Ghidra opt-ins: **267 passed**.
 - **Operator known-answer helper**
   - `prestige verify-candidate --expected-sha256 <digest> [--candidate-file PATH]`
     reads a candidate from stdin/file, reports only digests + `match`, and never
@@ -176,7 +176,7 @@ requirements.
 ```bash
 PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39 \
   python -m pytest -q
-# 266 passed in ~114 s
+# 267 passed in ~102 s
 ```
 
 ## Real challenge status

@@ -122,9 +122,11 @@ def _check_budget(run: dict, store: Store, run_id: str) -> float:
     settings = run["settings"]
     attempts = run["attempts"] + 1
     now = time.time()
+    prior_elapsed = float(run.get("elapsed") or 0.0)
     if run.get("started") is None:
-        started = now
-        elapsed = 0.0
+        # Migrate old runs without losing already-accumulated execution time.
+        started = now - prior_elapsed
+        elapsed = prior_elapsed
     else:
         started = run["started"]
         elapsed = now - started

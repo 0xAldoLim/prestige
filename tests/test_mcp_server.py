@@ -613,3 +613,48 @@ def test_agent_stdio_smoke(tmp_path):
         except subprocess.TimeoutExpired:
             proc.kill()
             proc.wait()
+
+
+async def test_mcp_preserves_elapsed_time_for_pre_started_runs(tmp_path):
+    from prestige.artifacts import Artifacts
+    from prestige.engine import new_run
+    from prestige.security import Rules
+    from prestige.store import Store
+
+    home = tmp_path / "state"
+    challenge = tmp_path / "challenge.txt"
+    challenge.write_bytes(b"data")
+    store = Store(home)
+    try:
+        run_id = new_run(
+            store,
+            challenge,
+            rules=Rules(max_turns=5, max_seconds=40),
+            max_turns=5,
+            max_seconds=40,
+        )
+        with store.transaction() as db:
+            db.execute(
+                "UPDATE runs SET started=NULL, elapsed=50 WHERE id=?", (run_id,)
+            )
+        artifact_id = Artifacts(store, run_id).list()[0]["id"]
+    finally:
+        store.close()
+
+    async with _mcp_client(tmp_path) as session:
+        result = json.loads(
+            (
+                await session.call_tool(
+                    "prestige_run_experiment",
+                    {"run_id": run_id, "tool": "inspect", "artifact_id": artifact_id},
+                )
+            ).content[0].text
+        )
+        assert result["status"] == "error"
+        assert "wall-time" in result["reason"].lower()
+
+    store = Store(home)
+    try:
+        assert store.run(run_id)["status"] == "budget_exhausted"
+    finally:
+        store.close()
