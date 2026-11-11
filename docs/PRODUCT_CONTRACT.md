@@ -33,8 +33,8 @@ Status legend: `done`, `partial`, `blocked-external`, `not-started`.
 
 | ID | Requirement | Status | Acceptance evidence |
 | --- | --- | --- | --- |
-| ST-1 | Intake → classification → routing → hypotheses → cheapest test → evidence → revision | partial | `src/prestige/engine.py`, `src/prestige/progress.py`, `tests/test_engine.py` |
-| ST-2 | Up to three active hypotheses with support/contradiction/prediction/cost/pivot | partial | `src/prestige/types.py`, `src/prestige/engine.py` |
+| ST-1 | Intake → classification → routing → hypotheses → cheapest test → evidence → revision | done | skills routing, `prestige_hypothesis_*`, experiment evidence, resume |
+| ST-2 | Up to three active hypotheses with support/contradiction/prediction/cost/pivot | done | `src/prestige/hypotheses.py`, `tests/test_hypotheses.py` |
 | ST-3 | FAST/AUTO/EXPERT differ operationally, not only by label | partial | `tests/test_engine.py::test_escalation_preserves_evidence` |
 | ST-4 | Repeated non-informative experiments are suppressed | done | `tests/test_engine.py::test_repeated_actions_suppressed`, `tests/test_mcp_server.py::test_mcp_suppresses_duplicate_deterministic_experiments` |
 | ST-5 | Investigation state survives session interruption and resumes without budget reset | done | `tests/test_mcp_server.py::test_mcp_state_survives_reconnect`, `test_mcp_resume_reconstructs_context_without_resetting_budget` |

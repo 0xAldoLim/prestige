@@ -91,6 +91,12 @@ requirements.
   - The pinned Python slim image has no `gdb`; GDB requires an operator-reviewed
     image containing it. Session state is in-process and does not survive an MCP
     server restart (containers are removed on stop).
+- **Structured hypotheses**
+  - `prestige_hypothesis_add` records a statement plus supporting/contradicting
+    evidence, predicted observation, cheapest discriminating test, cost and pivot
+    condition; at most three may be active.
+  - `prestige_hypothesis_update` retires/confirms/rejects or edits one;
+    `prestige_hypotheses_list` and status/resume expose durable hypothesis state.
 - **Verified learning**
   - `Knowledge.propose` accepts technique proposals only into the `inbox` with
     `confidence=low`; the model cannot declare verification.
@@ -114,9 +120,9 @@ requirements.
     limits, bounded output.
   - `WorkspaceRunner` output directory made writable for the containerized user.
 - **Tests**
-  - Default suite: **212 passed, 5 skipped**.
-  - With `PRESTIGE_TEST_IMAGE`: **216 passed, 1 skipped**.
-  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **217 passed**.
+  - Default suite: **216 passed, 5 skipped**.
+  - With `PRESTIGE_TEST_IMAGE`: **220 passed, 1 skipped**.
+  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **221 passed**.
 - **Operator known-answer helper**
   - `prestige verify-candidate --expected-sha256 <digest> [--candidate-file PATH]`
     reads a candidate from stdin/file, reports only digests + `match`, and never
@@ -128,7 +134,7 @@ requirements.
 ```bash
 PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39 \
   python -m pytest -q
-# 217 passed in ~49 s
+# 221 passed in ~51 s
 ```
 
 ## Real challenge status

@@ -24,6 +24,7 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import CallToolResult, ListToolsResult, TextContent, Tool
 
+from prestige import hypotheses as hypothesis_state
 from prestige.artifacts import Artifacts, ToolRegistry, redact
 from prestige.commitments import expected_for
 from prestige.config import data_home, load_config
@@ -234,7 +235,7 @@ async def _get_status(args: dict) -> dict:
         observations = [
             _bound_observation(e["data"]) for e in events if e["kind"] == "observation"
         ][-8:]
-        hypotheses = [e["data"]["text"] for e in events if e["kind"] == "hypothesis"][-8:]
+        hypothesis_records = hypothesis_state.latest(store, run_id)[-8:]
         progress = [_bound_observation(e["data"]) for e in events if e["kind"] == "progress"][-3:]
         candidates = [
             {"digest": x["digest"], "verified": bool(x["verified"])}
@@ -254,7 +255,7 @@ async def _get_status(args: dict) -> dict:
                 "seconds": round(run["elapsed"], 3),
                 "artifacts": material,
                 "observations": observations,
-                "hypotheses": hypotheses,
+                "hypotheses": hypothesis_records,
                 "progress": progress,
                 "candidates": candidates,
                 "pending_operator_request": pending_request(store, run_id),
@@ -510,6 +511,7 @@ async def _resume_investigation(args: dict) -> dict:
                 "remaining_seconds": round(remaining_seconds, 1),
                 "recent_observations": observations,
                 "candidates": candidates,
+                "hypotheses": hypothesis_state.latest(store, run_id)[-4:],
                 "pending_operator_request": pending,
                 "jobs": jobs,
                 "next_actions": next_actions,
@@ -1065,6 +1067,86 @@ async def _knowledge_propose(args: dict) -> dict:
         store.close()
 
 
+async def _hypothesis_add(args: dict) -> dict:
+    store = await _store()
+    try:
+        run_id = args["run_id"]
+        run = _run(store, run_id)
+        if _terminal(run):
+            raise PrestigeError("Investigation is terminal")
+        _check_budget(run, store, run_id)
+        result = hypothesis_state.add(
+            store,
+            run_id,
+            str(args["text"]),
+            args.get("supports"),
+            args.get("contradicts"),
+            str(args.get("prediction", "")),
+            str(args.get("cheapest_test", "")),
+            str(args.get("cost", "")),
+            str(args.get("pivot_if", "")),
+        )
+        return {
+            "status": "ok",
+            "result": result,
+            "active": len(hypothesis_state.active(store, run_id)),
+        }
+    except Exception as error:
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
+    finally:
+        store.close()
+
+
+async def _hypothesis_update(args: dict) -> dict:
+    store = await _store()
+    try:
+        run_id = args["run_id"]
+        run = _run(store, run_id)
+        if _terminal(run):
+            raise PrestigeError("Investigation is terminal")
+        _check_budget(run, store, run_id)
+        fields = {
+            key: args[key]
+            for key in ("supports", "contradicts", "text", "prediction", "cheapest_test", "cost", "pivot_if")
+            if key in args
+        }
+        result = hypothesis_state.update(
+            store,
+            run_id,
+            str(args["hypothesis_id"]),
+            args.get("status"),
+            **fields,
+        )
+        return {
+            "status": "ok",
+            "result": result,
+            "active": len(hypothesis_state.active(store, run_id)),
+        }
+    except Exception as error:
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
+    finally:
+        store.close()
+
+
+async def _hypotheses_list(args: dict) -> dict:
+    store = await _store()
+    try:
+        run_id = args["run_id"]
+        _run(store, run_id)
+        records = hypothesis_state.latest(store, run_id)
+        return {
+            "status": "ok",
+            "result": {
+                "hypotheses": records,
+                "active": len([item for item in records if item["status"] == "active"]),
+            },
+        }
+    except Exception as error:
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
+    finally:
+        store.close()
+
+
 _TOOLS: dict[str, tuple[Tool, Any]] = {
     "prestige_create_investigation": (
         Tool(
@@ -1605,6 +1687,74 @@ _TOOLS: dict[str, tuple[Tool, Any]] = {
             },
         ),
         _knowledge_propose,
+    ),
+    "prestige_hypothesis_add": (
+        Tool(
+            name="prestige_hypothesis_add",
+            description=(
+                "Record a structured hypothesis with supporting/contradicting evidence, "
+                "prediction, cheapest test, cost and pivot condition. Max three active."
+            ),
+            inputSchema={
+                "type": "object",
+                "required": ["run_id", "text"],
+                "additionalProperties": False,
+                "properties": {
+                    "run_id": {"type": "string"},
+                    "text": {"type": "string"},
+                    "supports": {"type": "array", "items": {"type": "string"}},
+                    "contradicts": {"type": "array", "items": {"type": "string"}},
+                    "prediction": {"type": "string"},
+                    "cheapest_test": {"type": "string"},
+                    "cost": {"type": "string"},
+                    "pivot_if": {"type": "string"},
+                },
+            },
+        ),
+        _hypothesis_add,
+    ),
+    "prestige_hypothesis_update": (
+        Tool(
+            name="prestige_hypothesis_update",
+            description=(
+                "Update or retire/confirm/reject a hypothesis. Retire one before "
+                "adding a fourth active hypothesis."
+            ),
+            inputSchema={
+                "type": "object",
+                "required": ["run_id", "hypothesis_id"],
+                "additionalProperties": False,
+                "properties": {
+                    "run_id": {"type": "string"},
+                    "hypothesis_id": {"type": "string"},
+                    "status": {
+                        "type": "string",
+                        "enum": ["active", "retired", "confirmed", "rejected"],
+                    },
+                    "supports": {"type": "array", "items": {"type": "string"}},
+                    "contradicts": {"type": "array", "items": {"type": "string"}},
+                    "text": {"type": "string"},
+                    "prediction": {"type": "string"},
+                    "cheapest_test": {"type": "string"},
+                    "cost": {"type": "string"},
+                    "pivot_if": {"type": "string"},
+                },
+            },
+        ),
+        _hypothesis_update,
+    ),
+    "prestige_hypotheses_list": (
+        Tool(
+            name="prestige_hypotheses_list",
+            description="List all current hypotheses and the active count.",
+            inputSchema={
+                "type": "object",
+                "required": ["run_id"],
+                "additionalProperties": False,
+                "properties": {"run_id": {"type": "string"}},
+            },
+        ),
+        _hypotheses_list,
     ),
 }
 
