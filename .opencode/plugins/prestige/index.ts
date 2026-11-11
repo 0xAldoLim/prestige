@@ -12,9 +12,9 @@ export default Plugin.define({
 
     const options = (ctx.options ?? {}) as Record<string, unknown>
     const python = typeof options.python === "string" ? options.python : "python"
-    const home = typeof options.home === "string"
+    const home = process.env.PRESTIGE_HOME || (typeof options.home === "string"
       ? options.home
-      : path.join(projectDir, ".prestige")
+      : path.join(projectDir, ".prestige"))
     const extraEnv =
       options.env && typeof options.env === "object"
         ? (options.env as Record<string, string>)
@@ -28,6 +28,8 @@ export default Plugin.define({
         environment: {
           PATH: process.env.PATH ?? "",
           PRESTIGE_HOME: home,
+          PRESTIGE_REMOTE_ENABLED: process.env.PRESTIGE_REMOTE_ENABLED ?? "",
+          PRESTIGE_RESEARCH_ENABLED: process.env.PRESTIGE_RESEARCH_ENABLED ?? "",
           ...extraEnv,
         },
         disabled: false,

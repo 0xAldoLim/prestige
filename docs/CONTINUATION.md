@@ -228,6 +228,48 @@ PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=python@sha256:a83ba18aef0f865b1a4a611
   ChaCha20 keyed from the licence context; `DUMB` / `VAR` / `HWID` licence entities
   validate the context; the flag app requests `SKIBIDI-ID` over a pipe protocol.
 
+## Held-out live acceptance — 2026-11-10
+
+Four fresh local challenges were created outside the repository under
+`/tmp/opencode/heldout/` with operator commitments. The actual OpenCode `prestige`
+agent (`opencode-go/kimi-k3.1-pro`) drove the MCP tools; the operator did not choose the
+tool sequence. Transcripts remain local and private; no challenge file, flag or
+transcript is committed.
+
+### Results
+
+| Challenge | Condition | Outcome | Tool calls | Wall time | Known usage (in / out / reasoning / cache read / cache write) |
+| --- | --- | --- | --- | --- | --- |
+| Crypto (hex→base64→XOR) | owner skills enabled | solved, `independently_verified` | 14 | 101.6 s | 9,850 / 2,563 / 3,400 / 116,992 / 0 |
+| Crypto (same artifact, same model/budget) | no `skills.path` | solved, `independently_verified` | 12 | 131.1 s | 1,164 / 2,185 / 2,358 / 89,856 / 6,144 |
+| Forensics (ZIP → hex → XOR) | owner skills enabled | solved, `independently_verified` | 13 | 127.9 s | 1,552 / 2,256 / 1,858 / 136,960 / 10,240 |
+| Web (loopback, real remote broker) | owner skills enabled | solved, `independently_verified` | 12 | 107.1 s | 9,964 / 2,324 / 3,763 / 100,864 / 0 |
+
+Cached input is a subset of total input and is not double-counted. Budgets were
+identical (14 turns, 600 s) for the crypto pair.
+
+### Observed strategy and failures
+
+- Crypto skills run: `resume_investigation` → status → hex/base64 experiments →
+  `skills_route` (primary `ctf-crypto`) → hypothesis → XOR → verify. The model first
+  submitted a typo candidate (`HELDOOUT{...}`), which the commitment correctly rejected;
+  it then submitted the exact candidate and verified.
+- Crypto no-skills run: the model still called `skills_route` but no checkout was
+  configured; it used a persistent Python session for local replay, then verified.
+- Forensics run: `zip` extraction → note/key inspection → hex → XOR → verify;
+  `skills_apply` selected `ctf-forensics`.
+- Web run: `target_list` → three bounded `remote_http` calls following the service's
+  own `/` → `/token` → `/check?code=5a` chain → captured response artifact → verify.
+- Earlier crypto attempts failed honestly: two exhausted 120 s/300 s wall clocks and
+  one misclassified a Base64-decoded derivative. These are recorded as failed pivots,
+  not solves.
+
+### Skill comparison claim
+
+Both the skills and no-skills crypto conditions solved 1/1 under the same model and
+budget. This single pair does **not** establish that the owner skills improve solving;
+no performance or superiority claim is made.
+
 ## Completed milestones
 
 1. OpenCode-native migration: no mandatory API keys or Codex default.

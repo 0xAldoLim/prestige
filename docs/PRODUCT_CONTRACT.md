@@ -49,7 +49,7 @@ Status legend: `done`, `partial`, `blocked-external`, `not-started`.
 | SK-4 | Targeted search returns path, line, hash and bounded excerpt | done | `prestige_skills_search`, `tests/test_skills.py` |
 | SK-5 | Approved sections can be read with bounds and provenance | done | `prestige_skills_read` |
 | SK-6 | Verified prior techniques and cross-category pivots are retrievable | done | `prestige_skills_pivots`, `prestige_skills_apply`, `tests/test_skills.py` |
-| SK-7 | A retrieved skill materially changes actual solving | partial | Routing/reference selection differs by evidence (`test_skill_changes_strategy`), but no live model solve comparison has been run |
+| SK-7 | A retrieved skill materially changes actual solving | partial | Live skills run retrieved `ctf-crypto`/`ctf-forensics` and solved; the matched no-skills control also solved 1/1. No causal improvement is demonstrated |
 | SK-8 | External skills checkout stays read-only | done | `tests/test_security.py`, no write path |
 
 ## 5. Active remote challenge solving
@@ -105,7 +105,7 @@ Status legend: `done`, `partial`, `blocked-external`, `not-started`.
 
 | ID | Requirement | Status | Acceptance evidence |
 | --- | --- | --- | --- |
-| BM-1 | Comparable real-agent B0/B1/P1/P2/P3 evaluation | partial | P1/P2/P3 fixture lanes share a contract; B0/B1 are `not_run` without an adapter, so no real-agent comparison exists |
+| BM-1 | Comparable real-agent B0/B1/P1/P2/P3 evaluation | partial | One matched live crypto pair (skills vs no `skills.path`) solved 1/1 each under identical model/budget; no B0/B1 adapter or statistical comparison exists |
 | BM-2 | Real results recorded only when actually run | not-started | B0/B1 report `not_run` without an explicitly configured adapter; no paid comparison run |
 
 ## 10. Release gates
@@ -115,3 +115,18 @@ Status legend: `done`, `partial`, `blocked-external`, `not-started`.
 - GitHub CI green on Ubuntu/Windows, Python 3.11/3.14.
 - No secrets, flags, challenge binaries or runtime databases committed.
 - Documentation and roadmap claims match tests.
+
+## 11. Live held-out acceptance (2026-11-10)
+
+| ID | Requirement | Status | Evidence |
+| --- | --- | --- | --- |
+| LH-1 | Two fresh local challenges in different categories solved via the real OpenCode/MCP loop | done | crypto and forensics runs in `docs/CONTINUATION.md`; operator commitments verified |
+| LH-2 | Agent autonomously selects skills, hypotheses and tools | done | transcripts show `skills_route`/`skills_apply`, hypothesis add/update and self-chosen experiments |
+| LH-3 | Verified candidate derivation, including a rejected wrong candidate | done | crypto run rejected `HELDOOUT{...}` then verified the exact candidate |
+| LH-4 | Loopback web service solved through the real remote broker | done | three bounded `remote_http` calls on a bound registration; verified |
+| LH-5 | Skills vs no-skills comparison under identical model/budget | done | one matched crypto pair; both 1/1, no improvement claim |
+| LH-6 | Failed experiments and pivots recorded | done | wall-clock failures and a misclassified derivative recorded in `docs/CONTINUATION.md` |
+| LH-7 | Transcripts/private flags kept out of the repository | done | no challenge files, flags or transcripts committed |
+
+Live results are one small sample. They demonstrate that the integrated loop works;
+they do not establish accuracy, superiority or benchmark performance.

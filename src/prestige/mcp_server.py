@@ -112,19 +112,42 @@ def _bound_observation(value: Any) -> Any:
 
 
 def _check_budget(run: dict, store: Store, run_id: str) -> float:
-    """Persistently enforce max_turns and max_seconds for MCP-driven investigations."""
+    """Persistently enforce max_turns and max_seconds for MCP-driven investigations.
+
+    Wall time starts at the first tool attempt, not at investigation creation, so
+    an operator can prepare scope and resume later without burning the budget while
+    idle. Accumulated time is still persisted and never reset by a new session.
+    """
     settings = run["settings"]
     attempts = run["attempts"] + 1
-    elapsed = time.time() - run["created"]
+    now = time.time()
+    if run.get("started") is None:
+        started = now
+        elapsed = 0.0
+    else:
+        started = run["started"]
+        elapsed = now - started
     if attempts > settings["max_turns"]:
-        store.update(run_id, status="budget_exhausted", attempts=attempts, elapsed=elapsed)
+        store.update(
+            run_id,
+            status="budget_exhausted",
+            attempts=attempts,
+            elapsed=elapsed,
+            started=started,
+        )
         store.event(run_id, "halted", {"reason": "Tool attempt budget exhausted"})
         raise PrestigeError("Tool attempt budget exhausted")
     if elapsed >= settings["max_seconds"]:
-        store.update(run_id, status="budget_exhausted", attempts=attempts, elapsed=elapsed)
+        store.update(
+            run_id,
+            status="budget_exhausted",
+            attempts=attempts,
+            elapsed=elapsed,
+            started=started,
+        )
         store.event(run_id, "halted", {"reason": "Wall-time budget exhausted"})
         raise PrestigeError("Wall-time budget exhausted")
-    store.update(run_id, attempts=attempts, elapsed=elapsed)
+    store.update(run_id, attempts=attempts, elapsed=elapsed, started=started)
     return elapsed
 
 
