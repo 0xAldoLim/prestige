@@ -70,9 +70,9 @@ Status legend: `done`, `partial`, `blocked-external`, `not-started`.
 
 | ID | Requirement | Status | Acceptance evidence |
 | --- | --- | --- | --- |
-| DB-1 | Persistent isolated session start/send/read/stop/list | partial | `src/prestige/sessions.py`, `tests/test_sessions.py` |
-| DB-2 | Breakpoints, step, registers, memory, backtrace, disassembly via a real debugger | blocked-external | Requires an operator-reviewed image containing `gdb`; pinned Python slim image lacks it |
-| DB-3 | Sessions persist across model turns | partial | `tests/test_sessions.py` |
+| DB-1 | Persistent isolated session start/send/read/stop/list | done | `src/prestige/sessions.py`, `tests/test_sessions.py` |
+| DB-2 | Breakpoints, step, registers, memory, backtrace, disassembly via a real debugger | blocked-external | Session mechanism and `gdb` allowlist exist; the pinned Python slim image lacks `gdb`, so a reviewed GDB-enabled image is required |
+| DB-3 | Sessions persist across model turns | done | `tests/test_sessions.py::test_mcp_persistent_python_session` (state `x=41` survives turns) |
 | DB-4 | Ghidra and radare2 remain integrated | done | `tests/test_engine.py`, `tests/test_integrations.py` |
 
 ## 7. Research and verified learning

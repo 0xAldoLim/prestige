@@ -34,6 +34,13 @@ from prestige.knowledge import SkillsBridge
 from prestige.policy import validate_source_path
 from prestige.remote import broker_for, load_registrations
 from prestige.security import Rules
+from prestige.sessions import (
+    list_sessions,
+    read_session,
+    send_session,
+    start_session,
+    stop_session,
+)
 from prestige.store import Store
 from prestige.types import Action, PolicyDenied, PrestigeError
 
@@ -846,6 +853,111 @@ async def _remote_cancel(args: dict) -> dict:
         return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
 
 
+async def _session_start(args: dict) -> dict:
+    store = await _store()
+    try:
+        run_id = args["run_id"]
+        run = _run(store, run_id)
+        if _terminal(run):
+            raise PrestigeError("Investigation is terminal")
+        _check_budget(run, store, run_id)
+        image = load_config(_home()).get("sandbox.image")
+        if not image:
+            raise PolicyDenied("No operator-configured sandbox.image")
+        command = str(args.get("command", "python3"))
+        artifacts = Artifacts(store, run_id)
+        result = await asyncio.to_thread(start_session, image, artifacts, command)
+        store.event(run_id, "session_start", {**result, "trust": "fact"})
+        return {"status": "ok", "result": result}
+    except Exception as error:
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
+    finally:
+        store.close()
+
+
+async def _session_send(args: dict) -> dict:
+    store = await _store()
+    try:
+        run_id = args["run_id"]
+        run = _run(store, run_id)
+        if _terminal(run):
+            raise PrestigeError("Investigation is terminal")
+        _check_budget(run, store, run_id)
+        result = await asyncio.to_thread(
+            send_session,
+            str(args["session_id"]),
+            str(args["input"]),
+            float(args.get("wait", 0.8)),
+        )
+        output = result["output"].encode("utf-8")
+        artifact = Artifacts(store, run_id).add(output, "session-output.txt")
+        store.event(
+            run_id,
+            "session_send",
+            {
+                "session_id": result["session_id"],
+                "cursor": result["cursor"],
+                "artifact": artifact,
+                "bytes": len(output),
+                "trust": "fact",
+            },
+        )
+        return _redact(
+            {
+                "status": "ok",
+                "result": {
+                    "session_id": result["session_id"],
+                    "cursor": result["cursor"],
+                    "alive": result["alive"],
+                    "artifact": artifact,
+                    "output": result["output"],
+                },
+            }
+        )
+    except Exception as error:
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
+    finally:
+        store.close()
+
+
+async def _session_read(args: dict) -> dict:
+    store = await _store()
+    try:
+        run_id = args["run_id"]
+        run = _run(store, run_id)
+        if _terminal(run):
+            raise PrestigeError("Investigation is terminal")
+        result = await asyncio.to_thread(
+            read_session, str(args["session_id"]), int(args.get("cursor", 0))
+        )
+        return _redact({"status": "ok", "result": result})
+    except Exception as error:
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
+    finally:
+        store.close()
+
+
+async def _session_stop(args: dict) -> dict:
+    store = await _store()
+    try:
+        run_id = args["run_id"]
+        _run(store, run_id)
+        result = await asyncio.to_thread(stop_session, str(args["session_id"]))
+        store.event(run_id, "session_stop", {**result, "trust": "fact"})
+        return {"status": "ok", "result": result}
+    except Exception as error:
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
+    finally:
+        store.close()
+
+
+async def _session_list(args: dict) -> dict:
+    try:
+        return {"status": "ok", "result": list_sessions()}
+    except Exception as error:
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
+
+
 _TOOLS: dict[str, tuple[Tool, Any]] = {
     "prestige_create_investigation": (
         Tool(
@@ -1226,6 +1338,87 @@ _TOOLS: dict[str, tuple[Tool, Any]] = {
             },
         ),
         _remote_cancel,
+    ),
+    "prestige_session_start": (
+        Tool(
+            name="prestige_session_start",
+            description=(
+                "Start a persistent interactive session inside the reviewed Docker "
+                "worker. Keeps interpreter/debugger state across model turns."
+            ),
+            inputSchema={
+                "type": "object",
+                "required": ["run_id"],
+                "additionalProperties": False,
+                "properties": {
+                    "run_id": {"type": "string"},
+                    "command": {
+                        "type": "string",
+                        "enum": ["python3", "gdb", "radare2", "r2"],
+                    },
+                },
+            },
+        ),
+        _session_start,
+    ),
+    "prestige_session_send": (
+        Tool(
+            name="prestige_session_send",
+            description="Send bounded input to a persistent session and return new output.",
+            inputSchema={
+                "type": "object",
+                "required": ["run_id", "session_id", "input"],
+                "additionalProperties": False,
+                "properties": {
+                    "run_id": {"type": "string"},
+                    "session_id": {"type": "string"},
+                    "input": {"type": "string"},
+                    "wait": {"type": "number"},
+                },
+            },
+        ),
+        _session_send,
+    ),
+    "prestige_session_read": (
+        Tool(
+            name="prestige_session_read",
+            description="Read session output after a cursor without sending input.",
+            inputSchema={
+                "type": "object",
+                "required": ["run_id", "session_id"],
+                "additionalProperties": False,
+                "properties": {
+                    "run_id": {"type": "string"},
+                    "session_id": {"type": "string"},
+                    "cursor": {"type": "integer"},
+                },
+            },
+        ),
+        _session_read,
+    ),
+    "prestige_session_stop": (
+        Tool(
+            name="prestige_session_stop",
+            description="Terminate a persistent session and remove its container.",
+            inputSchema={
+                "type": "object",
+                "required": ["run_id", "session_id"],
+                "additionalProperties": False,
+                "properties": {
+                    "run_id": {"type": "string"},
+                    "session_id": {"type": "string"},
+                },
+            },
+        ),
+        _session_stop,
+    ),
+    "prestige_session_list": (
+        Tool(
+            name="prestige_session_list",
+            description="List active persistent sessions.",
+            inputSchema={"type": "object", "additionalProperties": False, "properties": {}},
+        ),
+        _session_list,
     ),
 }
 

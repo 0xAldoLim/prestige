@@ -131,6 +131,22 @@ unregistered destinations, never follows redirects automatically, bounds respons
 and cancels in-flight work on expiry or revocation. SSH registrations are accepted but
 the adapter remains disabled until an operator-reviewed SSH-enabled image is supplied.
 
+## Persistent interactive sessions
+
+The restricted agent can keep an interpreter or debugger alive across model turns:
+
+```text
+prestige_session_start  command=python3
+prestige_session_send   input="x = 41"
+prestige_session_send   input="print(x + 1)"   # -> 42
+prestige_session_stop
+```
+
+Sessions run inside the pinned Docker worker with no network, read-only inputs and a
+writable output mount. Output is persisted as content-addressed evidence. The pinned
+Python slim image has no `gdb`; add a reviewed GDB-enabled image to use debugger
+commands.
+
 ## Offline quickstart
 
 The example is an explicitly synthetic hexadecimal encoding exercise. Its independently

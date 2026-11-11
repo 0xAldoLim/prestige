@@ -23,7 +23,10 @@ requirements.
     `prestige_request_operator`, `prestige_answer_operator`,
     `prestige_resume_investigation`, `prestige_skills_discover`,
     `prestige_skills_route`, `prestige_skills_search`, `prestige_skills_read`,
-    `prestige_skills_pivots`, `prestige_skills_apply`.
+    `prestige_skills_pivots`, `prestige_skills_apply`, `prestige_target_list`,
+    `prestige_remote_http`, `prestige_remote_tcp`, `prestige_remote_status`,
+    `prestige_remote_cancel`, `prestige_session_start`, `prestige_session_send`,
+    `prestige_session_read`, `prestige_session_stop`, `prestige_session_list`.
   - Model-driven investigations default to and are locked to `backend=fake`; no
     provider credentials are requested or persisted.
   - Operator-controlled scope: source paths restricted to `PRESTIGE_ALLOWED_DIRS`
@@ -80,6 +83,14 @@ requirements.
     `remote.enabled=true`.
   - SSH registration is accepted but the adapter is blocked pending an
     operator-reviewed SSH-enabled image.
+- **Persistent interactive sessions**
+  - `prestige_session_start/send/read/stop/list` keep a Python/GDB-class process
+    alive inside the reviewed Docker worker across model turns.
+  - Sessions use `docker exec -i` into a network-isolated container with the run's
+    read-only input and writable output mounts; output becomes evidence artifacts.
+  - The pinned Python slim image has no `gdb`; GDB requires an operator-reviewed
+    image containing it. Session state is in-process and does not survive an MCP
+    server restart (containers are removed on stop).
 - **Isolated execution**
   - Reviewed Docker worker pinned by immutable digest:
     `python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39`.
@@ -87,9 +98,9 @@ requirements.
     limits, bounded output.
   - `WorkspaceRunner` output directory made writable for the containerized user.
 - **Tests**
-  - Default suite: **193 passed, 3 skipped**.
-  - With `PRESTIGE_TEST_IMAGE`: **195 passed, 1 skipped**.
-  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **196 passed**.
+  - Default suite: **194 passed, 5 skipped**.
+  - With `PRESTIGE_TEST_IMAGE`: **198 passed, 1 skipped**.
+  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **199 passed**.
 - **Operator known-answer helper**
   - `prestige verify-candidate --expected-sha256 <digest> [--candidate-file PATH]`
     reads a candidate from stdin/file, reports only digests + `match`, and never
@@ -101,7 +112,7 @@ requirements.
 ```bash
 PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39 \
   python -m pytest -q
-# 196 passed in ~46 s
+# 199 passed in ~46 s
 ```
 
 ## Real challenge status
