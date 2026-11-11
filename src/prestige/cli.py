@@ -154,6 +154,12 @@ def parser():
     delete = knowledge.add_parser("delete")
     delete.add_argument("id")
     knowledge.add_parser("inbox")
+    knowledge.add_parser("quarantined")
+    quarantine = knowledge.add_parser("quarantine")
+    quarantine.add_argument("id")
+    quarantine.add_argument("--reason", default="operator quarantine")
+    release = knowledge.add_parser("release")
+    release.add_argument("id")
     propose = knowledge.add_parser("propose")
     propose.add_argument("file", type=Path)
     propose.add_argument("--run", required=True)
@@ -451,6 +457,12 @@ def dispatch(args, store: Store, config: dict):
             return store.rows("SELECT id,status FROM knowledge")
         if args.operation == "inbox":
             return knowledge.review("inbox")
+        if args.operation == "quarantined":
+            return knowledge.review("quarantined")
+        if args.operation == "quarantine":
+            return knowledge.quarantine(args.id, args.reason)
+        if args.operation == "release":
+            return knowledge.release(args.id)
         if args.operation == "propose":
             if not args.file.is_file() or args.file.stat().st_size > 262144:
                 raise PrestigeError("Learning proposal file is missing or too large")

@@ -269,3 +269,32 @@ def test_quarantine_run_removes_unverified_inbox_records(knowledge):
     assert summary["quarantined"] == 1
     assert kb.review("inbox") == []
     assert kb.review("quarantined")[0]["id"] == result["id"]
+
+
+def test_cli_quarantine_and_release_are_operator_actions(knowledge, capsys):
+    from prestige.cli import main
+
+    store, kb, run_id = knowledge
+    result = kb.propose(proposal(), run_id)
+    assert (
+        main(
+            [
+                "--home",
+                str(store.home),
+                "knowledge",
+                "quarantine",
+                result["id"],
+                "--reason",
+                "operator review",
+            ]
+        )
+        == 0
+    )
+    quarantined = json.loads(capsys.readouterr().out)
+    assert quarantined["status"] == "quarantined"
+    assert kb.search("rsa") == []
+
+    assert main(["--home", str(store.home), "knowledge", "release", result["id"]]) == 0
+    released = json.loads(capsys.readouterr().out)
+    assert released["status"] == "inbox"
+    assert kb.review("inbox")[0]["id"] == result["id"]
