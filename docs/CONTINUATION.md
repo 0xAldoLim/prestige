@@ -47,6 +47,8 @@ requirements.
   - Identical requests reuse queued, running or completed jobs (no duplicate Ghidra).
   - Deterministic experiment tools (`inspect`, `strings`, `read`, `file`, `zip`,
     `base64`, `hex`, `xor`) reuse prior observations unless `force=true`.
+  - New MCP sessions recover the same durable run state from SQLite (tested by
+    reconnecting mid-investigation).
   - Failure classification (`tool_timeout`, `policy_denied`, `prestige_error`, …).
 - **Isolated execution**
   - Reviewed Docker worker pinned by immutable digest:
@@ -55,9 +57,9 @@ requirements.
     limits, bounded output.
   - `WorkspaceRunner` output directory made writable for the containerized user.
 - **Tests**
-  - Default suite: **138 passed, 3 skipped**.
-  - With `PRESTIGE_TEST_IMAGE`: **140 passed, 1 skipped**.
-  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **141 passed**.
+  - Default suite: **139 passed, 3 skipped**.
+  - With `PRESTIGE_TEST_IMAGE`: **141 passed, 1 skipped**.
+  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **142 passed**.
 - **Operator known-answer helper**
   - `prestige verify-candidate --expected-sha256 <digest> [--candidate-file PATH]`
     reads a candidate from stdin/file, reports only digests + `match`, and never
@@ -69,7 +71,7 @@ requirements.
 ```bash
 PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39 \
   python -m pytest -q
-# 141 passed in ~43 s
+# 142 passed in ~39 s
 ```
 
 ## Real challenge status

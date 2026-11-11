@@ -466,6 +466,32 @@ async def test_mcp_operator_request_and_relay(tmp_path):
         assert status2["pending_operator_request"] is None
 
 
+async def test_mcp_state_survives_reconnect(tmp_path):
+    value = b"SYNTHETIC{reconnect}"
+    path = tmp_path / "challenge.txt"
+    path.write_bytes(base64.b64encode(value))
+
+    async with _mcp_client(tmp_path) as session:
+        created = await session.call_tool(
+            "prestige_create_investigation", {"source_path": str(path)}
+        )
+        run_id = json.loads(created.content[0].text)["run_id"]
+        status = await session.call_tool("prestige_get_status", {"run_id": run_id})
+        artifact_id = json.loads(status.content[0].text)["artifacts"][0]["id"]
+        await session.call_tool(
+            "prestige_run_experiment",
+            {"run_id": run_id, "tool": "inspect", "artifact_id": artifact_id, "args": {}},
+        )
+
+    # A new MCP session must recover the durable investigation state.
+    async with _mcp_client(tmp_path) as session:
+        status = await session.call_tool("prestige_get_status", {"run_id": run_id})
+        body = json.loads(status.content[0].text)
+        assert body["run_id"] == run_id
+        assert len(body["observations"]) == 1
+        assert body["artifacts"][0]["id"] == artifact_id
+
+
 def test_agent_stdio_smoke(tmp_path):
     """The `prestige agent` CLI starts a stdio MCP server and answers initialize."""
     env = os.environ.copy()
