@@ -1,7 +1,10 @@
 """Optional OpenCode harness construction and real-state reporting."""
 
 import json
+import os
 import stat
+
+import pytest
 
 from prestige.engine import new_run
 from prestige.opencode_harness import (
@@ -21,6 +24,11 @@ def _fake(tmp_path, body: str):
     return str(path)
 
 
+POSIX_FAKE = pytest.mark.skipif(
+    os.name == "nt", reason="POSIX shell-script fixture; harness itself is cross-platform"
+)
+
+
 def test_command_uses_restricted_agent_and_json_format():
     argv = command("solve the local challenge", "provider/model")
     assert argv[:7] == [
@@ -36,6 +44,7 @@ def test_command_uses_restricted_agent_and_json_format():
     assert argv[-3:] == ["--model", "provider/model", "solve the local challenge"]
 
 
+@POSIX_FAKE
 def test_run_case_records_raw_process_result(tmp_path):
     executable = _fake(
         tmp_path, 'printf \'{"sessionID":"ses_test","text":"done"}\\n\'\n'
@@ -51,6 +60,7 @@ def test_run_case_records_raw_process_result(tmp_path):
     assert "not a verified solve" in result["note"]
 
 
+@POSIX_FAKE
 def test_run_case_failure_is_not_a_solve(tmp_path):
     executable = _fake(tmp_path, "echo provider unavailable >&2\nexit 2\n")
     result = run_case(tmp_path / "state", "solve", executable=executable, timeout=10)
@@ -81,6 +91,7 @@ def test_summarize_home_reads_real_state(tmp_path):
     assert summary["runs"][0]["status"] == "unsolved"
 
 
+@POSIX_FAKE
 def test_run_pair_live_reports_both_processes(tmp_path):
     executable = _fake(tmp_path, 'printf \'{"text":"ok"}\\n\'\n')
     home = tmp_path / "state"
@@ -100,6 +111,7 @@ def test_run_pair_live_reports_both_processes(tmp_path):
     assert "no solve" in result["claim"]
 
 
+@POSIX_FAKE
 def test_live_provider_result_is_not_inferred_from_stdout(tmp_path):
     """A model claiming success in text does not create a verified run."""
     executable = _fake(
