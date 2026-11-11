@@ -17,14 +17,14 @@ from prestige.store import Store
 
 IMAGE = os.environ.get("PRESTIGE_TEST_IMAGE")
 
-def test_session_rejects_unknown_command_and_image():
+def test_session_rejects_unknown_command_and_image(tmp_path):
     from prestige.sessions import start_session
     from prestige.types import PolicyDenied
 
     with pytest.raises(PolicyDenied):
-        start_session("not-a-digest", None, "python3")
+        start_session(tmp_path, "run1", "not-a-digest", None, "python3")
     with pytest.raises(PolicyDenied):
-        start_session("sha256:" + "a" * 64, None, "sh")
+        start_session(tmp_path, "run1", "sha256:" + "a" * 64, None, "sh")
 
 
 @asynccontextmanager
@@ -108,7 +108,11 @@ async def test_mcp_persistent_python_session(tmp_path):
         assert "42" in third["result"]["output"]
 
         listed = json.loads(
-            (await session.call_tool("prestige_session_list", {})).content[0].text
+            (
+                await session.call_tool(
+                    "prestige_session_list", {"run_id": run_id}
+                )
+            ).content[0].text
         )
         assert any(item["session_id"] == session_id for item in listed["result"])
 
@@ -128,6 +132,55 @@ async def test_mcp_persistent_python_session(tmp_path):
         assert "session_start" in kinds
         assert "session_send" in kinds
         assert "session_stop" in kinds
+    finally:
+        store.close()
+
+
+@pytest.mark.skipif(not IMAGE, reason="Explicit local immutable image required")
+def test_session_ownership_rejects_other_investigation(tmp_path):
+    from types import SimpleNamespace
+
+    from prestige import sessions as session_state
+    from prestige.types import PolicyDenied
+
+    home = tmp_path / "state"
+    session_state._SESSIONS["owned"] = SimpleNamespace(run_id="runA", alive=True)
+    try:
+        with pytest.raises(PolicyDenied):
+            session_state.send_session(home, "runB", "owned", "print(1)")
+        with pytest.raises(PolicyDenied):
+            session_state.read_session(home, "runB", "owned", 0)
+        with pytest.raises(PolicyDenied):
+            session_state.stop_session(home, "runB", "owned")
+    finally:
+        session_state._SESSIONS.pop("owned", None)
+
+
+def test_orphaned_session_metadata_is_detected(tmp_path):
+    from prestige import sessions as session_state
+
+    home = tmp_path / "state"
+    challenge = tmp_path / "challenge.txt"
+    challenge.write_bytes(b"offline")
+    store = Store(home)
+    try:
+        run_id = new_run(store, challenge)
+        with store.transaction() as db:
+            db.execute(
+                "INSERT INTO sessions(session_id,run_id,container,command,pid,started,status) "
+                "VALUES(?,?,?,?,?,?, 'running')",
+                ("orphan1", run_id, "prestige-session-orphan1", "python3", 999999, 0.0),
+            )
+    finally:
+        store.close()
+    orphans = session_state.recover_sessions(home, run_id)
+    assert orphans and orphans[0]["session_id"] == "orphan1"
+    store = Store(home)
+    try:
+        row = store.rows(
+            "SELECT status FROM sessions WHERE session_id='orphan1'"
+        )[0]
+        assert row["status"] == "orphaned"
     finally:
         store.close()
 

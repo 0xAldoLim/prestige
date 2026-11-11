@@ -70,6 +70,35 @@ class Store:
                 output_artifact TEXT,
                 failure_class TEXT
             );
+            CREATE TABLE IF NOT EXISTS remote_state (
+                registration_id TEXT PRIMARY KEY,
+                requests INTEGER NOT NULL DEFAULT 0,
+                last_request REAL NOT NULL DEFAULT 0,
+                cancelled INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE TABLE IF NOT EXISTS remote_active (
+                token TEXT PRIMARY KEY,
+                registration_id TEXT NOT NULL,
+                run_id TEXT NOT NULL,
+                pid INTEGER NOT NULL,
+                started REAL NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS remote_bindings (
+                run_id TEXT NOT NULL REFERENCES runs(id),
+                registration_id TEXT NOT NULL,
+                created REAL NOT NULL,
+                PRIMARY KEY (run_id, registration_id)
+            );
+            CREATE TABLE IF NOT EXISTS sessions (
+                session_id TEXT PRIMARY KEY,
+                run_id TEXT NOT NULL REFERENCES runs(id),
+                container TEXT NOT NULL,
+                command TEXT NOT NULL,
+                pid INTEGER,
+                started REAL NOT NULL,
+                status TEXT NOT NULL,
+                stopped REAL
+            );
             PRAGMA user_version=1;
         """)
         # Migration: add attempts column to runs created before this increment.

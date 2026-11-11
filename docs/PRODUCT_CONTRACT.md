@@ -33,7 +33,7 @@ Status legend: `done`, `partial`, `blocked-external`, `not-started`.
 
 | ID | Requirement | Status | Acceptance evidence |
 | --- | --- | --- | --- |
-| ST-1 | Intake → classification → routing → hypotheses → cheapest test → evidence → revision | done | skills routing, `prestige_hypothesis_*`, experiment evidence, resume |
+| ST-1 | Autonomous hypothesis selection and revision | partial | Structured capped hypotheses and durable resume are implemented; selection is model-driven, with no independent evaluator that proposes/retires hypotheses |
 | ST-2 | Up to three active hypotheses with support/contradiction/prediction/cost/pivot | done | `src/prestige/hypotheses.py`, `tests/test_hypotheses.py` |
 | ST-3 | FAST/AUTO/EXPERT differ operationally, not only by label | partial | `tests/test_engine.py::test_escalation_preserves_evidence` |
 | ST-4 | Repeated non-informative experiments are suppressed | done | `tests/test_engine.py::test_repeated_actions_suppressed`, `tests/test_mcp_server.py::test_mcp_suppresses_duplicate_deterministic_experiments` |
@@ -49,7 +49,7 @@ Status legend: `done`, `partial`, `blocked-external`, `not-started`.
 | SK-4 | Targeted search returns path, line, hash and bounded excerpt | done | `prestige_skills_search`, `tests/test_skills.py` |
 | SK-5 | Approved sections can be read with bounds and provenance | done | `prestige_skills_read` |
 | SK-6 | Verified prior techniques and cross-category pivots are retrievable | done | `prestige_skills_pivots`, `prestige_skills_apply`, `tests/test_skills.py` |
-| SK-7 | A retrieved skill materially changes strategy in a controlled comparison | done | `tests/test_skills.py::test_skill_changes_strategy` |
+| SK-7 | A retrieved skill materially changes actual solving | partial | Routing/reference selection differs by evidence (`test_skill_changes_strategy`), but no live model solve comparison has been run |
 | SK-8 | External skills checkout stays read-only | done | `tests/test_security.py`, no write path |
 
 ## 5. Active remote challenge solving
@@ -61,10 +61,15 @@ Status legend: `done`, `partial`, `blocked-external`, `not-started`.
 | RM-3 | Dedicated TCP service broker enforces same scope and bounds | done | `tests/test_remote.py::test_tcp_allowed_and_protocol_mismatch` |
 | RM-4 | Redirects, DNS rebinding, metadata, off-scope hosts and proxying are blocked | done | pinned-IP, metadata, redirect and path tests |
 | RM-5 | Model cannot enlarge scope through tool arguments | done | no MCP register/enable tool; `test_mcp_has_no_target_registration_tool` |
-| RM-6 | Expiry cancels in-flight work, preserves evidence and asks for a fresh instance | done | expiry/cancel tests and `remote_blocked` events |
-| RM-7 | Competition infrastructure (CTFd, scoreboards, provisioning, shared control planes) is never contacted | done | operator-registration-only scope; metadata/dedicated-private checks |
+| RM-6 | Expiry/cancellation aborts in-flight work across processes | done | `tests/test_remote_process.py::test_cancel_aborts_in_flight_request_in_another_process` |
+| RM-7 | Unregistered competition infrastructure is never contacted | done | no MCP registration tool; `test_unregistered_competition_host_is_not_reachable`; metadata/private blocks |
 | RM-8 | Remote mode stays disabled until positive and negative tests pass | done | `PRESTIGE_REMOTE_ENABLED` / `remote.enabled` gate and loopback fixtures |
 | RM-9 | Explicitly authorized SSH challenge access | blocked-external | Protocol is registered but the broker returns a clear denial until an operator-reviewed SSH adapter/image is supplied |
+| RM-10 | Request and rate accounting persists across MCP restarts | done | `tests/test_remote_process.py::test_request_budget_persists_across_server_processes` |
+| RM-11 | Concurrency limits are atomic across processes | done | `tests/test_remote_process.py::test_concurrency_limit_is_atomic_across_processes` |
+| RM-12 | Registered exclusions override matching allowed prefixes | done | `test_exclusion_blocks_matching_allowed_prefix` |
+| RM-13 | Targets are bound to a specific investigation | done | `prestige target bind`; `test_unbound_run_cannot_use_registration` |
+| RM-14 | Failed DNS/connect attempts release concurrency and still consume request budget | done | `test_connect_failure_releases_concurrency_and_keeps_budget` |
 
 ## 6. Persistent interactive tools
 
@@ -72,7 +77,7 @@ Status legend: `done`, `partial`, `blocked-external`, `not-started`.
 | --- | --- | --- | --- |
 | DB-1 | Persistent isolated session start/send/read/stop/list | done | `src/prestige/sessions.py`, `tests/test_sessions.py` |
 | DB-2 | Breakpoints, step, registers, memory, backtrace, disassembly via a real debugger | blocked-external | Session mechanism and `gdb` allowlist exist; the pinned Python slim image lacks `gdb`, so a reviewed GDB-enabled image is required |
-| DB-3 | Sessions persist across model turns | done | `tests/test_sessions.py::test_mcp_persistent_python_session` (state `x=41` survives turns) |
+| DB-3 | Sessions persist across model turns, are investigation-owned and recover after restart | done | persistent state test, `test_session_ownership_rejects_other_investigation`, `test_orphaned_session_metadata_is_detected` |
 | DB-4 | Ghidra and radare2 remain integrated | done | `tests/test_engine.py`, `tests/test_integrations.py` |
 
 ## 7. Research and verified learning
@@ -100,7 +105,7 @@ Status legend: `done`, `partial`, `blocked-external`, `not-started`.
 
 | ID | Requirement | Status | Acceptance evidence |
 | --- | --- | --- | --- |
-| BM-1 | B0/B1/P1/P2/P3 harness uses identical challenge/model/tool/budget contracts | done | `src/prestige/evaluation.py`, `tests/test_conditions.py` |
+| BM-1 | Comparable real-agent B0/B1/P1/P2/P3 evaluation | partial | P1/P2/P3 fixture lanes share a contract; B0/B1 are `not_run` without an adapter, so no real-agent comparison exists |
 | BM-2 | Real results recorded only when actually run | not-started | B0/B1 report `not_run` without an explicitly configured adapter; no paid comparison run |
 
 ## 10. Release gates

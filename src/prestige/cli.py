@@ -61,6 +61,14 @@ def parser():
     for name in ("show", "enable", "disable", "revoke"):
         item = target.add_parser(name)
         item.add_argument("registration_id")
+    target_bind = target.add_parser("bind")
+    target_bind.add_argument("run_id")
+    target_bind.add_argument("registration_id")
+    target_unbind = target.add_parser("unbind")
+    target_unbind.add_argument("run_id")
+    target_unbind.add_argument("registration_id")
+    target_bindings = target.add_parser("bindings")
+    target_bindings.add_argument("run_id")
     research = commands.add_parser("research").add_subparsers(
         dest="operation", required=True
     )
@@ -301,6 +309,20 @@ def dispatch(args, store: Store, config: dict):
                     )
                 ],
             }
+        if args.operation == "bind":
+            from prestige.remote import bind_target
+
+            if args.registration_id not in registrations:
+                raise PrestigeError("Unknown registration id")
+            return bind_target(store.home, args.run_id, args.registration_id)
+        if args.operation == "unbind":
+            from prestige.remote import unbind_target
+
+            return unbind_target(store.home, args.run_id, args.registration_id)
+        if args.operation == "bindings":
+            from prestige.remote import list_bindings
+
+            return list_bindings(store.home, args.run_id)
         if args.operation == "register":
             if not args.file.is_file() or args.file.stat().st_size > 262144:
                 raise PrestigeError("Registration file is missing or too large")
@@ -434,6 +456,20 @@ def dispatch(args, store: Store, config: dict):
 
         if args.operation == "doctor":
             return hardware()
+        if args.operation == "bind":
+            from prestige.remote import bind_target
+
+            if args.registration_id not in registrations:
+                raise PrestigeError("Unknown registration id")
+            return bind_target(store.home, args.run_id, args.registration_id)
+        if args.operation == "unbind":
+            from prestige.remote import unbind_target
+
+            return unbind_target(store.home, args.run_id, args.registration_id)
+        if args.operation == "bindings":
+            from prestige.remote import list_bindings
+
+            return list_bindings(store.home, args.run_id)
         if args.operation == "register":
             return register(store, json.loads(args.manifest.read_text(encoding="utf-8")))
         if args.operation == "list":

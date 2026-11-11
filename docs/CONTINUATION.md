@@ -76,8 +76,17 @@ requirements.
   - MCP: `prestige_remote_http`, `prestige_remote_tcp`, `prestige_remote_status`,
     `prestige_remote_cancel`.
   - Enforced outside the model: exact scheme/host/port/path/method scope, pinned
-    DNS, metadata/private-address rejection, no automatic redirects, request,
-    concurrency, rate and deadline limits, expiry and cancellation.
+    DNS, metadata/private-address rejection, registered exclusions, no automatic
+    redirects, request, concurrency, rate and deadline limits, expiry and
+    cancellation.
+  - Request/rate accounting and active-request leases live in SQLite, so budgets
+    and concurrency survive MCP restarts and are atomic across processes.
+    Cancellation is persisted and active sockets are shut down by a monitor in
+    the owning process.
+  - Targets must be bound to an investigation with
+    `prestige target bind RUN_ID REGISTRATION_ID`; an unbound run cannot use the
+    registration. Failed DNS/connect attempts release the concurrency lease and
+    still consume the request budget.
   - Raw responses are content-addressed artifacts; audit and blocked events are
     persisted. Remote mode is disabled unless `PRESTIGE_REMOTE_ENABLED=1` or
     `remote.enabled=true`.
@@ -88,9 +97,12 @@ requirements.
     alive inside the reviewed Docker worker across model turns.
   - Sessions use `docker exec -i` into a network-isolated container with the run's
     read-only input and writable output mounts; output becomes evidence artifacts.
+  - Sessions are bound to one investigation and every start/send/read/stop/list
+    operation checks ownership. Metadata is persisted in SQLite; sessions not
+    owned by the current process are marked orphaned and can be cleaned with
+    `prestige_session_cleanup`.
   - The pinned Python slim image has no `gdb`; GDB requires an operator-reviewed
-    image containing it. Session state is in-process and does not survive an MCP
-    server restart (containers are removed on stop).
+    image containing it.
 - **Structured hypotheses**
   - `prestige_hypothesis_add` records a statement plus supporting/contradicting
     evidence, predicted observation, cheapest discriminating test, cost and pivot
@@ -121,6 +133,10 @@ requirements.
     redirect following, rejects metadata/private destinations unless explicit
     loopback testing is enabled, bounds responses and caches by URL with SHA-256
     provenance and a TTL.
+  - Validation and the outbound connection use the same pinned destination; proxy
+    environment variables are ignored; TLS certificate and hostname verification
+    remain enabled. DNS-rebinding, proxy, TLS, redirect and oversized-response
+    tests are included.
   - MCP: `prestige_research_sources`, `prestige_research_fetch`,
     `prestige_research_search`; optional `run_id` records the excerpt as evidence.
   - CLI: `prestige research sources|fetch|search`. Research traffic is separate
@@ -132,9 +148,9 @@ requirements.
     limits, bounded output.
   - `WorkspaceRunner` output directory made writable for the containerized user.
 - **Tests**
-  - Default suite: **224 passed, 5 skipped**.
-  - With `PRESTIGE_TEST_IMAGE`: **228 passed, 1 skipped**.
-  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **229 passed**.
+  - Default suite: **242 passed, 6 skipped**.
+  - With `PRESTIGE_TEST_IMAGE`: **247 passed, 1 skipped**.
+  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **248 passed**.
 - **Operator known-answer helper**
   - `prestige verify-candidate --expected-sha256 <digest> [--candidate-file PATH]`
     reads a candidate from stdin/file, reports only digests + `match`, and never
@@ -146,7 +162,7 @@ requirements.
 ```bash
 PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39 \
   python -m pytest -q
-# 229 passed in ~51 s
+# 248 passed in ~97 s
 ```
 
 ## Real challenge status

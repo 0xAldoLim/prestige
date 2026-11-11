@@ -37,6 +37,7 @@ from prestige.remote import broker_for, load_registrations
 from prestige.research import ResearchBroker
 from prestige.security import Rules
 from prestige.sessions import (
+    cleanup_orphans,
     list_sessions,
     read_session,
     send_session,
@@ -671,11 +672,15 @@ async def _target_list(args: dict) -> dict:
         return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
 
 
-def _registration(args: dict):
+def _registration(args: dict, run_id: str):
     registration_id = args.get("registration_id")
     registrations = load_registrations(_home())
     if not isinstance(registration_id, str) or registration_id not in registrations:
         raise PrestigeError("Unknown or unauthorized registration id")
+    from prestige.remote import is_bound
+
+    if not is_bound(_home(), run_id, registration_id):
+        raise PolicyDenied("Target is not bound to this investigation")
     return registrations[registration_id]
 
 
@@ -726,7 +731,7 @@ async def _remote_http(args: dict) -> dict:
         if _terminal(run):
             raise PrestigeError("Investigation is terminal")
         elapsed = _check_budget(run, store, run_id)
-        registration = _registration(args)
+        registration = _registration(args, run_id)
         if (
             "http" not in registration.allowed_actions
             or registration.protocol not in {"http", "https"}
@@ -748,6 +753,7 @@ async def _remote_http(args: dict) -> dict:
             headers,
             body,
             float(timeout),
+            run_id,
         )
         artifact = Artifacts(store, run_id).add(
             response.pop("body"), "remote-http-response.bin"
@@ -798,7 +804,7 @@ async def _remote_tcp(args: dict) -> dict:
         if _terminal(run):
             raise PrestigeError("Investigation is terminal")
         elapsed = _check_budget(run, store, run_id)
-        registration = _registration(args)
+        registration = _registration(args, run_id)
         if (
             "tcp" not in registration.allowed_actions
             or registration.protocol not in {"tcp", "ssh"}
@@ -812,7 +818,7 @@ async def _remote_tcp(args: dict) -> dict:
         data = _decode_body(args)
         read_bytes = args.get("read_bytes", 4096)
         response = await asyncio.to_thread(
-            broker.tcp, data, int(read_bytes), float(timeout)
+            broker.tcp, data, int(read_bytes), float(timeout), run_id
         )
         artifact = Artifacts(store, run_id).add(response["data"], "remote-tcp-response.bin")
         store.event(
@@ -849,7 +855,8 @@ async def _remote_tcp(args: dict) -> dict:
 
 async def _remote_status(args: dict) -> dict:
     try:
-        registration = _registration(args)
+        run_id = args["run_id"]
+        registration = _registration(args, run_id)
         return {"status": "ok", "result": broker_for(_home(), registration).status()}
     except Exception as error:
         return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
@@ -857,8 +864,18 @@ async def _remote_status(args: dict) -> dict:
 
 async def _remote_cancel(args: dict) -> dict:
     try:
-        registration = _registration(args)
+        run_id = args["run_id"]
+        registration = _registration(args, run_id)
         cancelled = broker_for(_home(), registration).cancel()
+        store = await _store()
+        try:
+            store.event(
+                run_id,
+                "remote_cancel",
+                {"registration_id": registration.id, "cancelled_sockets": cancelled, "trust": "fact"},
+            )
+        finally:
+            store.close()
         return {
             "status": "ok",
             "result": {"registration_id": registration.id, "cancelled_sockets": cancelled},
@@ -880,7 +897,9 @@ async def _session_start(args: dict) -> dict:
             raise PolicyDenied("No operator-configured sandbox.image")
         command = str(args.get("command", "python3"))
         artifacts = Artifacts(store, run_id)
-        result = await asyncio.to_thread(start_session, image, artifacts, command)
+        result = await asyncio.to_thread(
+            start_session, _home(), run_id, image, artifacts, command
+        )
         store.event(run_id, "session_start", {**result, "trust": "fact"})
         return {"status": "ok", "result": result}
     except Exception as error:
@@ -899,6 +918,8 @@ async def _session_send(args: dict) -> dict:
         _check_budget(run, store, run_id)
         result = await asyncio.to_thread(
             send_session,
+            _home(),
+            run_id,
             str(args["session_id"]),
             str(args["input"]),
             float(args.get("wait", 0.8)),
@@ -942,7 +963,7 @@ async def _session_read(args: dict) -> dict:
         if _terminal(run):
             raise PrestigeError("Investigation is terminal")
         result = await asyncio.to_thread(
-            read_session, str(args["session_id"]), int(args.get("cursor", 0))
+            read_session, _home(), run_id, str(args["session_id"]), int(args.get("cursor", 0))
         )
         return _redact({"status": "ok", "result": result})
     except Exception as error:
@@ -956,7 +977,9 @@ async def _session_stop(args: dict) -> dict:
     try:
         run_id = args["run_id"]
         _run(store, run_id)
-        result = await asyncio.to_thread(stop_session, str(args["session_id"]))
+        result = await asyncio.to_thread(
+            stop_session, _home(), run_id, str(args["session_id"])
+        )
         store.event(run_id, "session_stop", {**result, "trust": "fact"})
         return {"status": "ok", "result": result}
     except Exception as error:
@@ -967,7 +990,15 @@ async def _session_stop(args: dict) -> dict:
 
 async def _session_list(args: dict) -> dict:
     try:
-        return {"status": "ok", "result": list_sessions()}
+        return {"status": "ok", "result": list_sessions(_home(), args["run_id"])}
+    except Exception as error:
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
+
+
+async def _session_cleanup(args: dict) -> dict:
+    try:
+        removed = cleanup_orphans(_home(), args["run_id"])
+        return {"status": "ok", "result": {"cleaned": removed}}
     except Exception as error:
         return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
 
@@ -1519,9 +1550,12 @@ _TOOLS: dict[str, tuple[Tool, Any]] = {
             description="Show registration counters, expiry and cancellation state.",
             inputSchema={
                 "type": "object",
-                "required": ["registration_id"],
+                "required": ["run_id", "registration_id"],
                 "additionalProperties": False,
-                "properties": {"registration_id": {"type": "string"}},
+                "properties": {
+                    "run_id": {"type": "string"},
+                    "registration_id": {"type": "string"},
+                },
             },
         ),
         _remote_status,
@@ -1532,9 +1566,12 @@ _TOOLS: dict[str, tuple[Tool, Any]] = {
             description="Cancel in-flight remote work and revoke further use of the registration.",
             inputSchema={
                 "type": "object",
-                "required": ["registration_id"],
+                "required": ["run_id", "registration_id"],
                 "additionalProperties": False,
-                "properties": {"registration_id": {"type": "string"}},
+                "properties": {
+                    "run_id": {"type": "string"},
+                    "registration_id": {"type": "string"},
+                },
             },
         ),
         _remote_cancel,
@@ -1615,10 +1652,31 @@ _TOOLS: dict[str, tuple[Tool, Any]] = {
     "prestige_session_list": (
         Tool(
             name="prestige_session_list",
-            description="List active persistent sessions.",
-            inputSchema={"type": "object", "additionalProperties": False, "properties": {}},
+            description="List active persistent sessions owned by this investigation.",
+            inputSchema={
+                "type": "object",
+                "required": ["run_id"],
+                "additionalProperties": False,
+                "properties": {"run_id": {"type": "string"}},
+            },
         ),
         _session_list,
+    ),
+    "prestige_session_cleanup": (
+        Tool(
+            name="prestige_session_cleanup",
+            description=(
+                "Remove orphaned session containers owned by this investigation "
+                "after an MCP restart."
+            ),
+            inputSchema={
+                "type": "object",
+                "required": ["run_id"],
+                "additionalProperties": False,
+                "properties": {"run_id": {"type": "string"}},
+            },
+        ),
+        _session_cleanup,
     ),
     "prestige_research_sources": (
         Tool(

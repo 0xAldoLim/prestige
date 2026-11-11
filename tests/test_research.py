@@ -4,6 +4,9 @@ import asyncio
 import http.server
 import json
 import os
+import socket
+import ssl
+import subprocess
 import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -34,6 +37,8 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self.send_response(302)
             self.send_header("Location", "http://evil.example/secret")
             self.end_headers()
+        elif self.path == "/large":
+            self._send(200, b"A" * 10000)
         else:
             self._send(404, b"missing")
 
@@ -211,3 +216,74 @@ def test_config_accepts_json_list_for_research(tmp_path):
     home = tmp_path / "state"
     set_config(home, "research.allowed_hosts", '["a.example","b.example"]')
     assert load_config(home)["research.allowed_hosts"] == ["a.example", "b.example"]
+
+
+def test_dns_resolution_is_pinned_for_the_connection(home, server, monkeypatch):
+    original = socket.getaddrinfo
+    calls = {"count": 0}
+
+    def fake(host, port, *args, **kwargs):
+        if host == "127.0.0.1":
+            calls["count"] += 1
+            if calls["count"] == 1:
+                return original(host, port, *args, **kwargs)
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("10.0.0.1", port))]
+        return original(host, port, *args, **kwargs)
+
+    monkeypatch.setattr(socket, "getaddrinfo", fake)
+    result = ResearchBroker(home).fetch(f"http://127.0.0.1:{server}/doc")
+    assert "nonce" in result["text"]
+    assert calls["count"] == 1
+
+
+def test_proxy_environment_is_ignored(home, server, monkeypatch):
+    monkeypatch.setenv("HTTP_PROXY", "http://127.0.0.1:1")
+    monkeypatch.setenv("HTTPS_PROXY", "http://127.0.0.1:1")
+    result = ResearchBroker(home).fetch(f"http://127.0.0.1:{server}/doc")
+    assert "nonce" in result["text"]
+
+
+def test_oversized_response_is_truncated(home, server):
+    result = ResearchBroker(home).fetch(
+        f"http://127.0.0.1:{server}/large", max_bytes=1024
+    )
+    assert result["truncated"] is True
+    assert len(result["text"]) <= 16384
+
+
+def test_connection_failure_is_bounded(home, monkeypatch):
+    broker = ResearchBroker(home)
+    broker.allowed.add("127.0.0.1")
+    with pytest.raises(PolicyDenied):
+        broker.fetch("http://127.0.0.1:1/doc")
+
+
+@pytest.mark.skipif(__import__("shutil").which("openssl") is None, reason="openssl unavailable")
+def test_untrusted_tls_certificate_is_rejected(home, tmp_path, monkeypatch):
+    cert = tmp_path / "cert.pem"
+    key = tmp_path / "key.pem"
+    subprocess.run(
+        [
+            "openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes",
+            "-keyout", str(key), "-out", str(cert), "-days", "1",
+            "-subj", "/CN=localhost",
+        ],
+        capture_output=True,
+        check=True,
+    )
+    httpd = http.server.ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.load_cert_chain(cert, key)
+    httpd.socket = context.wrap_socket(httpd.socket, server_side=True)
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread.start()
+    try:
+        with pytest.raises(PolicyDenied) as error:
+            ResearchBroker(home).fetch(
+                f"https://127.0.0.1:{httpd.server_address[1]}/doc"
+            )
+        message = str(error.value).lower()
+        assert "certificate" in message or "ssl" in message
+    finally:
+        httpd.shutdown()
+        httpd.server_close()

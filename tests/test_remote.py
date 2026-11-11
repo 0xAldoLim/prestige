@@ -5,6 +5,8 @@ import http.server
 import json
 import os
 import socketserver
+import ssl
+import subprocess
 import threading
 import time
 from contextlib import asynccontextmanager
@@ -272,6 +274,9 @@ async def test_mcp_remote_http_records_evidence_and_blocks_off_scope(tmp_path, h
         run_id = new_run(store, challenge)
     finally:
         store.close()
+    from prestige.remote import bind_target
+
+    bind_target(home, run_id, "web1")
 
     async with _mcp_client(home) as session:
         listed = json.loads(
@@ -324,7 +329,7 @@ async def test_mcp_remote_http_records_evidence_and_blocks_off_scope(tmp_path, h
             (
                 await session.call_tool(
                     "prestige_remote_cancel",
-                    {"registration_id": "web1"},
+                    {"run_id": run_id, "registration_id": "web1"},
                 )
             ).content[0].text
         )
@@ -416,3 +421,45 @@ def test_cli_target_registration_roundtrip(tmp_path, capsys):
     assert json.loads(capsys.readouterr().out)["revoked"] is True
     assert main(["--home", str(home), "target", "list"]) == 0
     assert json.loads(capsys.readouterr().out)["registrations"] == []
+
+
+def test_proxy_environment_is_ignored(tmp_path, http_server, monkeypatch):
+    broker = RemoteBroker(tmp_path, _http_registration(http_server))
+    monkeypatch.setenv("HTTP_PROXY", "http://127.0.0.1:1")
+    monkeypatch.setenv("HTTPS_PROXY", "http://127.0.0.1:1")
+    result = broker.http("GET", "/challenge")
+    assert result["status"] == 200
+    assert b"SYNTHETIC{remote_web}" in result["body"]
+
+
+@pytest.mark.skipif(__import__("shutil").which("openssl") is None, reason="openssl unavailable")
+def test_https_rejects_untrusted_certificate(tmp_path, monkeypatch):
+    cert = tmp_path / "cert.pem"
+    key = tmp_path / "key.pem"
+    subprocess.run(
+        [
+            "openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes",
+            "-keyout", str(key), "-out", str(cert), "-days", "1",
+            "-subj", "/CN=localhost",
+        ],
+        capture_output=True,
+        check=True,
+    )
+    httpd = http.server.ThreadingHTTPServer(("127.0.0.1", 0), _HTTPHandler)
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.load_cert_chain(cert, key)
+    httpd.socket = context.wrap_socket(httpd.socket, server_side=True)
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread.start()
+    try:
+        registration = _http_registration(
+            httpd.server_address[1], protocol="https", paths=["/challenge"]
+        )
+        broker = RemoteBroker(tmp_path, registration)
+        with pytest.raises(Exception) as error:
+            broker.http("GET", "/challenge")
+        message = str(error.value).lower()
+        assert "certificate" in message or "hostname" in message or "ssl" in message
+    finally:
+        httpd.shutdown()
+        httpd.server_close()

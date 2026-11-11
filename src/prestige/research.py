@@ -5,14 +5,14 @@ treats retrieved text as instructions or proof. Results are cached with provenan
 """
 
 import hashlib
+import http.client
 import ipaddress
 import json
 import os
 import re
 import socket
+import ssl
 import time
-import urllib.error
-import urllib.request
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -78,11 +78,6 @@ def allowed_hosts(home: Path) -> set[str]:
     return hosts
 
 
-class _NoRedirect(urllib.request.HTTPRedirectHandler):
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        raise PolicyDenied("Research redirects are not followed")
-
-
 class ResearchBroker:
     def __init__(self, home: Path, fetcher=None):
         self.home = home
@@ -90,7 +85,7 @@ class ResearchBroker:
         self.cache_dir = home / "research-cache"
         self._fetcher = fetcher
 
-    def _validate(self, url: str) -> tuple[str, str]:
+    def _validate(self, url: str) -> tuple[str, str, list[str]]:
         if not isinstance(url, str) or len(url) > 2048 or re.search(r"[\s\x00-\x1f]", url):
             raise PolicyDenied("Malformed research URL")
         parts = urlsplit(url)
@@ -102,13 +97,18 @@ class ResearchBroker:
             raise PolicyDenied("Research requires HTTPS unless loopback testing is enabled")
         if host not in self.allowed:
             raise PolicyDenied("Research host is not operator-allowlisted")
+        port = parts.port or (443 if parts.scheme == "https" else 80)
         try:
-            addresses = {
-                str(info[4][0])
-                for info in socket.getaddrinfo(host, parts.port or (443 if parts.scheme == "https" else 80))
-            }
+            infos = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
         except OSError as error:
             raise PolicyDenied("Research host did not resolve") from error
+        addresses = []
+        for info in infos:
+            address = str(info[4][0])
+            if address not in addresses:
+                addresses.append(address)
+        if not addresses:
+            raise PolicyDenied("Research host did not resolve")
         for address in addresses:
             ip = ipaddress.ip_address(address)
             if str(ip) in {"169.254.169.254", "100.100.100.200", "fd00:ec2::254"}:
@@ -117,7 +117,7 @@ class ResearchBroker:
                 raise PolicyDenied("Forbidden research destination class")
             if not ip.is_global and not (loopback and _loopback_allowed()):
                 raise PolicyDenied("Private research destination is forbidden")
-        return parts.scheme, host
+        return parts.scheme, host, addresses
 
     def _cache_key(self, url: str) -> str:
         return hashlib.sha256(url.encode("utf-8")).hexdigest()
@@ -149,7 +149,7 @@ class ResearchBroker:
     def fetch(self, url: str, max_bytes: int = 65536, timeout: float = 10.0) -> dict:
         if not research_enabled(self.home):
             raise PolicyDenied("Research is disabled by the operator")
-        self._validate(url)
+        scheme, host, addresses = self._validate(url)
         if type(max_bytes) is not int or not 1024 <= max_bytes <= MAX_BYTES:
             raise PolicyDenied("Invalid research size bound")
         if type(timeout) not in (int, float) or not 0 < timeout <= 30:
@@ -170,18 +170,48 @@ class ResearchBroker:
         if self._fetcher is not None:
             status, data = self._fetcher(url, max_bytes)
         else:
-            request = urllib.request.Request(
-                url, headers={"User-Agent": "prestige-research/0.1"}
-            )
-            opener = urllib.request.build_opener(_NoRedirect)
+            parts = urlsplit(url)
+            port = parts.port or (443 if scheme == "https" else 80)
+            path = parts.path or "/"
+            if parts.query:
+                path += "?" + parts.query
             try:
-                with opener.open(request, timeout=timeout) as response:
-                    status = getattr(response, "status", 200)
-                    data = response.read(max_bytes + 1)
-            except urllib.error.HTTPError as error:
-                raise PolicyDenied(f"Research source returned HTTP {error.code}") from error
-            except (urllib.error.URLError, OSError) as error:
+                family = socket.AF_INET6 if ":" in addresses[0] else socket.AF_INET
+                sock = socket.socket(family, socket.SOCK_STREAM)
+                sock.settimeout(timeout)
+                sock.connect((addresses[0], port))
+            except OSError as error:
                 raise PolicyDenied(f"Research fetch failed: {error}") from error
+            try:
+                if scheme == "https":
+                    context = ssl.create_default_context()
+                    context.check_hostname = True
+                    context.verify_mode = ssl.CERT_REQUIRED
+                    context.minimum_version = ssl.TLSVersion.TLSv1_2
+                    sock = context.wrap_socket(sock, server_hostname=host)
+                connection = http.client.HTTPConnection(host, port, timeout=timeout)
+                connection.sock = sock
+                connection.request(
+                    "GET",
+                    path,
+                    headers={
+                        "Host": host,
+                        "User-Agent": "prestige-research/0.1",
+                        "Connection": "close",
+                    },
+                )
+                response = connection.getresponse()
+                status = response.status
+                if 300 <= status < 400:
+                    raise PolicyDenied("Research redirects are not followed")
+                data = response.read(max_bytes + 1)
+            except (OSError, http.client.HTTPException, ssl.SSLError) as error:
+                raise PolicyDenied(f"Research fetch failed: {error}") from error
+            finally:
+                try:
+                    sock.close()
+                except OSError:
+                    pass
         if status != 200:
             raise PolicyDenied(f"Research source returned HTTP {status}")
         truncated = len(data) > max_bytes
