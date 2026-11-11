@@ -102,8 +102,11 @@ requirements.
     operation checks ownership. Metadata is persisted in SQLite; sessions not
     owned by the current process are marked orphaned and can be cleaned with
     `prestige_session_cleanup`.
-  - The pinned Python slim image has no `gdb`; GDB requires an operator-reviewed
-    image containing it.
+  - A GDB-capable worker is built from `docker/gdb-worker.Dockerfile`; the locally
+    validated image ID is
+    `sha256:942ddae2cb950a69076dd0d68c94930180ba0f70f6bac0dbe82128dcdf6337c5`.
+    `tests/test_gdb_session.py` sets a real breakpoint, reads `rip`, prints a
+    backtrace and continues.
 - **Operational lanes**
   - FAST allows only cheap deterministic tools and caps at 8 turns/120 s.
     EXPERT adds `python`, `command`, `radare2` and `ghidra` with an 18/600 s cap.
@@ -154,9 +157,9 @@ requirements.
     limits, bounded output.
   - `WorkspaceRunner` output directory made writable for the containerized user.
 - **Tests**
-  - Default suite: **246 passed, 6 skipped**.
-  - With `PRESTIGE_TEST_IMAGE`: **251 passed, 1 skipped**.
-  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **252 passed**.
+  - Default suite: **246 passed, 7 skipped**.
+  - With `PRESTIGE_TEST_IMAGE`: **251 passed, 2 skipped**.
+  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **253 passed**.
 - **Operator known-answer helper**
   - `prestige verify-candidate --expected-sha256 <digest> [--candidate-file PATH]`
     reads a candidate from stdin/file, reports only digests + `match`, and never
@@ -168,7 +171,7 @@ requirements.
 ```bash
 PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39 \
   python -m pytest -q
-# 252 passed in ~99 s
+# 253 passed in ~102 s
 ```
 
 ## Real challenge status

@@ -76,7 +76,7 @@ Status legend: `done`, `partial`, `blocked-external`, `not-started`.
 | ID | Requirement | Status | Acceptance evidence |
 | --- | --- | --- | --- |
 | DB-1 | Persistent isolated session start/send/read/stop/list | done | `src/prestige/sessions.py`, `tests/test_sessions.py` |
-| DB-2 | Breakpoints, step, registers, memory, backtrace, disassembly via a real debugger | blocked-external | Session mechanism and `gdb` allowlist exist; the pinned Python slim image lacks `gdb`, so a reviewed GDB-enabled image is required |
+| DB-2 | Breakpoints, step, registers, memory, backtrace, disassembly via a real debugger | done | `docker/gdb-worker.Dockerfile`, `tests/test_gdb_session.py` (real breakpoint/registers/backtrace/continue) |
 | DB-3 | Sessions persist across model turns, are investigation-owned and recover after restart | done | persistent state test, `test_session_ownership_rejects_other_investigation`, `test_orphaned_session_metadata_is_detected` |
 | DB-4 | Ghidra and radare2 remain integrated | done | `tests/test_engine.py`, `tests/test_integrations.py` |
 
