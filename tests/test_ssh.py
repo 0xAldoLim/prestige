@@ -1,8 +1,12 @@
 """Explicitly scoped SSH adapter with operator key/known-hosts and pinned args."""
 
 import asyncio
+import getpass
 import json
 import os
+import shutil
+import socket
+import subprocess
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -34,10 +38,10 @@ def _remote_enabled(monkeypatch):
 
 
 def _ssh_registration(tmp_path, port=2222, **overrides):
-    key = tmp_path / "id_test"
+    key = tmp_path / "id_test_default"
     key.write_text("fake-key")
     key.chmod(0o600)
-    known = tmp_path / "known_hosts"
+    known = tmp_path / "known_hosts_default"
     known.write_text("127.0.0.1 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFake\n")
     data = {
         "id": "ssh1",
@@ -180,3 +184,90 @@ async def test_mcp_ssh_records_evidence(tmp_path, monkeypatch):
         assert "remote_request" in kinds
     finally:
         store.close()
+
+
+@pytest.mark.skipif(
+    os.name == "nt"
+    or os.environ.get("PRESTIGE_TEST_SSHD") != "1"
+    or not shutil.which("sshd")
+    or not shutil.which("ssh-keygen"),
+    reason="Set PRESTIGE_TEST_SSHD=1 with a local sshd/ssh-keygen to run the real endpoint test",
+)
+def test_real_loopback_sshd(tmp_path):
+    root = tmp_path / "sshd"
+    root.mkdir()
+    subprocess.run(["ssh-keygen", "-t", "ed25519", "-f", str(root / "host_key"), "-N", "", "-q"], check=True)
+    subprocess.run(["ssh-keygen", "-t", "ed25519", "-f", str(root / "client_key"), "-N", "", "-q"], check=True)
+    (root / "authorized_keys").write_text((root / "client_key.pub").read_text())
+    (root / "authorized_keys").chmod(0o600)
+    (root / "client_key").chmod(0o600)
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+    user = getpass.getuser()
+    (root / "sshd_config").write_text(
+        f"""Port {port}
+ListenAddress 127.0.0.1
+HostKey {root / 'host_key'}
+PidFile {root / 'sshd.pid'}
+AuthorizedKeysFile {root / 'authorized_keys'}
+PasswordAuthentication no
+PubkeyAuthentication yes
+PermitRootLogin no
+UsePAM no
+StrictModes no
+AllowUsers {user}
+LogLevel QUIET
+"""
+    )
+    process = subprocess.Popen(
+        ["/usr/sbin/sshd", "-D", "-f", str(root / "sshd_config"), "-E", str(root / "sshd.log")],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    try:
+        deadline = __import__("time").time() + 5
+        while __import__("time").time() < deadline:
+            with socket.socket() as probe:
+                try:
+                    probe.connect(("127.0.0.1", port))
+                    break
+                except OSError:
+                    __import__("time").sleep(0.1)
+        else:
+            pytest.skip("sshd did not start")
+        scan = subprocess.run(
+            ["ssh-keyscan", "-p", str(port), "127.0.0.1"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        host_key = None
+        for line in scan.stdout.splitlines():
+            fields = line.split()
+            if len(fields) >= 2 and fields[1] == "ssh-ed25519":
+                host_key = " ".join(fields[1:])
+                break
+        if not host_key:
+            pytest.skip("could not obtain the sshd host key")
+        (root / "known_hosts").write_text(
+            f"127.0.0.1 {host_key}\n[127.0.0.1]:{port} {host_key}\n"
+        )
+        registration = _ssh_registration(
+            root,
+            port=port,
+            ssh_user=user,
+            ssh_key_path=str(root / "client_key"),
+            ssh_known_hosts=str(root / "known_hosts"),
+        )
+        result = RemoteBroker(root, registration).ssh("id -un && echo SSH_OK")
+        assert result["returncode"] == 0, result
+        assert user in result["stdout"]
+        assert "SSH_OK" in result["stdout"]
+    finally:
+        process.terminate()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()

@@ -48,9 +48,9 @@ guarantee.
 
 ## Validation record
 
-- Default suite: **258 passed, 7 skipped**.
-- With `PRESTIGE_TEST_IMAGE`: **263 passed, 2 skipped**.
-- With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **265 passed**.
+- Default suite: **258 passed, 8 skipped**.
+- With `PRESTIGE_TEST_IMAGE`: **263 passed, 3 skipped**.
+- With GDB + SSHD + Docker + Ghidra opt-ins: **266 passed**.
 - Ruff clean; wheel builds.
 
 See [VALIDATION.md](VALIDATION.md) for commands and exact outcomes. GitHub CI runs

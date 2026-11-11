@@ -64,7 +64,7 @@ Status legend: `done`, `partial`, `blocked-external`, `not-started`.
 | RM-6 | Expiry/cancellation aborts in-flight work across processes | done | `tests/test_remote_process.py::test_cancel_aborts_in_flight_request_in_another_process` |
 | RM-7 | Unregistered competition infrastructure is never contacted | done | no MCP registration tool; `test_unregistered_competition_host_is_not_reachable`; metadata/private blocks |
 | RM-8 | Remote mode stays disabled until positive and negative tests pass | done | `PRESTIGE_REMOTE_ENABLED` / `remote.enabled` gate and loopback fixtures |
-| RM-9 | Explicitly authorized SSH challenge access | partial | `prestige_remote_ssh` with operator key/known_hosts, pinned DNS/HostKeyAlias, no forwarding/password auth and bounded output; adapter tests use a fake `ssh` executable, not a real SSH server |
+| RM-9 | Explicitly authorized SSH challenge access | done | `prestige_remote_ssh` with operator key/known_hosts, pinned DNS/HostKeyAlias, no forwarding/password auth, bounded output; `tests/test_ssh.py::test_real_loopback_sshd` starts a real local sshd (opt-in) |
 | RM-10 | Request and rate accounting persists across MCP restarts | done | `tests/test_remote_process.py::test_request_budget_persists_across_server_processes` |
 | RM-11 | Concurrency limits are atomic across processes | done | `tests/test_remote_process.py::test_concurrency_limit_is_atomic_across_processes` |
 | RM-12 | Registered exclusions override matching allowed prefixes | done | `test_exclusion_blocks_matching_allowed_prefix` |
