@@ -113,6 +113,47 @@ async def test_mcp_run_experiment_and_record_observation(tmp_path):
         assert len(json.loads(status2.content[0].text)["observations"]) == 1
 
 
+async def test_mcp_suppresses_duplicate_deterministic_experiments(tmp_path):
+    value = b"SYNTHETIC{mcp_duplicate}"
+    path = tmp_path / "challenge.txt"
+    path.write_bytes(base64.b64encode(value))
+    digest = hashlib.sha256(value).hexdigest()
+
+    async with _mcp_client(tmp_path) as session:
+        created = await session.call_tool(
+            "prestige_create_investigation",
+            {"source_path": str(path), "backend": "fake", "expected_sha256": digest},
+        )
+        run_id = json.loads(created.content[0].text)["run_id"]
+        status = await session.call_tool("prestige_get_status", {"run_id": run_id})
+        artifact_id = json.loads(status.content[0].text)["artifacts"][0]["id"]
+
+        payload = {
+            "run_id": run_id,
+            "tool": "inspect",
+            "artifact_id": artifact_id,
+            "args": {},
+        }
+        first = json.loads((await session.call_tool("prestige_run_experiment", payload)).content[0].text)
+        second = json.loads((await session.call_tool("prestige_run_experiment", payload)).content[0].text)
+        assert first["status"] == "ok" and not first.get("cached")
+        assert second["status"] == "ok" and second.get("cached") is True
+
+        status2 = await session.call_tool("prestige_get_status", {"run_id": run_id})
+        assert len(json.loads(status2.content[0].text)["observations"]) == 1
+
+        forced = json.loads(
+            (
+                await session.call_tool(
+                    "prestige_run_experiment", {**payload, "force": True}
+                )
+            ).content[0].text
+        )
+        assert forced["status"] == "ok" and not forced.get("cached")
+        status3 = await session.call_tool("prestige_get_status", {"run_id": run_id})
+        assert len(json.loads(status3.content[0].text)["observations"]) == 2
+
+
 async def test_mcp_verify_candidate_with_digest(tmp_path):
     value = b"SYNTHETIC{mcp_verify}"
     path = tmp_path / "challenge.txt"

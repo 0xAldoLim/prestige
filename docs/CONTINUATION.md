@@ -37,6 +37,9 @@ requirements.
   - `JobManager` persists long-running Ghidra/radare2/python work outside the
     model conversation.
   - Cache by artifact digest + tool + normalized args within a run.
+  - Identical requests reuse queued, running or completed jobs (no duplicate Ghidra).
+  - Deterministic experiment tools (`inspect`, `strings`, `read`, `file`, `zip`,
+    `base64`, `hex`, `xor`) reuse prior observations unless `force=true`.
   - Failure classification (`tool_timeout`, `policy_denied`, `prestige_error`, …).
 - **Isolated execution**
   - Reviewed Docker worker pinned by immutable digest:
@@ -45,9 +48,9 @@ requirements.
     limits, bounded output.
   - `WorkspaceRunner` output directory made writable for the containerized user.
 - **Tests**
-  - Default suite: **133 passed, 3 skipped**.
-  - With `PRESTIGE_TEST_IMAGE`: **135 passed, 1 skipped**.
-  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **136 passed**.
+  - Default suite: **134 passed, 3 skipped**.
+  - With `PRESTIGE_TEST_IMAGE`: **136 passed, 1 skipped**.
+  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **137 passed**.
 - **Operator known-answer helper**
   - `prestige verify-candidate --expected-sha256 <digest> [--candidate-file PATH]`
     reads a candidate from stdin/file, reports only digests + `match`, and never
@@ -59,7 +62,7 @@ requirements.
 ```bash
 PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39 \
   python -m pytest -q
-# 136 passed in ~43 s
+# 137 passed in ~40 s
 ```
 
 ## Real challenge status

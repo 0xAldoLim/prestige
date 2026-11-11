@@ -57,6 +57,24 @@ def _terminal(run: dict) -> bool:
     return run["status"] in {"solved", "stopped", "input_rejected", "budget_exhausted"}
 
 
+# Deterministic tools can safely reuse prior evidence for the same inputs.
+_DETERMINISTIC_TOOLS = {"inspect", "strings", "read", "file", "zip", "base64", "hex", "xor"}
+
+
+def _find_cached_observation(store: Store, run_id: str, action: Action) -> Any | None:
+    for event in reversed(store.events(run_id)):
+        if event["kind"] != "observation":
+            continue
+        recorded = event["data"].get("action") or {}
+        if (
+            recorded.get("tool") == action.tool
+            and recorded.get("artifact") == action.artifact
+            and recorded.get("args") == action.args
+        ):
+            return event["data"].get("result")
+    return None
+
+
 _STATUS_FIELD_LIMIT = 4096
 
 
@@ -221,6 +239,10 @@ async def _run_experiment(args: dict) -> dict:
             ),
             settings["max_seconds"] - elapsed,
         )
+        if action.tool in _DETERMINISTIC_TOOLS and not args.get("force", False):
+            cached = _find_cached_observation(store, run_id, action)
+            if cached is not None:
+                return _redact({"status": "ok", "result": cached, "cached": True})
         result = await asyncio.to_thread(registry.execute, action)
         store.event(run_id, "observation", {"action": asdict(action), "result": result, "trust": "fact"})
         return _redact({"status": "ok", "result": result})
@@ -360,6 +382,7 @@ _TOOLS: dict[str, tuple[Tool, Any]] = {
                     "tool": {"type": "string"},
                     "artifact_id": {"type": "string"},
                     "args": {"type": "object"},
+                    "force": {"type": "boolean"},
                 },
             },
         ),

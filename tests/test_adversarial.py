@@ -24,7 +24,12 @@ from prestige.types import Action, PolicyDenied
 
 @asynccontextmanager
 async def _mcp_client(tmp_path):
-    os.environ.setdefault("PRESTIGE_ALLOWED_DIRS", str(tmp_path))
+    env = {
+        "PRESTIGE_HOME": str(tmp_path / "state"),
+        "PRESTIGE_ALLOWED_DIRS": str(tmp_path),
+    }
+    old = os.environ.copy()
+    os.environ.update(env)
     client_to_server_send, client_to_server_recv = anyio.create_memory_object_stream[
         SessionMessage | Exception
     ](0)
@@ -44,6 +49,8 @@ async def _mcp_client(tmp_path):
             await server_task
         except asyncio.CancelledError:
             pass
+        os.environ.clear()
+        os.environ.update(old)
 
 
 def test_artifact_instructions_are_data_not_policy(store, tmp_path):
