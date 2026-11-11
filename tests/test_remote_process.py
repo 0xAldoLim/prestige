@@ -4,6 +4,9 @@ import asyncio
 import http.server
 import json
 import os
+import shutil
+import ssl
+import subprocess
 import sys
 import threading
 import time
@@ -376,3 +379,104 @@ async def test_rate_limit_persists_across_server_processes(tmp_path, server):
         store.close()
     assert second_state["requests"] == 2
     assert second_state["last_request"] - first_state["last_request"] >= 1.9
+
+
+def _start_https_process(tmp_path, monkeypatch):
+    if not shutil.which("openssl"):
+        pytest.skip("openssl unavailable")
+    ca_key = tmp_path / "ca.key"
+    ca_crt = tmp_path / "ca.crt"
+    subprocess.run(
+        [
+            "openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes",
+            "-keyout", str(ca_key), "-out", str(ca_crt), "-days", "1",
+            "-subj", "/CN=PRESTIGE Process Test CA",
+            "-addext", "basicConstraints=critical,CA:TRUE",
+            "-addext", "keyUsage=critical,keyCertSign,cRLSign",
+        ],
+        check=True,
+        capture_output=True,
+    )
+    key = tmp_path / "server.key"
+    csr = tmp_path / "server.csr"
+    crt = tmp_path / "server.crt"
+    subprocess.run(
+        [
+            "openssl", "req", "-newkey", "rsa:2048", "-nodes",
+            "-keyout", str(key), "-out", str(csr), "-subj", "/CN=127.0.0.1",
+        ],
+        check=True,
+        capture_output=True,
+    )
+    ext = tmp_path / "san.cnf"
+    ext.write_text(
+        "subjectAltName=IP:127.0.0.1\n"
+        "basicConstraints=CA:FALSE\n"
+        "keyUsage=critical,digitalSignature,keyEncipherment\n"
+        "extendedKeyUsage=serverAuth\n"
+    )
+    subprocess.run(
+        [
+            "openssl", "x509", "-req", "-in", str(csr), "-CA", str(ca_crt),
+            "-CAkey", str(ca_key), "-CAcreateserial", "-out", str(crt),
+            "-days", "1", "-extfile", str(ext),
+        ],
+        check=True,
+        capture_output=True,
+    )
+    httpd = http.server.ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.load_cert_chain(crt, key)
+    httpd.socket = context.wrap_socket(httpd.socket, server_side=True)
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread.start()
+    monkeypatch.setenv("SSL_CERT_FILE", str(ca_crt))
+    return httpd.server_address[1], httpd
+
+
+async def test_https_across_processes_and_cancel(tmp_path, monkeypatch):
+    port, httpd = _start_https_process(tmp_path, monkeypatch)
+    try:
+        home, run_id = _setup(
+            tmp_path / "https",
+            port,
+            protocol="https",
+            paths=["/challenge", "/slow"],
+            max_requests=10,
+            max_concurrency=2,
+        )
+        async with _process(home) as session:
+            allowed = await _call(
+                session,
+                "prestige_remote_http",
+                {"run_id": run_id, "registration_id": "web1", "path": "/challenge"},
+            )
+            assert allowed["status"] == "ok"
+
+            async def slow_request():
+                async with _process(home) as session2:
+                    return await _call(
+                        session2,
+                        "prestige_remote_http",
+                        {
+                            "run_id": run_id,
+                            "registration_id": "web1",
+                            "path": "/slow",
+                            "timeout": 8,
+                        },
+                    )
+
+            task = asyncio.create_task(slow_request())
+            await asyncio.sleep(0.8)
+            cancelled = await _call(
+                session,
+                "prestige_remote_cancel",
+                {"run_id": run_id, "registration_id": "web1"},
+            )
+            assert cancelled["status"] == "ok"
+            result = await asyncio.wait_for(task, timeout=6)
+            assert result["status"] == "error"
+            assert "cancelled" in result["reason"].lower() or "expired" in result["reason"].lower()
+    finally:
+        httpd.shutdown()
+        httpd.server_close()

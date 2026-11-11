@@ -282,6 +282,7 @@ class _CancellationMonitor:
         self.home = home
         self.registration = registration
         self.sock = sock
+        self.sock_lock = threading.Lock()
         self.done = threading.Event()
         self.cancelled = False
         self.thread = threading.Thread(target=self._run, daemon=True)
@@ -303,9 +304,15 @@ class _CancellationMonitor:
             except Exception:
                 continue
 
+    def update_socket(self, sock: socket.socket):
+        with self.sock_lock:
+            self.sock = sock
+
     def _shutdown(self):
+        with self.sock_lock:
+            sock = self.sock
         try:
-            self.sock.shutdown(socket.SHUT_RDWR)
+            sock.shutdown(socket.SHUT_RDWR)
         except OSError:
             pass
 
@@ -315,6 +322,43 @@ class _CancellationMonitor:
     def stop(self):
         self.done.set()
         self.thread.join(timeout=1)
+
+
+def canonical_request_target(target: str) -> tuple[str, str]:
+    """Parse an origin-form HTTP request target into (canonical path, query).
+
+    Percent-encoded paths, absolute/authority forms, fragments, backslashes,
+    control/non-ASCII characters, duplicate separators and dot segments are
+    rejected. Well-formed query strings are allowed and returned separately so
+    exclusions apply to the canonical path, never the raw target.
+    """
+    if not isinstance(target, str) or not target or len(target) > 2048:
+        raise RemoteDenied("Invalid request target")
+    if target.startswith(("http://", "https://", "//")):
+        raise RemoteDenied("Absolute-form and authority-form targets are forbidden")
+    if "#" in target or "\\" in target:
+        raise RemoteDenied("Fragments and backslashes are forbidden")
+    if any(ord(char) < 0x21 or ord(char) > 0x7E for char in target):
+        raise RemoteDenied("Control or non-ASCII characters are forbidden")
+    path, separator, query = target.partition("?")
+    if not path.startswith("/") or path.startswith("//"):
+        raise RemoteDenied("Path must be absolute and single-rooted")
+    if "//" in path:
+        raise RemoteDenied("Duplicate path separators are forbidden")
+    if "%" in path:
+        raise RemoteDenied("Percent-encoded paths are forbidden")
+    if any(segment in {".", ".."} for segment in path.split("/")):
+        raise RemoteDenied("Traversal segments are forbidden")
+    if separator and query:
+        if "?" in query or "#" in query:
+            raise RemoteDenied("Ambiguous query string")
+        for index, char in enumerate(query):
+            if char == "%" and (
+                index + 2 >= len(query)
+                or not re.fullmatch(r"[0-9A-Fa-f]{2}", query[index + 1 : index + 3])
+            ):
+                raise RemoteDenied("Malformed query encoding")
+    return path, query
 
 
 class RemoteBroker:
@@ -389,6 +433,10 @@ class RemoteBroker:
 
     def _connect(self, timeout: float) -> socket.socket:
         address = self._resolve()[0]
+        if self.registration.expires_at is not None and time.time() >= self.registration.expires_at:
+            raise RemoteExpired("Assigned instance expired before connection")
+        if registration_cancelled(self.home, self.registration.id):
+            raise RemoteExpired("Registration was cancelled before connection")
         try:
             family = socket.AF_INET6 if ":" in address else socket.AF_INET
             sock = socket.socket(family, socket.SOCK_STREAM)
@@ -416,7 +464,9 @@ class RemoteBroker:
     def _path_allowed(self, path: str) -> bool:
         if not isinstance(path, str) or not path.startswith("/") or len(path) > 2048:
             return False
-        if ".." in path.split("/") or "//" in path or "\\" in path or "%" in path:
+        if any(segment in {".", ".."} for segment in path.split("/")):
+            return False
+        if "//" in path or "\\" in path or "%" in path or "#" in path or "?" in path:
             return False
         if self._excluded_path(path):
             return False
@@ -457,8 +507,10 @@ class RemoteBroker:
         method = method.upper()
         if method not in self.registration.methods:
             raise RemoteDenied("HTTP method is not authorized for this registration")
-        if not self._path_allowed(path):
+        canonical_path, query = canonical_request_target(path)
+        if not self._path_allowed(canonical_path):
             raise RemoteDenied("Path is outside the registered scope or explicitly excluded")
+        request_target = canonical_path + (f"?{query}" if query else "")
         if len(body) > _MAX_BODY:
             raise RemoteDenied("Request body exceeds the bound")
         request_headers = self._headers(headers)
@@ -476,11 +528,16 @@ class RemoteBroker:
                 context.minimum_version = ssl.TLSVersion.TLSv1_2
                 sock = context.wrap_socket(sock, server_hostname=self.registration.host)
                 self._register(sock)
+                monitor.update_socket(sock)
+            if monitor.cancelled:
+                raise RemoteExpired("Remote request cancelled during TLS handshake")
             connection = http.client.HTTPConnection(
                 self.registration.host, self.registration.port, timeout=timeout
             )
             connection.sock = sock
-            connection.request(method, path, body=body or None, headers=request_headers)
+            connection.request(
+                method, request_target, body=body or None, headers=request_headers
+            )
             response = connection.getresponse()
             data = response.read(min(self.registration.max_response_bytes, _MAX_RESPONSE))
             location = response.getheader("Location")
@@ -568,8 +625,16 @@ class RemoteBroker:
             raise RemoteDenied("Registration is not an SSH service")
         if not isinstance(command, str) or not command.strip() or len(command) > 4096:
             raise RemoteDenied("SSH command is empty or too large")
-        address = self._resolve()[0]
         token = reserve(self.home, self.registration, run_id, self.registration.max_seconds)
+        try:
+            address = self._resolve()[0]
+            if self.registration.expires_at is not None and time.time() >= self.registration.expires_at:
+                raise RemoteExpired("Assigned instance expired before SSH")
+            if registration_cancelled(self.home, self.registration.id):
+                raise RemoteExpired("Registration was cancelled before SSH")
+        except BaseException:
+            release(self.home, token)
+            raise
         process = None
         stop = threading.Event()
         cancelled = threading.Event()
@@ -796,6 +861,10 @@ def reserve(
         wait = slot - time.time()
         if wait > 0:
             time.sleep(wait)
+        if registration.expires_at is not None and time.time() >= registration.expires_at:
+            raise RemoteExpired("Assigned instance expired while waiting for capacity")
+        if registration_cancelled(home, registration.id):
+            raise RemoteExpired("Registration was cancelled while waiting for capacity")
         return token
     except BaseException:
         try:

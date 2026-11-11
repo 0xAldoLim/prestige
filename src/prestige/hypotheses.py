@@ -16,6 +16,13 @@ STATUSES = {"active", "retired", "confirmed", "rejected"}
 MAX_TEXT = 500
 MAX_ITEM = 300
 MAX_ITEMS = 5
+CONFIDENCES = {"unresolved", "supported", "contradicted", "inconclusive"}
+EVALUATOR_FIELDS = {
+    "actual_experiment_result",
+    "confidence",
+    "evidence",
+    "last_evaluated_seq",
+}
 
 
 def _text(value, field, limit=MAX_TEXT, required=False):
@@ -64,6 +71,9 @@ def add(
     cheapest_test: str = "",
     cost: str = "",
     pivot_if: str = "",
+    test_tool: str = "",
+    test_artifact: str = "",
+    test_args: dict | None = None,
 ) -> dict:
     if len(active(store, run_id)) >= MAX_ACTIVE:
         raise PolicyDenied(
@@ -79,6 +89,13 @@ def add(
         "cheapest_test": _text(cheapest_test, "cheapest_test"),
         "cost": _text(cost, "cost"),
         "pivot_if": _text(pivot_if, "pivot_if"),
+        "test_tool": _text(test_tool, "test_tool", 64),
+        "test_artifact": _text(test_artifact, "test_artifact", 64),
+        "test_args": dict(test_args or {}),
+        "confidence": "unresolved",
+        "actual_experiment_result": "",
+        "evidence": [],
+        "last_evaluated_seq": 0,
     }
     store.event(run_id, "hypothesis", record)
     return record
@@ -89,12 +106,15 @@ def update(
     run_id: str,
     hypothesis_id: str,
     status: str | None = None,
+    trusted: bool = False,
     **fields,
 ) -> dict:
     records = {item["id"]: item for item in latest(store, run_id)}
     if hypothesis_id not in records:
         raise PrestigeError("Unknown hypothesis id")
     record = dict(records[hypothesis_id])
+    if not trusted and (set(fields) & EVALUATOR_FIELDS):
+        raise PolicyDenied("Only the evidence evaluator may set confidence or evidence fields")
     if status is not None:
         if status not in STATUSES:
             raise PolicyDenied("Invalid hypothesis status")
@@ -113,8 +133,28 @@ def update(
     for field in ("text", "prediction", "cheapest_test", "cost", "pivot_if"):
         if field in fields:
             record[field] = _text(fields[field], field, required=(field == "text"))
+    for field in ("test_tool", "test_artifact"):
+        if field in fields:
+            record[field] = _text(fields[field], field, 64)
+    if "test_args" in fields:
+        if not isinstance(fields["test_args"], dict):
+            raise PolicyDenied("Invalid hypothesis test_args")
+        record["test_args"] = dict(fields["test_args"])
+    if trusted:
+        if "confidence" in fields:
+            if fields["confidence"] not in CONFIDENCES:
+                raise PolicyDenied("Invalid hypothesis confidence")
+            record["confidence"] = fields["confidence"]
+        if "actual_experiment_result" in fields:
+            record["actual_experiment_result"] = _text(
+                fields["actual_experiment_result"], "actual_experiment_result"
+            )
+        if "evidence" in fields:
+            record["evidence"] = _items(fields["evidence"], "evidence")
+        if "last_evaluated_seq" in fields:
+            record["last_evaluated_seq"] = int(fields["last_evaluated_seq"])
     merged = {
-        key: record[key]
+        key: record.get(key)
         for key in (
             "id",
             "text",
@@ -125,6 +165,13 @@ def update(
             "cheapest_test",
             "cost",
             "pivot_if",
+            "test_tool",
+            "test_artifact",
+            "test_args",
+            "confidence",
+            "actual_experiment_result",
+            "evidence",
+            "last_evaluated_seq",
         )
     }
     store.event(run_id, "hypothesis", merged)

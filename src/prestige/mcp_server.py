@@ -29,11 +29,12 @@ from prestige.artifacts import Artifacts, ToolRegistry, redact
 from prestige.commitments import expected_for
 from prestige.config import data_home, load_config
 from prestige.engine import new_run
+from prestige.evaluator import evaluate as evaluate_hypotheses
 from prestige.human import answer_operator, pending_request, request_operator
 from prestige.jobs import JobManager
 from prestige.knowledge import SkillsBridge
 from prestige.policy import validate_source_path
-from prestige.remote import broker_for, load_registrations
+from prestige.remote import RemoteExpired, broker_for, load_registrations
 from prestige.research import ResearchBroker
 from prestige.security import Rules
 from prestige.sessions import (
@@ -303,6 +304,9 @@ async def _get_status(args: dict) -> dict:
             _bound_observation(e["data"]) for e in events if e["kind"] == "observation"
         ][-8:]
         hypothesis_records = hypothesis_state.latest(store, run_id)[-8:]
+        hypothesis_evaluations = [
+            e["data"] for e in events if e["kind"] == "hypothesis_evaluation"
+        ][-8:]
         progress = [_bound_observation(e["data"]) for e in events if e["kind"] == "progress"][-3:]
         candidates = [
             {"digest": x["digest"], "verified": bool(x["verified"])}
@@ -323,6 +327,7 @@ async def _get_status(args: dict) -> dict:
                 "artifacts": material,
                 "observations": observations,
                 "hypotheses": hypothesis_records,
+                "hypothesis_evaluations": hypothesis_evaluations,
                 "progress": progress,
                 "candidates": candidates,
                 "pending_operator_request": pending_request(store, run_id),
@@ -363,7 +368,11 @@ async def _run_experiment(args: dict) -> dict:
                 return _redact({"status": "ok", "result": cached, "cached": True})
         result = await asyncio.to_thread(registry.execute, action)
         store.event(run_id, "observation", {"action": asdict(action), "result": result, "trust": "fact"})
-        return _redact({"status": "ok", "result": result})
+        try:
+            evaluation = evaluate_hypotheses(store, run_id)
+        except Exception as error:
+            evaluation = {"error": f"{type(error).__name__}: {error}"}
+        return _redact({"status": "ok", "result": result, "evaluation": evaluation})
     except PolicyDenied as error:
         return {"status": "denied", "reason": str(error)}
     except Exception as error:
@@ -590,6 +599,11 @@ async def _resume_investigation(args: dict) -> dict:
                 "recent_observations": observations,
                 "candidates": candidates,
                 "hypotheses": hypothesis_state.latest(store, run_id)[-4:],
+                "hypothesis_evaluations": [
+                    event["data"]
+                    for event in events
+                    if event["kind"] == "hypothesis_evaluation"
+                ][-4:],
                 "pending_operator_request": pending,
                 "jobs": jobs,
                 "next_actions": next_actions,
@@ -785,6 +799,29 @@ def _record_remote_failure(store: Store, args: dict, error: Exception) -> None:
                 "trust": "fact",
             },
         )
+        if isinstance(error, RemoteExpired):
+            store.event(
+                run_id,
+                "remote_expired",
+                {
+                    "registration_id": args.get("registration_id"),
+                    "reason": str(error)[:500],
+                    "trust": "fact",
+                },
+            )
+            run = store.run(run_id)
+            if (
+                run["status"] not in {"solved", "stopped", "input_rejected", "budget_exhausted"}
+                and pending_request(store, run_id) is None
+            ):
+                request_operator(
+                    store,
+                    run_id,
+                    "The assigned remote instance expired or was revoked. Provide a "
+                    "fresh operator registration and bind it to this investigation; "
+                    "do not probe for a replacement.",
+                    ["provide new registration", "abort remote work"],
+                )
     except Exception:
         pass
 
@@ -1232,6 +1269,20 @@ async def _knowledge_propose(args: dict) -> dict:
         store.close()
 
 
+async def _evaluate_hypotheses(args: dict) -> dict:
+    store = await _store()
+    try:
+        run_id = args["run_id"]
+        run = _run(store, run_id)
+        if _terminal(run):
+            raise PrestigeError("Investigation is terminal")
+        return {"status": "ok", "result": evaluate_hypotheses(store, run_id)}
+    except Exception as error:
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
+    finally:
+        store.close()
+
+
 async def _hypothesis_add(args: dict) -> dict:
     store = await _store()
     try:
@@ -1250,6 +1301,9 @@ async def _hypothesis_add(args: dict) -> dict:
             str(args.get("cheapest_test", "")),
             str(args.get("cost", "")),
             str(args.get("pivot_if", "")),
+            str(args.get("test_tool", "")),
+            str(args.get("test_artifact", "")),
+            args.get("test_args") or {},
         )
         return {
             "status": "ok",
@@ -1272,7 +1326,11 @@ async def _hypothesis_update(args: dict) -> dict:
         _check_budget(run, store, run_id)
         fields = {
             key: args[key]
-            for key in ("supports", "contradicts", "text", "prediction", "cheapest_test", "cost", "pivot_if")
+            for key in (
+                "supports", "contradicts", "text", "prediction",
+                "cheapest_test", "cost", "pivot_if", "test_tool",
+                "test_artifact", "test_args",
+            )
             if key in args
         }
         result = hypothesis_state.update(
@@ -1941,10 +1999,29 @@ _TOOLS: dict[str, tuple[Tool, Any]] = {
                     "cheapest_test": {"type": "string"},
                     "cost": {"type": "string"},
                     "pivot_if": {"type": "string"},
+                    "test_tool": {"type": "string"},
+                    "test_artifact": {"type": "string"},
+                    "test_args": {"type": "object"},
                 },
             },
         ),
         _hypothesis_add,
+    ),
+    "prestige_evaluate_hypotheses": (
+        Tool(
+            name="prestige_evaluate_hypotheses",
+            description=(
+                "Evaluate active hypotheses against recorded tool observations. "
+                "Confidence and recommendations come from evidence, not model claims."
+            ),
+            inputSchema={
+                "type": "object",
+                "required": ["run_id"],
+                "additionalProperties": False,
+                "properties": {"run_id": {"type": "string"}},
+            },
+        ),
+        _evaluate_hypotheses,
     ),
     "prestige_hypothesis_update": (
         Tool(
@@ -1971,6 +2048,9 @@ _TOOLS: dict[str, tuple[Tool, Any]] = {
                     "cheapest_test": {"type": "string"},
                     "cost": {"type": "string"},
                     "pivot_if": {"type": "string"},
+                    "test_tool": {"type": "string"},
+                    "test_artifact": {"type": "string"},
+                    "test_args": {"type": "object"},
                 },
             },
         ),

@@ -4,6 +4,7 @@ import asyncio
 import http.server
 import json
 import os
+import shutil
 import socketserver
 import ssl
 import subprocess
@@ -36,7 +37,7 @@ class _HTTPHandler(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self):
         type(self).hits += 1
-        if self.path == "/challenge":
+        if self.path.startswith("/challenge") or self.path.startswith("/check"):
             self._send(200, b"SYNTHETIC{remote_web}")
         elif self.path == "/redirect":
             self.send_response(302)
@@ -46,6 +47,9 @@ class _HTTPHandler(http.server.BaseHTTPRequestHandler):
             self.send_response(302)
             self.send_header("Location", "/challenge")
             self.end_headers()
+        elif self.path == "/slow":
+            time.sleep(4)
+            self._send(200, b"slow")
         else:
             self._send(404, b"not found")
 
@@ -460,6 +464,244 @@ def test_https_rejects_untrusted_certificate(tmp_path, monkeypatch):
             broker.http("GET", "/challenge")
         message = str(error.value).lower()
         assert "certificate" in message or "hostname" in message or "ssl" in message
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+
+
+def test_query_strings_do_not_bypass_path_exclusions(tmp_path, http_server):
+    registration = _http_registration(
+        http_server, paths=["/"], exclusions=["/admin"]
+    )
+    broker = RemoteBroker(tmp_path, registration)
+    for allowed in (
+        "/challenge?x=1",
+        "/check?code=5a",
+        "/check?code=%35a",
+    ):
+        assert broker.http("GET", allowed)["status"] == 200
+    for denied in (
+        "/admin?view=1",
+        "/admin/?debug=true",
+        "/admin/settings?x=1",
+        "/challenge/%2e%2e/admin",
+        "/challenge/%252e%252e/admin",
+        "/challenge%2fadmin",
+        "http://127.0.0.1/challenge",
+        "//evil.example/challenge",
+        "/challenge//x",
+        "/challenge#frag",
+        "/challenge\x00",
+        "/／check",
+        "/check?code=%zz",
+    ):
+        with pytest.raises(RemoteDenied):
+            broker.http("GET", denied)
+
+
+def test_canonical_request_target_rejects_ambiguous_forms():
+    from prestige.remote import canonical_request_target
+
+    assert canonical_request_target("/check?code=5a") == ("/check", "code=5a")
+    assert canonical_request_target("/check") == ("/check", "")
+    for bad in (
+        "",
+        "check",
+        "http://host/check",
+        "//host/check",
+        "/a/../b",
+        "/a/./b",
+        "/a//b",
+        "/a%2fb",
+        "/a#frag",
+        "/a\\b",
+        "/a?x=%zz",
+        "/a?" + chr(0),
+        "/a?／",
+    ):
+        with pytest.raises(RemoteDenied):
+            canonical_request_target(bad)
+
+
+def test_expiry_during_rate_wait_prevents_connection(tmp_path, http_server):
+    registration = _http_registration(
+        http_server,
+        paths=["/challenge"],
+        rate_per_second=0.5,
+        expires_at=time.time() + 0.4,
+    )
+    broker = RemoteBroker(tmp_path, registration)
+    assert broker.http("GET", "/challenge")["status"] == 200
+    hits = _HTTPHandler.hits
+    time.sleep(0.1)
+    with pytest.raises(RemoteExpired):
+        broker.http("GET", "/challenge")
+    assert _HTTPHandler.hits == hits
+    store = Store(tmp_path)
+    try:
+        assert store.rows("SELECT * FROM remote_active") == []
+    finally:
+        store.close()
+
+
+def test_expiry_cancels_in_flight_http_request(tmp_path, http_server):
+    registration = _http_registration(
+        http_server, paths=["/slow"], expires_at=time.time() + 1.2
+    )
+    broker = RemoteBroker(tmp_path, registration)
+    start = time.monotonic()
+    with pytest.raises(RemoteExpired):
+        broker.http("GET", "/slow", timeout=8)
+    assert time.monotonic() - start < 4
+    store = Store(tmp_path)
+    try:
+        assert store.rows("SELECT * FROM remote_active") == []
+    finally:
+        store.close()
+
+
+async def test_expired_mcp_request_asks_for_operator(tmp_path, http_server):
+    home = tmp_path / "state"
+    save_registrations(
+        home, {"web1": _http_registration(http_server, expires_at=time.time() - 1)}
+    )
+    challenge = tmp_path / "challenge.txt"
+    challenge.write_bytes(b"offline")
+    store = Store(home)
+    try:
+        run_id = new_run(store, challenge)
+    finally:
+        store.close()
+    from prestige.remote import bind_target
+
+    bind_target(home, run_id, "web1")
+    async with _mcp_client(home) as session:
+        denied = json.loads(
+            (
+                await session.call_tool(
+                    "prestige_remote_http",
+                    {"run_id": run_id, "registration_id": "web1", "path": "/challenge"},
+                )
+            ).content[0].text
+        )
+        assert denied["status"] == "error"
+        status = json.loads(
+            (await session.call_tool("prestige_get_status", {"run_id": run_id})).content[0].text
+        )
+        assert status["status"] == "waiting_for_operator"
+        assert status["pending_operator_request"] is not None
+        assert "fresh operator registration" in status["pending_operator_request"]["question"]
+
+
+def _start_https(tmp_path, monkeypatch, san="IP:127.0.0.1", trust=True):
+    if not shutil.which("openssl"):
+        pytest.skip("openssl unavailable")
+    ca_key = tmp_path / "ca.key"
+    ca_crt = tmp_path / "ca.crt"
+    subprocess.run(
+        [
+            "openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes",
+            "-keyout", str(ca_key), "-out", str(ca_crt), "-days", "1",
+            "-subj", "/CN=PRESTIGE Test CA",
+            "-addext", "basicConstraints=critical,CA:TRUE",
+            "-addext", "keyUsage=critical,keyCertSign,cRLSign",
+        ],
+        check=True,
+        capture_output=True,
+    )
+    server_key = tmp_path / "server.key"
+    server_csr = tmp_path / "server.csr"
+    server_crt = tmp_path / "server.crt"
+    subprocess.run(
+        [
+            "openssl", "req", "-newkey", "rsa:2048", "-nodes",
+            "-keyout", str(server_key), "-out", str(server_csr),
+            "-subj", "/CN=127.0.0.1",
+        ],
+        check=True,
+        capture_output=True,
+    )
+    ext = tmp_path / "san.cnf"
+    ext.write_text(
+        f"subjectAltName={san}\n"
+        "basicConstraints=CA:FALSE\n"
+        "keyUsage=critical,digitalSignature,keyEncipherment\n"
+        "extendedKeyUsage=serverAuth\n"
+    )
+    subprocess.run(
+        [
+            "openssl", "x509", "-req", "-in", str(server_csr),
+            "-CA", str(ca_crt), "-CAkey", str(ca_key), "-CAcreateserial",
+            "-out", str(server_crt), "-days", "1", "-extfile", str(ext),
+        ],
+        check=True,
+        capture_output=True,
+    )
+    httpd = http.server.ThreadingHTTPServer(("127.0.0.1", 0), _HTTPHandler)
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.load_cert_chain(server_crt, server_key)
+    httpd.socket = context.wrap_socket(httpd.socket, server_side=True)
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread.start()
+    if trust:
+        monkeypatch.setenv("SSL_CERT_FILE", str(ca_crt))
+    else:
+        monkeypatch.delenv("SSL_CERT_FILE", raising=False)
+    return httpd.server_address[1], httpd
+
+
+def test_https_valid_request_with_trusted_ca(tmp_path, monkeypatch):
+    port, httpd = _start_https(tmp_path, monkeypatch)
+    try:
+        registration = _http_registration(port, protocol="https", paths=["/challenge"])
+        result = RemoteBroker(tmp_path, registration).http("GET", "/challenge")
+        assert result["status"] == 200
+        assert b"SYNTHETIC" in result["body"]
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+
+
+def test_https_hostname_mismatch_rejected(tmp_path, monkeypatch):
+    port, httpd = _start_https(tmp_path, monkeypatch, san="DNS:localhost")
+    try:
+        registration = _http_registration(port, protocol="https", paths=["/challenge"])
+        with pytest.raises(Exception) as error:
+            RemoteBroker(tmp_path, registration).http("GET", "/challenge")
+        assert "certificate" in str(error.value).lower() or "hostname" in str(error.value).lower()
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+
+
+def test_https_untrusted_certificate_rejected(tmp_path, monkeypatch):
+    port, httpd = _start_https(tmp_path, monkeypatch, trust=False)
+    try:
+        registration = _http_registration(port, protocol="https", paths=["/challenge"])
+        with pytest.raises(Exception) as error:
+            RemoteBroker(tmp_path, registration).http("GET", "/challenge")
+        assert "certificate" in str(error.value).lower() or "ssl" in str(error.value).lower()
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+
+
+def test_https_in_flight_cancellation_releases_lease(tmp_path, monkeypatch):
+    port, httpd = _start_https(tmp_path, monkeypatch)
+    try:
+        registration = _http_registration(
+            port, protocol="https", paths=["/slow"], expires_at=time.time() + 1.2
+        )
+        broker = RemoteBroker(tmp_path, registration)
+        start = time.monotonic()
+        with pytest.raises(RemoteExpired):
+            broker.http("GET", "/slow", timeout=8)
+        assert time.monotonic() - start < 4
+        store = Store(tmp_path)
+        try:
+            assert store.rows("SELECT * FROM remote_active") == []
+        finally:
+            store.close()
     finally:
         httpd.shutdown()
         httpd.server_close()
