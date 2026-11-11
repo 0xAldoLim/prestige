@@ -3,8 +3,8 @@
   "updated": "2026-11-10",
   "release_ready": false,
   "baseline_commit": "7a32b4557840d0a49b3590346d843e2a0b6426c1",
-  "current_head": "762a359",
-  "revision_note": "OpenCode-native architecture validated, IBoH solved and independently verified, VENOM resolved via operator-supplied writeup with the activation-phrase branch proven to be a decoy, and an offline adversarial-resilience regression suite added.",
+  "current_head": "84601b4",
+  "revision_note": "OpenCode-native architecture validated; IBoH solved and independently verified; VENOM resolved via an operator-supplied writeup with the activation-phrase branch proven to be a decoy; adversarial corpus, human escalation, resume context and candidate-verification stages added; 156 default / 158 Docker / 159 Ghidra tests.",
   "development_agent_target": "OpenCode",
   "primary_product_backend": "OpenCode-native MCP broker with trusted Python engine",
   "items": [

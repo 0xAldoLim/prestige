@@ -8,8 +8,8 @@ requirements.
 
 ## Current HEAD
 
-- Actual HEAD: `762a359` before the VENOM checkpoint; updated commit recorded below.
-- Latest pushed commit: see the latest `git log`.
+- Validated code HEAD: `84601b4` (this docs-only refresh is the commit containing this line).
+- Latest pushed commit: see the latest `git log` on `origin/main`.
 - GitHub account: `0xAldoLim`
 - CI: `offline-validation` passing on Ubuntu/Windows, Python 3.11 and 3.14.
 
