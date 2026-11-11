@@ -14,7 +14,7 @@ Access date: 2026-10-28. Concepts, files and security notes are recorded in [PRO
 - [OpenAI Codex](https://github.com/openai/codex/tree/main/sdk/python): Official SDK contracts; no source vendored; live solver gated.
 - [Ollama](https://docs.ollama.com/api/chat): Bounded advisory HTTP API contract.
 - [Hugging Face](https://huggingface.co/docs/hub/security-pickle): Safe formats, explicit provenance and custom-code avoidance.
-- [OpenCode](https://opencode.ai/docs/sdk/): Capability-separated backend design; OpenCode adapter not implemented.
+- [OpenCode](https://opencode.ai/docs/sdk/): OpenCode-native MCP broker implemented in `src/prestige/mcp_server.py`; OpenCode owns model transport and the restricted `prestige` agent.
 - [OWASP](https://cheatsheetseries.owasp.org/cheatsheets/LLM_Prompt_Injection_Prevention_Cheat_Sheet.html): Layered trust boundaries and deterministic enforcement beyond filtering.
 
 Additional inspected official contracts:

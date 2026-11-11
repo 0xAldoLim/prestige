@@ -120,10 +120,10 @@ Implementation: `src/prestige/local_models.py`.
 
 [OpenCode](https://opencode.ai/docs/sdk/) — OpenCode maintainers.
 
-Capability-separated backend design; OpenCode adapter not implemented.
+Capability-separated backend design; OpenCode-native MCP broker implemented.
 
 License/source status: API documentation reference; no code reused. Original holder: OpenCode contributors.
-Implementation: `docs/IMPLEMENTATION_STATUS.md`.
+Implementation: `src/prestige/mcp_server.py`, `.opencode/plugins/prestige/`, `opencode.jsonc`.
 
 ## OWASP
 

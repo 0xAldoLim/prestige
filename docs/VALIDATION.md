@@ -1,40 +1,35 @@
-# Executed validation — 2026-10-28
+# Executed validation — 2026-11-10
 
-This records local evidence. The full specification and P0 remain incomplete.
+This records local evidence. The full specification remains incomplete; no model
+benchmark superiority is claimed.
 
-Later migration checkpoint: **75 passed in 19.95 seconds** on the Windows host with
-the reviewed Kali Docker image enabled. New coverage includes the experimental gateway,
-bounded artifact views and the internal WorkspaceRunner's readonly-input/file-persistence
-behavior. Ruff and compilation passed. One real Codex smoke was exercised separately;
-see CODEX_BACKEND.md for actual/unknown usage. OpenCode itself was not found on PATH;
-handoff-file preparation is not a successful OpenCode runtime test. The table below is
-the earlier shipped baseline validation record.
+## Current record
 
 | Check | Actual result |
 | --- | --- |
-| Windows host, Python 3.14.3; pytest 9.2.0; installed SDK 0.163.0 | **64 passed**, including explicitly enabled Docker isolation/cancellation tests; 5.87 s |
-| Kali Linux container, Python 3.14.7, network disabled | **62 passed, 2 skipped**; 1.37 s. Skips: SDK types absent in that image; nested Docker unavailable |
+| Default suite (offline) | **138 passed, 3 skipped**; 9.9 s |
+| With `PRESTIGE_TEST_IMAGE` pinned to `python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39` | **140 passed, 1 skipped** |
+| With `PRESTIGE_TEST_GHIDRA=1` and the same image | **141 passed**; 42.6 s |
 | Ruff | All checks passed |
-| Wheel and sdist | Built successfully using `python -m build --no-isolation` |
-| Fresh Windows venv wheel install | Imported from installed site-packages; CLI fixture suite **4/4 verified** |
-| Distribution audit | Wheel includes learning schema and exact MIT notice; sdist includes tests/conftest.py; schema bytes match pinned upstream |
-| CLI smoke | Entry-point help, module entry point, doctor, configuration, benchmark, reports and unit-tested solve path passed |
-| Owner skills integration | Real pinned read-only checkout search returned 3 cited matches; checkout unmodified |
-| Synthetic Windows fixture benchmark, seed 2026, 3 repetitions | **12/12 verified**, 1,200 synthetic points; summed investigation wall time 0.243 s |
-| Synthetic Kali fixture benchmark, 1 repetition | **4/4 verified**, 400 synthetic points; summed investigation wall time 0.024 s |
-| Real Codex / B0 / B1 / P1 / P2 / P3 / real Ollama | **Not run**; no paid model usage or performance claim |
+| Wheel build | Built successfully (`python -m build --wheel`) |
+| GitHub Actions `offline-validation` | Green on Ubuntu/Windows, Python 3.11 and 3.14 |
+| IBoH / Celestial Gatekeeper | Solved; forward decoder reconstruction matched all 136 target bytes |
+| VENOM | Flag supplied by an operator writeup; activation-phrase branch proven to be a decoy |
+| Real Codex / B0 / B1 / P1 / P2 / P3 comparisons | **Not run**; no paid model comparison or performance claim |
 | Remote challenge / endpoint broker / live renewal | **Disabled, not tested live** |
-| GitHub Actions | Configured; local checks do not establish remote CI success |
+| Persistent debugger / Gray Swan / AgentLSD / AgentDojo | **Not implemented** |
 
-The fixture worker is deterministic. Tokens are unknown, usage coverage is 0,
-efficiency is null and the composite is `not_comparable`. Repeating four small
-synthetic fixtures does not estimate real CTF solve accuracy. Time excludes setup.
+The fixture worker is deterministic. Tokens are unknown for fixture runs, usage coverage
+is 0, efficiency is null and the composite is `not_comparable`. Repeating small synthetic
+fixtures does not estimate real CTF solve accuracy. Time excludes setup.
 
 ## Reproduce
 
 ```text
 python -m pip install -e ".[dev,codex]"
 python -m pytest -q
+PRESTIGE_TEST_IMAGE=python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39 python -m pytest -q
+PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39 python -m pytest -q
 ruff check .
 python -m build
 python -m prestige --help
@@ -44,17 +39,14 @@ git diff --check
 ```
 
 Container tests are opt-in using `PRESTIGE_TEST_IMAGE`, pointing to an existing
-reviewed immutable image containing python3. The tested local Kali image was
-`sha256:8ebf73b0ac7b5e706244ab5dff1d6fe80dc3ca0cc59585fd7053819ce001c8b6`.
-No automatic image download occurs. Tests covered TCP, DNS, child egress, root
-writes, credential/socket absence, bounded output and timed cancellation.
+reviewed immutable image containing python3. No automatic image download occurs.
+Tests cover TCP, DNS, child egress, root writes, credential/socket absence, bounded
+output and timed cancellation. Docker is not treated as a hardened VM guarantee.
 
-The portable Kali run mounted source and test wheels read-only, disabled networking
-and used disposable storage. Reviewed native test dependencies needed a separate
-executable dependency mount; the shipped runner retains a non-executable temporary
-filesystem. No auth or private host directories were mounted. This does not certify
-containment of arbitrary native malware or a scoped remote broker.
+## Historical record
 
-The initial Windows sandbox run could not use pytest's default temporary directory
-and stalled during asyncio startup. Validation passed in the permitted normal process
-context with workspace-local temporary directories, without relaxing application policy.
+Earlier baselines (2026-10-28, 83 tests, Codex-first wording) are superseded by the
+current OpenCode-native record above. One historical paid Codex smoke turn used
+11,563 input / 29 output tokens including 11,392 cached input; it is not a
+current-workflow requirement and is not counted toward the current suite. Unknown
+usage from earlier exploratory calls stays unknown.

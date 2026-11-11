@@ -211,20 +211,22 @@
     "review_scope": "Source/license inspection, not legal advice or dependency certification"
   },
   {
-    "feature_id": "future-backend",
+    "feature_id": "opencode-mcp-broker",
     "upstream_name": "OpenCode",
     "upstream_url": "https://opencode.ai/docs/sdk/",
     "upstream_commit_or_version": null,
     "authors_or_maintainers": "OpenCode maintainers",
-    "concept_or_files_reused": "Capability-separated backend design; OpenCode adapter not implemented",
+    "concept_or_files_reused": "OpenCode-native MCP broker; capability-separated agent/runtime design; no OpenCode source copied",
     "license_type": "API documentation reference; no code reused",
     "original_copyright_holder": "OpenCode contributors",
     "license_copy_path": null,
-    "modifications": "None to copied schema; other implementation is original",
+    "modifications": "Original MCP server, plugin and restricted-agent configuration",
     "implementation_files": [
-      "docs/IMPLEMENTATION_STATUS.md"
+      "src/prestige/mcp_server.py",
+      ".opencode/plugins/prestige/index.ts",
+      "opencode.jsonc"
     ],
-    "date_checked": "2026-10-28",
+    "date_checked": "2026-11-10",
     "review_scope": "Source/license inspection, not legal advice or dependency certification"
   },
   {
