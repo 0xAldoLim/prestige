@@ -344,7 +344,7 @@ async def test_unregistered_competition_host_is_not_reachable(tmp_path):
 
 async def test_rate_limit_persists_across_server_processes(tmp_path, server):
     home, run_id = _setup(
-        tmp_path, server, max_requests=5, rate_per_second=0.1, max_concurrency=2
+        tmp_path, server, max_requests=5, rate_per_second=0.5, max_concurrency=2
     )
     async with _process(home) as session:
         first = await _call(
@@ -353,13 +353,26 @@ async def test_rate_limit_persists_across_server_processes(tmp_path, server):
             {"run_id": run_id, "registration_id": "web1", "path": "/challenge"},
         )
         assert first["status"] == "ok"
+    store = Store(home)
+    try:
+        first_state = store.rows(
+            "SELECT requests,last_request FROM remote_state WHERE registration_id='web1'"
+        )[0]
+    finally:
+        store.close()
     async with _process(home) as session:
-        start = time.monotonic()
         second = await _call(
             session,
             "prestige_remote_http",
             {"run_id": run_id, "registration_id": "web1", "path": "/challenge"},
         )
-        elapsed = time.monotonic() - start
         assert second["status"] == "ok"
-        assert elapsed >= 3.0, elapsed
+    store = Store(home)
+    try:
+        second_state = store.rows(
+            "SELECT requests,last_request FROM remote_state WHERE registration_id='web1'"
+        )[0]
+    finally:
+        store.close()
+    assert second_state["requests"] == 2
+    assert second_state["last_request"] - first_state["last_request"] >= 1.9
