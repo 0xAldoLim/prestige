@@ -23,6 +23,10 @@ from prestige.remote import (
 )
 from prestige.store import Store
 
+pytestmark = pytest.mark.skipif(
+    os.name == "nt", reason="POSIX ssh adapter test uses a shell fake-ssh fixture"
+)
+
 
 @pytest.fixture(autouse=True)
 def _remote_enabled(monkeypatch):

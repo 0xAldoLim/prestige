@@ -144,7 +144,7 @@ class Registration:
             known = Path(registration.ssh_known_hosts).expanduser()
             if not key.is_file() or not known.is_file():
                 raise RemoteDenied("SSH key or known_hosts file is missing")
-            if key.stat().st_mode & 0o077:
+            if os.name != "nt" and key.stat().st_mode & 0o077:
                 raise RemoteDenied("SSH key must not be group/world accessible")
         elif registration.ssh_user or registration.ssh_key_path or registration.ssh_known_hosts:
             raise RemoteDenied("SSH fields are only valid for protocol ssh")
