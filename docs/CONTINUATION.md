@@ -19,7 +19,9 @@ requirements.
   - `src/prestige/mcp_server.py` exposes PRESTIGE tools over stdio MCP.
   - Tools: `prestige_create_investigation`, `prestige_get_status`,
     `prestige_run_experiment`, `prestige_verify_candidate`,
-    `prestige_start_analysis`, `prestige_get_analysis`, `prestige_cancel_analysis`.
+    `prestige_start_analysis`, `prestige_get_analysis`, `prestige_cancel_analysis`,
+    `prestige_request_operator`, `prestige_answer_operator`,
+    `prestige_resume_investigation`.
   - Model-driven investigations default to and are locked to `backend=fake`; no
     provider credentials are requested or persisted.
   - Operator-controlled scope: source paths restricted to `PRESTIGE_ALLOWED_DIRS`
@@ -57,9 +59,9 @@ requirements.
     limits, bounded output.
   - `WorkspaceRunner` output directory made writable for the containerized user.
 - **Tests**
-  - Default suite: **152 passed, 3 skipped**.
-  - With `PRESTIGE_TEST_IMAGE`: **154 passed, 1 skipped**.
-  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **155 passed**.
+  - Default suite: **154 passed, 3 skipped**.
+  - With `PRESTIGE_TEST_IMAGE`: **156 passed, 1 skipped**.
+  - With `PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=...`: **157 passed**.
 - **Operator known-answer helper**
   - `prestige verify-candidate --expected-sha256 <digest> [--candidate-file PATH]`
     reads a candidate from stdin/file, reports only digests + `match`, and never
@@ -71,7 +73,7 @@ requirements.
 ```bash
 PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39 \
   python -m pytest -q
-# 155 passed in ~42 s
+# 157 passed in ~39 s
 ```
 
 ## Real challenge status

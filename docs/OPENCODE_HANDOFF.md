@@ -95,6 +95,9 @@ official checker acceptance without a real authorized checker.
 - `prestige_start_analysis` — start a durable cached analysis job.
 - `prestige_get_analysis` — poll job status and result.
 - `prestige_cancel_analysis` — cancel a queued or running job.
+- `prestige_request_operator` — record a durable human question and pause.
+- `prestige_answer_operator` — relay an operator answer as `operator_relayed`.
+- `prestige_resume_investigation` — compact context reconstruction without resetting budgets.
 
 Allowed experiment tools include: `inspect`, `strings`, `file`, `zip`, `read`, `base64`,
 `hex`, `xor`, `radare2`, `ghidra`, `python` (isolated Docker worker), and `command`.

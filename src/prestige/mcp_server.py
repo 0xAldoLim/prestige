@@ -401,6 +401,78 @@ async def _answer_operator(args: dict) -> dict:
         store.close()
 
 
+async def _resume_investigation(args: dict) -> dict:
+    """Reconstruct a compact context after a model/session failure.
+
+    This never resets budgets or repeats expensive work; it only summarizes
+    durable state and points at the next meaningful action.
+    """
+    store = await _store()
+    try:
+        run_id = args["run_id"]
+        run = _run(store, run_id)
+        settings = run["settings"]
+        events = store.events(run_id)
+        pending = pending_request(store, run_id)
+        jobs = [
+            {
+                "job_id": row["job_id"],
+                "tool": row["tool"],
+                "status": row["status"],
+                "failure_class": row["failure_class"],
+            }
+            for row in JobManager(store, run_id).list()
+            if row["status"] in {"queued", "running", "failed"}
+        ]
+        observations = [
+            _bound_observation(event["data"])
+            for event in events
+            if event["kind"] == "observation"
+        ][-3:]
+        candidates = [
+            {"digest": x["digest"], "verified": bool(x["verified"])}
+            for x in store.rows(
+                "SELECT digest,verified FROM candidates WHERE run_id=?", (run_id,)
+            )
+        ]
+        elapsed = time.time() - run["created"]
+        remaining_seconds = max(0.0, settings["max_seconds"] - elapsed)
+        remaining_attempts = max(0, settings["max_turns"] - run["attempts"])
+        next_actions = []
+        if pending:
+            next_actions.append(f"answer operator request {pending['request_id']}")
+        running = [job for job in jobs if job["status"] in {"queued", "running"}]
+        if running:
+            next_actions.append(f"poll analysis job {running[0]['job_id']}")
+        if remaining_attempts == 0 or remaining_seconds <= 0:
+            next_actions.append("budget exhausted; stop and report evidence")
+        elif run["status"] == "waiting_for_operator":
+            next_actions.append("wait for the operator answer")
+        else:
+            next_actions.append("run the next discriminating experiment")
+        return _redact(
+            {
+                "run_id": run_id,
+                "status": run["status"],
+                "lane": run["lane"],
+                "backend": run["backend"],
+                "artifacts": len(Artifacts(store, run_id).list()),
+                "attempts": run["attempts"],
+                "remaining_attempts": remaining_attempts,
+                "remaining_seconds": round(remaining_seconds, 1),
+                "recent_observations": observations,
+                "candidates": candidates,
+                "pending_operator_request": pending,
+                "jobs": jobs,
+                "next_actions": next_actions,
+            }
+        )
+    except Exception as error:
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
+    finally:
+        store.close()
+
+
 _TOOLS: dict[str, tuple[Tool, Any]] = {
     "prestige_create_investigation": (
         Tool(
@@ -568,6 +640,22 @@ _TOOLS: dict[str, tuple[Tool, Any]] = {
             },
         ),
         _answer_operator,
+    ),
+    "prestige_resume_investigation": (
+        Tool(
+            name="prestige_resume_investigation",
+            description=(
+                "Reconstruct a compact context after a model/session failure without "
+                "resetting budgets or repeating expensive work."
+            ),
+            inputSchema={
+                "type": "object",
+                "required": ["run_id"],
+                "additionalProperties": False,
+                "properties": {"run_id": {"type": "string"}},
+            },
+        ),
+        _resume_investigation,
     ),
 }
 

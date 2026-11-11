@@ -65,6 +65,7 @@ async def test_mcp_lists_prestige_tools(tmp_path):
             "prestige_cancel_analysis",
             "prestige_request_operator",
             "prestige_answer_operator",
+            "prestige_resume_investigation",
         }
 
 
@@ -507,6 +508,65 @@ async def test_mcp_schema_contains_no_provider_credentials(tmp_path):
         create = next(tool for tool in tools.tools if tool.name == "prestige_create_investigation")
         backend = create.input_schema["properties"].get("backend")
         assert backend is None or backend.get("enum") == ["fake"]
+
+
+async def test_mcp_resume_reconstructs_context_without_resetting_budget(tmp_path):
+    value = b"SYNTHETIC{resume_context}"
+    path = tmp_path / "challenge.txt"
+    path.write_bytes(base64.b64encode(value))
+
+    async with _mcp_client(tmp_path) as session:
+        created = await session.call_tool(
+            "prestige_create_investigation",
+            {"source_path": str(path), "max_turns": 3, "max_seconds": 300},
+        )
+        run_id = json.loads(created.content[0].text)["run_id"]
+        status = await session.call_tool("prestige_get_status", {"run_id": run_id})
+        artifact_id = json.loads(status.content[0].text)["artifacts"][0]["id"]
+        await session.call_tool(
+            "prestige_run_experiment",
+            {"run_id": run_id, "tool": "inspect", "artifact_id": artifact_id, "args": {}},
+        )
+
+        resumed = json.loads(
+            (
+                await session.call_tool("prestige_resume_investigation", {"run_id": run_id})
+            ).content[0].text
+        )
+        assert resumed["status"] == "ready"
+        assert resumed["attempts"] == 1
+        assert resumed["remaining_attempts"] == 2
+        assert resumed["artifacts"] == 1
+        assert len(resumed["recent_observations"]) == 1
+        assert resumed["next_actions"]
+        assert "reset" not in json.dumps(resumed)
+
+
+async def test_mcp_resume_surfaces_pending_operator_request(tmp_path):
+    path = tmp_path / "challenge.txt"
+    path.write_bytes(b"data")
+
+    async with _mcp_client(tmp_path) as session:
+        created = await session.call_tool(
+            "prestige_create_investigation", {"source_path": str(path)}
+        )
+        run_id = json.loads(created.content[0].text)["run_id"]
+        requested = json.loads(
+            (
+                await session.call_tool(
+                    "prestige_request_operator",
+                    {"run_id": run_id, "question": "Need scope confirmation"},
+                )
+            ).content[0].text
+        )
+        resumed = json.loads(
+            (
+                await session.call_tool("prestige_resume_investigation", {"run_id": run_id})
+            ).content[0].text
+        )
+        assert resumed["status"] == "waiting_for_operator"
+        assert resumed["pending_operator_request"]["request_id"] == requested["request_id"]
+        assert any("answer operator request" in action for action in resumed["next_actions"])
 
 
 def test_agent_stdio_smoke(tmp_path):
