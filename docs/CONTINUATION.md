@@ -302,22 +302,33 @@ no performance or superiority claim is made.
    remains operator-controlled.
 9. Local known-answer verification exercised with an operator-supplied expected
    digest; the literal VENOM flag is not stored in the report or the repository.
+10. Persistent cross-process remote accounting, atomic concurrency leases,
+    exclusions, per-investigation bindings, in-flight cancellation and bounded
+    audit events, tested with separate MCP processes.
+11. Investigation-owned persistent Python/GDB sessions with orphan detection and
+    cleanup; a reviewed GDB worker image passes a real breakpoint/register/
+    backtrace test.
+12. Explicitly scoped SSH adapter with operator key/known_hosts, pinned
+    destination, strict host-key checking and a real loopback sshd test.
+13. Controlled research broker with pinned DNS, ignored proxies, TLS verification
+    and cached provenance.
+14. Reviewed learning proposals with operator-only promotion.
+15. Operational FAST/AUTO/EXPERT lanes and explicit escalation.
+16. Four live held-out runs through the real OpenCode/MCP loop, all commitment-
+    verified; one matched skills/no-skills pair with no improvement claim.
 
 ## Next executable milestone
 
-1. Integrate the external Gray Swan IPI Arena, AgentLSD and AgentDojo scenario
-   harnesses; the local 12-class corpus currently reports zero observed boundary
-   violations and one legitimate control.
-2. Supply an operator-reviewed image containing `gdb` (and ideally `r2`/`binwalk`)
-   to exercise the persistent debugger breakpoint workflow; the session mechanism
-   and allowlist are implemented.
-3. Add an authorized SSH adapter only when an operator-reviewed SSH-enabled image
-   and explicit assignment are available.
-4. Run B0/B1 model comparisons only with recorded budgets and an explicitly
-   configured adapter; P1/P2/P3 fixture comparisons are implemented.
-5. Exercise a fresh held-out authorized challenge through the complete workflow
-   (skills route → hypotheses → tools → verification → resume) and record it
-   without fabricating a flag.
+1. Integrate the external Gray Swan IPI Arena, AgentLSD and AgentDojo harnesses;
+   local file adapters and the 12-class corpus exist, but external runs do not.
+2. Run real B0/B1 comparisons only with a legitimately configured plain-agent
+   adapter and recorded budgets; P1/P2/P3 fixture comparisons are implemented.
+3. Add an independent evaluator that proposes/retires hypotheses beyond the
+   model's own choices (ST-1 remains partial).
+4. Validate the SSH adapter against an operator-assigned external endpoint; the
+   real loopback sshd test passes.
+5. Expand verified non-decoding learning and measure whether it improves later
+   solves without fabricating results.
 
 ## Installed toolchain
 
