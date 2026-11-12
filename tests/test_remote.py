@@ -527,8 +527,8 @@ def test_expiry_during_rate_wait_prevents_connection(tmp_path, http_server):
     registration = _http_registration(
         http_server,
         paths=["/challenge"],
-        rate_per_second=0.5,
-        expires_at=time.time() + 0.4,
+        rate_per_second=0.25,
+        expires_at=time.time() + 3.0,
     )
     broker = RemoteBroker(tmp_path, registration)
     assert broker.http("GET", "/challenge")["status"] == 200
