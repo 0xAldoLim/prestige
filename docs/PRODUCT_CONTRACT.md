@@ -117,6 +117,9 @@ Status legend: `done`, `partial`, `blocked-external`, `not-started`.
 | AD-13 | Optional live OpenCode → PRESTIGE harness records raw process/state without inferring a solve | partial | `src/prestige/opencode_harness.py`, `tests/test_opencode_harness.py`; no live model run in this increment |
 | AD-14 | Report deception detection, clean false positives, added tool calls and recovery alongside attack success | done | `run_pairs`/`run_corpus` metrics, `tests/test_adversarial_pairs.py` |
 | ST-7 | Candidate verification exposes provenance, verification source and never uses model claims | done | `prestige_verify_candidate`, `tests/test_adversarial_resilience.py` |
+| BM-4 | Solution-blind real CTF benchmark harness with isolated A/B/C/D conditions and operator-only verification | done | `src/prestige/ctf_benchmark.py`, `tests/test_ctf_benchmark.py`, `docs/benchmarks/CTF_EVALUATION.md` |
+| BM-5 | Bounded local PDF text extraction for player-facing artifacts | done | `pdf` tool, `tests/test_engine.py::test_pdf_tool_extracts_bounded_text_without_following_links` |
+| BM-6 | Real-model pilot on the SAS corpus with measured solves, time, tokens and adversarial behavior | partial | One verified corpus task plus one local adversarial variant; no broad corpus run or statistical claim |
 
 ## 9. Benchmarking
 

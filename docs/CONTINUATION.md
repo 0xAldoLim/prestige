@@ -89,6 +89,27 @@ requirements.
   Finite fixtures are not universal immunity; no official Gray Swan/AgentDojo/AgentLSD
   benchmark was executed.
 
+## 2026-11-12 real CTF benchmark pilot
+
+- Added `src/prestige/ctf_benchmark.py`: solution-blind view preparation, isolated
+  A/B/C/D conditions, streamed OpenCode JSONL usage accounting, operator-only
+  SHA-256 verification, randomized order, and sanitized parent `OPENCODE_*`/`PWD`
+  environment so nested runs cannot reuse the parent session.
+- Fixed MCP investigation commitment hashing for participant directories and added
+  a bounded local `pdf` tool (`mutool draw -F txt`) so PRESTIGE can inspect
+  player-facing PDFs without raw hex escalation.
+- Ran a real-model pilot with `opencode-go/kimi-k3.1-pro` on
+  `welcome-sanity-files` and a matched local adversarial variant. A/B/C verified
+  2/2; D verified 1/2 and was slower (157.8 s clean, adversarial timeout). C never
+  invoked PRESTIGE tools. No fake flag was accepted by any condition.
+- Skills baseline `1d51e0f` vs updated `8636995`: both solved 2/2; observed
+  differences are within single-trial noise. Report:
+  `docs/benchmarks/CTF_EVALUATION.md`; machine summary:
+  `benchmark-results/sasctf-2026-pilot.json`.
+- This is a pilot, not a population estimate. Only one real corpus task had an
+  independent answer; the other ready packages were not provisioned with local
+  services/answers and are not counted as attempts.
+
 ## What works now
 
 - **OpenCode-native MCP broker**
@@ -238,9 +259,9 @@ requirements.
     limits, bounded output.
   - `WorkspaceRunner` output directory made writable for the containerized user.
 - **Tests**
-  - Default suite: **333 passed, 8 skipped**.
-  - With `PRESTIGE_TEST_IMAGE`: **338 passed, 3 skipped**.
-  - With GDB + SSHD + Docker + Ghidra opt-ins: **341 passed**.
+  - Default suite: **338 passed, 8 skipped**.
+  - With `PRESTIGE_TEST_IMAGE`: **343 passed, 3 skipped**.
+  - With GDB + SSHD + Docker + Ghidra opt-ins: **346 passed**.
 - **Operator known-answer helper**
   - `prestige verify-candidate --expected-sha256 <digest> [--candidate-file PATH]`
     reads a candidate from stdin/file, reports only digests + `match`, and never
@@ -252,7 +273,7 @@ requirements.
 ```bash
 PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39 \
   python -m pytest -q
-# 341 passed in ~106 s
+# 346 passed in ~116 s
 ```
 
 ## Real challenge status

@@ -193,13 +193,23 @@ _SIGNALS = (
     ),
     (
         "credential_request",
-        _HIGH,
+        _MEDIUM,
         re.compile(
-            r"(?i)\b(?:print|show|reveal|send|exfiltrate|upload|cat|read|leak)\b"
+            r"(?i)\b(?:print|show|reveal|cat|read|extract|dump)\b"
             r"[^\n]{0,60}\b(?:api[_-]?key|token|password|secret|credential|"
             r"private\s+key|id_rsa|\.env)\b"
         ),
-        "requests credentials",
+        "discusses credential access",
+    ),
+    (
+        "credential_request",
+        _HIGH,
+        re.compile(
+            r"(?i)\b(?:send|exfiltrate|upload|leak|post)\b"
+            r"[^\n]{0,80}\b(?:api[_-]?key|token|password|secret|credential|"
+            r"private\s+key|id_rsa|\.env)\b"
+        ),
+        "asks to transmit credentials",
     ),
     (
         "credential_request",

@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "updated": "2026-11-11",
+  "updated": "2026-11-12",
   "release_ready": false,
   "baseline_commit": "7a32b4557840d0a49b3590346d843e2a0b6426c1",
-  "current_head": "7f89ec7",
+  "current_head": "9d3690c",
   "revision_note": "Active OpenCode-native CTF agent with remote scope/expiry/TLS controls, an independent evidence evaluator, operator-command B0/B1 adapters, paired adversarial execution, a deterministic deception detector and trust boundary, quarantine of poisoned memory, native AgentDojo/Gray Swan data adapters, and an optional live OpenCode harness. No official external benchmark or live adversarial model comparison has been run. 333 default / 338 Docker / 341 all opt-ins.",
   "development_agent_target": "OpenCode",
   "primary_product_backend": "OpenCode-native MCP broker with trusted Python engine",
@@ -411,6 +411,42 @@
         "tests/test_opencode_harness.py"
       ],
       "remaining": "Harness implemented and unit-tested with a fake executable; no live model comparison run in this increment."
+    },
+    {
+      "id": "ctf-benchmark-harness",
+      "status": "tested",
+      "evidence": [
+        "src/prestige/ctf_benchmark.py",
+        "tests/test_ctf_benchmark.py"
+      ],
+      "remaining": "Solution-blind A/B/C/D harness; only one real corpus task had an independent answer in the pilot."
+    },
+    {
+      "id": "pdf-analysis-tool",
+      "status": "tested",
+      "evidence": [
+        "src/prestige/artifacts.py",
+        "tests/test_engine.py"
+      ],
+      "remaining": "Bounded mutool text extraction; no rendering or document JavaScript."
+    },
+    {
+      "id": "real-ctf-pilot",
+      "status": "partial",
+      "evidence": [
+        "docs/benchmarks/CTF_EVALUATION.md",
+        "benchmark-results/sasctf-2026-pilot.json"
+      ],
+      "remaining": "A/B/C 2/2, D 1/2 on one clean challenge plus one adversarial variant; insufficient sample for superiority."
+    },
+    {
+      "id": "skills-upstream-integration",
+      "status": "tested",
+      "evidence": [
+        "0xAldoLim/skills 8636995",
+        "docs/UPSTREAM_SKILLS.md"
+      ],
+      "remaining": "r2pipe/MBA/playbook/scripts integrated; Tavily similar-search rejected; no measured skill gain yet."
     }
   ]
 }

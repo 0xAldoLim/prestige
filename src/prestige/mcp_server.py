@@ -82,7 +82,7 @@ def _terminal(run: dict) -> bool:
 
 
 # Deterministic tools can safely reuse prior evidence for the same inputs.
-_DETERMINISTIC_TOOLS = {"inspect", "strings", "read", "file", "zip", "base64", "hex", "xor"}
+_DETERMINISTIC_TOOLS = {"inspect", "strings", "read", "file", "pdf", "zip", "base64", "hex", "xor"}
 
 
 def _find_cached_observation(store: Store, run_id: str, action: Action) -> Any | None:
@@ -134,7 +134,7 @@ def _deception_overview(store: Store, run_id: str) -> dict:
     return {
         "events": len(events),
         "max_risk": maximum,
-        "contaminated": maximum in {"medium", "high"},
+        "contaminated": maximum == "high",
         "recent": recent,
         "quarantined_records": quarantined[0]["n"] if quarantined else 0,
         "policy_effect": "none",
@@ -290,11 +290,21 @@ async def _create_investigation(args: dict) -> dict:
 
 
 def _source_digest(source: Path, max_artifact_mib: int) -> str:
-    """Hash the source before run creation so commitments can be applied safely."""
+    """Hash a source file or participant directory before run creation.
+
+    A directory digest covers sorted relative paths and file bytes, matching the
+    benchmark operator's private commitment. Symlinks are rejected by inventory.
+    """
     limit = max_artifact_mib * 1024 * 1024
+    digest = hashlib.sha256()
+    if source.is_dir():
+        for path in sorted(item for item in source.rglob("*") if item.is_file()):
+            relative = path.relative_to(source).as_posix().encode("utf-8")
+            digest.update(relative + b"\0")
+            digest.update(path.read_bytes())
+        return digest.hexdigest()
     if source.stat().st_size > limit:
         raise PolicyDenied("Source exceeds the configured artifact limit")
-    digest = hashlib.sha256()
     with source.open("rb") as stream:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(chunk)

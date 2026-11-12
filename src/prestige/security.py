@@ -28,6 +28,7 @@ class Rules:
         "python",
         "command",
         "file",
+        "pdf",
         "radare2",
         "ghidra",
     )

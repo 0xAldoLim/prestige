@@ -222,6 +222,8 @@ class ToolRegistry:
             result["stdout_artifact"] = self.artifacts.add(stdout, "tool-stdout.txt")
             result["outputs"] = self.runner.collect(self.artifacts)
             return result
+        if action.tool == "pdf":
+            return self._pdf(action)
         if action.tool == "file":
             if action.args:
                 raise PolicyDenied("file takes no arguments")
@@ -282,6 +284,35 @@ class ToolRegistry:
         if action.tool == "zip":
             return self._zip(action.artifact, data)
         raise PolicyDenied("Tool is not implemented; no host shell fallback")
+
+    def _pdf(self, action: Action) -> dict:
+        """Extract bounded text from a PDF with the local mutool utility.
+
+        This is a read-only host tool like ``file``; it never follows links or
+        executes document JavaScript. Raw pages are not rendered.
+        """
+        if action.args:
+            raise PolicyDenied("pdf takes no arguments")
+        path = self.artifacts.resolve_path(action.artifact)
+        try:
+            completed = subprocess.run(
+                ["mutool", "draw", "-q", "-F", "txt", "-o", "-", str(path)],
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=False,
+            )
+        except FileNotFoundError as error:
+            raise PolicyDenied("mutool is not installed on the host") from error
+        except subprocess.TimeoutExpired as error:
+            raise PolicyDenied("pdf extraction timed out") from error
+        if len(completed.stdout) > 262144:
+            raise PolicyDenied("pdf output exceeded limit")
+        return {
+            "text": completed.stdout,
+            "stderr": completed.stderr[:2048],
+            "returncode": completed.returncode,
+        }
 
     _R2_CMD = re.compile(
         r"^(aa|aaa|aaaa|afl|iz|izz|iS|iI|is|ii|ie|ic|il|fs|f|q|Vq|pdf"

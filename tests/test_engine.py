@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from prestige.artifacts import Artifacts
+from prestige.artifacts import Artifacts, ToolRegistry
 from prestige.backends import FakeBackend
 from prestige.cli import main
 from prestige.engine import new_run, report, solve
@@ -451,3 +451,27 @@ async def test_ghidra_tool_exports_functions(store, tmp_path):
         (x for x in store.events(run_id) if x["kind"] == "observation"), None
     )
     assert observation and len(observation["data"]["result"]["functions"]) > 50
+
+
+def test_pdf_tool_extracts_bounded_text_without_following_links(store, tmp_path, monkeypatch):
+    path = tmp_path / "doc.pdf"
+    path.write_bytes(b"%PDF-1.7\nSAS{hidden}\n")
+    run_id = new_run(store, path)
+    artifacts = Artifacts(store, run_id)
+    artifact = artifacts.list()[0]["id"]
+    calls = []
+
+    class Completed:
+        stdout = "Sanity Files\nSAS{pdf_text}\n"
+        stderr = ""
+        returncode = 0
+
+    def fake_run(command, **kwargs):
+        calls.append((command, kwargs))
+        return Completed()
+
+    monkeypatch.setattr("prestige.artifacts.subprocess.run", fake_run)
+    result = ToolRegistry(artifacts, ("pdf",)).execute(Action("pdf", artifact, {}))
+    assert "SAS{pdf_text}" in result["text"]
+    assert calls[0][0][0] == "mutool"
+    assert calls[0][1]["timeout"] == 15

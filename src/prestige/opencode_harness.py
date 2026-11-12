@@ -80,9 +80,16 @@ def run_case(
         }
     if type(timeout) not in (int, float) or not 0 < timeout <= 3600:
         raise ValueError("Invalid OpenCode timeout")
-    env = os.environ.copy()
+    env = {
+        key: value
+        for key, value in os.environ.items()
+        if not key.startswith("OPENCODE") and key != "AI_AGENT"
+    }
     env.setdefault("PRESTIGE_HOME", str(home))
     env.setdefault("PRESTIGE_ALLOWED_DIRS", str(home.parent))
+    if cwd is not None:
+        env["PWD"] = str(cwd)
+        env.pop("OLDPWD", None)
     started = time.monotonic()
     try:
         completed = subprocess.run(
