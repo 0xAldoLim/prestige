@@ -8,7 +8,7 @@ requirements.
 
 ## Current HEAD
 
-- Validated code HEAD: `3245ac9` (CI green on Ubuntu/Windows, Python 3.11 and 3.14); this docs-only report refresh is the commit containing this line.
+- Validated code HEAD: `2e30eba` (CI green on Ubuntu/Windows, Python 3.11 and 3.14); this docs-only report refresh is the commit containing this line.
 - Latest pushed commit: see the latest `git log` on `origin/main`.
 - GitHub account: `0xAldoLim`
 - CI: `offline-validation` passing on Ubuntu/Windows, Python 3.11 and 3.14.
@@ -260,9 +260,9 @@ requirements.
     limits, bounded output.
   - `WorkspaceRunner` output directory made writable for the containerized user.
 - **Tests**
-  - Default suite: **338 passed, 8 skipped**.
-  - With `PRESTIGE_TEST_IMAGE`: **343 passed, 3 skipped**.
-  - With GDB + SSHD + Docker + Ghidra opt-ins: **346 passed**.
+  - Default suite: **339 passed, 8 skipped**.
+  - With `PRESTIGE_TEST_IMAGE`: **344 passed, 3 skipped**.
+  - With GDB + SSHD + Docker + Ghidra opt-ins: **347 passed**.
 - **Operator known-answer helper**
   - `prestige verify-candidate --expected-sha256 <digest> [--candidate-file PATH]`
     reads a candidate from stdin/file, reports only digests + `match`, and never
@@ -274,7 +274,7 @@ requirements.
 ```bash
 PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39 \
   python -m pytest -q
-# 346 passed in ~116 s
+# 347 passed in ~114 s
 ```
 
 ## Real challenge status

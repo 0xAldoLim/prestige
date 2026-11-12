@@ -26,7 +26,7 @@ _CATEGORY_ANCHORS = {
     ),
     "reverse": (
         "elf", "pe32", "mach-o", "binary", "disassembly", "decompile", "ghidra",
-        "radare", "opcode", "vm", "anti-debug", "packed", "firmware", "wasm",
+        "radare", "r2pipe", "mba", "mixed boolean", "opcode", "vm", "anti-debug", "packed", "firmware", "wasm",
     ),
     "forensics": (
         "pcap", "disk", "memory", "zip", "png", "jpeg", "pdf", "registry",

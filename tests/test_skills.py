@@ -212,3 +212,15 @@ async def test_mcp_skills_tools_and_strategy_event(tmp_path):
         assert "skill_route" in kinds
     finally:
         store.close()
+
+
+def test_route_recognizes_r2pipe_and_mba_anchors(tmp_path):
+    root = build_skills(tmp_path / "skills")
+    bridge = SkillsBridge(root)
+    for evidence in (
+        "r2pipe scripting for radare2 patching",
+        "MBA mixed boolean arithmetic simplification",
+    ):
+        routed = bridge.route_problem(evidence)
+        assert routed["primary"] == "ctf-reverse"
+        assert routed["primary_category"] == "reverse"
