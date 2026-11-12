@@ -8,7 +8,7 @@ requirements.
 
 ## Current HEAD
 
-- Validated code HEAD: `7f89ec7` (CI green on Ubuntu/Windows, Python 3.11 and 3.14); this docs-only refresh is the commit containing this line.
+- Validated code HEAD: `3245ac9` (CI green on Ubuntu/Windows, Python 3.11 and 3.14); this docs-only report refresh is the commit containing this line.
 - Latest pushed commit: see the latest `git log` on `origin/main`.
 - GitHub account: `0xAldoLim`
 - CI: `offline-validation` passing on Ubuntu/Windows, Python 3.11 and 3.14.
@@ -105,7 +105,8 @@ requirements.
 - Skills baseline `1d51e0f` vs updated `8636995`: both solved 2/2; observed
   differences are within single-trial noise. Report:
   `docs/benchmarks/CTF_EVALUATION.md`; machine summary:
-  `benchmark-results/sasctf-2026-pilot.json`.
+  `benchmark-results/sasctf-2026-pilot.json`. An extra D trial with updated
+  skills timed out on the clean challenge, confirming high variance and overhead.
 - This is a pilot, not a population estimate. Only one real corpus task had an
   independent answer; the other ready packages were not provisioned with local
   services/answers and are not counted as attempts.
