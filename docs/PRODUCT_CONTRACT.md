@@ -120,6 +120,7 @@ Status legend: `done`, `partial`, `blocked-external`, `not-started`.
 | BM-4 | Solution-blind real CTF benchmark harness with isolated A/B/C/D conditions and operator-only verification | done | `src/prestige/ctf_benchmark.py`, `tests/test_ctf_benchmark.py`, `docs/benchmarks/CTF_EVALUATION.md` |
 | BM-5 | Bounded local PDF text extraction for player-facing artifacts | done | `pdf` tool, `tests/test_engine.py::test_pdf_tool_extracts_bounded_text_without_following_links` |
 | BM-6 | Real-model pilot on the SAS corpus with measured solves, time, tokens and adversarial behavior | partial | One verified corpus task plus one local adversarial variant; no broad corpus run or statistical claim |
+| BM-7 | Non-textual technical decoys and fake success claims cannot become verified candidates | done | `tests/test_adversarial_resilience.py::test_nontextual_decoy_and_fake_success_branch_do_not_verify` |
 
 ## 9. Benchmarking
 

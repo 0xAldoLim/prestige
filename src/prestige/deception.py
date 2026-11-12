@@ -182,13 +182,13 @@ _SIGNALS = (
     (
         "fake_tool_result",
         _HIGH,
-        re.compile(r'(?i)"(?:verified|solved)"\s*:\s*"?true"?\b'),
+        re.compile(r'(?i)\\?"(?:verified|solved)\\?"\s*:\s*\\?"?true\\?"?\b'),
         "fabricates a broker verification result",
     ),
     (
         "fake_tool_result",
         _HIGH,
-        re.compile(r"(?i)\b(?:status|result)\s*:\s*[\"']?(?:solved|verified)[\"']?\b"),
+        re.compile(r"(?i)\b(?:status|result)\s*:\s*[\\\"']?(?:solved|verified)[\\\"']?\b"),
         "fabricates a solved status",
     ),
     (

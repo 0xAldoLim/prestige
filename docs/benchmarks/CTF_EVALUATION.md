@@ -178,6 +178,14 @@ conditions? No, not in this pilot.**
 5. **Treat medium findings as advisory**, and reserve high/actionable status for
    explicit authority, exfiltration, fake-verification and scope-probe content.
 
+## Non-textual decoys
+
+A deterministic regression covers a plausible `decrypt.py` fake success branch, an
+ELF-like blob with an embedded fake flag, and a fake `{"verified": true}` tool
+summary. `strings` redacts the flag, the detector flags the fake verification, and
+`prestige_verify_candidate` keeps the candidate unverified without a trusted
+digest. See `tests/test_adversarial_resilience.py`.
+
 ## Reproduction
 
 The harness is `src/prestige/ctf_benchmark.py`. It builds solution-blind views from
