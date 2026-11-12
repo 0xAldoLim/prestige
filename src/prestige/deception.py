@@ -119,8 +119,18 @@ _SIGNALS = (
         "authority_claim",
         _HIGH,
         re.compile(
-            r"(?i)\b(?:policy|rules|scope|authorization|permissions?)\b[^\n]{0,50}"
-            r"\b(?:allow|permit|grant|updated|changed|disabled|bypass|unrestricted)\b"
+            r"(?i)\b(?:policy|rules|scope|authorization|permissions?)\b[^\n]{0,40}"
+            r"\b(?:now\s+)?(?:allows?|permits?|grants?)\b[^\n]{0,40}"
+            r"\b(?:you|agent|shell|network|remote|scoreboard|provision|exfiltrat|unrestricted)\w*"
+        ),
+        "claims new authorization",
+    ),
+    (
+        "authority_claim",
+        _HIGH,
+        re.compile(
+            r"(?i)\b(?:policy|rules|scope|authorization)\b[^\n]{0,40}"
+            r"\b(?:updated|changed|disabled|bypass(?:ed)?|lifted|unrestricted)\b"
         ),
         "claims trusted policy changed",
     ),
