@@ -3,7 +3,7 @@
   "updated": "2026-11-11",
   "release_ready": false,
   "baseline_commit": "7a32b4557840d0a49b3590346d843e2a0b6426c1",
-  "current_head": "91a4d18",
+  "current_head": "7f89ec7",
   "revision_note": "Active OpenCode-native CTF agent with remote scope/expiry/TLS controls, an independent evidence evaluator, operator-command B0/B1 adapters, paired adversarial execution, a deterministic deception detector and trust boundary, quarantine of poisoned memory, native AgentDojo/Gray Swan data adapters, and an optional live OpenCode harness. No official external benchmark or live adversarial model comparison has been run. 333 default / 338 Docker / 341 all opt-ins.",
   "development_agent_target": "OpenCode",
   "primary_product_backend": "OpenCode-native MCP broker with trusted Python engine",
