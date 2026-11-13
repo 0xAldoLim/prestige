@@ -338,6 +338,7 @@ def test_aggregate_treats_timeouts_as_failures_and_preserves_censoring():
     assert summary["by_condition"]["B"]["submission_statuses"]["wrong"] == 1
 
 
+@POSIX
 def test_interactive_mode_requires_and_uses_a_checker(tmp_path):
     view = tmp_path / "view"
     (view / "challenge").mkdir(parents=True)

@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import anyio
+import pytest
 from mcp.client.session import ClientSession
 from mcp.shared.message import SessionMessage
 
@@ -345,6 +346,7 @@ async def test_mcp_final_submission_is_explicit_and_single(tmp_path):
         os.environ.pop("PRESTIGE_BENCH_SUBMISSION", None)
 
 
+@pytest.mark.skipif(os.name == "nt", reason="POSIX fake executable fixture")
 def test_blind_mode_preloads_no_answer_commitment(tmp_path):
     import hashlib
     import stat
