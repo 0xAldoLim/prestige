@@ -9,7 +9,7 @@ not be merged numerically with V1.
 | Item | Value |
 | --- | --- |
 | V1 PRESTIGE code | `992ce5d7ee3e4af16c84c54fd1f4c4d1192f706f` |
-| V2 PRESTIGE code | this milestone's commit (recorded at delivery) |
+| V2 PRESTIGE code | `d2400d1` (protocol/results); Windows fixture guard `3b52889` |
 | Corpus | `0xAldoLim/ctf-challenges` at `d17d17c63d23460e30c3f0402510dbd5b6bd2f5e` |
 | Owner skills | `0xAldoLim/skills` at `86369951c697e1f0142e34ffd97e4579ad5768b5` |
 | Upstream skills inspected | `ljagiello/ctf-skills` at `e79be2925d1612e8a97070d6201e300286672370` |
