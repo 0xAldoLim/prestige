@@ -11,6 +11,7 @@ import anyio
 from mcp.client.session import ClientSession
 from mcp.shared.message import SessionMessage
 
+from prestige.ctf_benchmark import run_condition
 from prestige.mcp_server import serve_streams
 from prestige.store import Store
 
@@ -308,3 +309,67 @@ async def test_nontextual_decoy_and_fake_success_branch_do_not_verify(tmp_path):
         assert verified["verified"] is False
         assert verified["model_claim_used"] is False
         assert verified["stage"] == "derived"
+
+
+async def test_mcp_final_submission_is_explicit_and_single(tmp_path):
+    home = tmp_path / "state"
+    submission = tmp_path / "submission.json"
+    os.environ["PRESTIGE_BENCH_SUBMISSION"] = str(submission)
+    try:
+        challenge = tmp_path / "challenge.txt"
+        challenge.write_bytes(b"offline")
+        async with _mcp_client(home) as session:
+            run_id, _, _ = await _create(session, challenge)
+            first = await _call(
+                session,
+                "prestige_submit_final",
+                {"run_id": run_id, "candidate": "SAS{submitted_once}"},
+            )
+            assert first["status"] == "submitted"
+            assert json.loads(submission.read_text())["flag"] == "SAS{submitted_once}"
+            second = await _call(
+                session,
+                "prestige_submit_final",
+                {"run_id": run_id, "candidate": "SAS{second}"},
+            )
+            assert second["status"] == "denied"
+            assert "already exists" in second["reason"]
+            verified = await _call(
+                session,
+                "prestige_verify_candidate",
+                {"run_id": run_id, "candidate": "SAS{submitted_once}"},
+            )
+            assert verified["verified"] is False
+            assert verified["expected_available"] is False
+    finally:
+        os.environ.pop("PRESTIGE_BENCH_SUBMISSION", None)
+
+
+def test_blind_mode_preloads_no_answer_commitment(tmp_path):
+    import hashlib
+    import stat
+
+    view = tmp_path / "view"
+    (view / "challenge").mkdir(parents=True)
+    (view / "README.md").write_text("demo")
+    (view / "challenge" / "f").write_bytes(b"x")
+    script = tmp_path / "opencode"
+    script.write_text(
+        "#!/bin/sh\n"
+        "printf '%s\\n' '{\"flag\":\"SAS{correct}\"}' > \"$PRESTIGE_BENCH_SUBMISSION\"\n"
+    )
+    script.chmod(script.stat().st_mode | stat.S_IXUSR)
+    result = run_condition(
+        view,
+        "D",
+        model="fake/model",
+        output=tmp_path / "out",
+        answers={"demo": hashlib.sha256(b"SAS{correct}").hexdigest()},
+        challenge="demo",
+        seconds=30,
+        executable=str(script),
+        mode="blind",
+        preload_commitment=False,
+    )
+    assert result["verified"] is True
+    assert not (Path(result["state_dir"]) / "commitments.json").exists()

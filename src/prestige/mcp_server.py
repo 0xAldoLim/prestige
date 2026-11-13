@@ -15,6 +15,7 @@ import base64
 import binascii
 import hashlib
 import json
+import os
 import time
 from dataclasses import asdict
 from pathlib import Path
@@ -564,6 +565,55 @@ async def _verify_candidate(args: dict) -> dict:
             "provenance": provenance,
             "deception": deception_summary(content_scan) if content_scan else None,
         }
+    except PolicyDenied as error:
+        return {"status": "denied", "reason": str(error)}
+    except Exception as error:
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
+    finally:
+        store.close()
+
+
+async def _submit_final(args: dict) -> dict:
+    """Write the single explicit benchmark submission; never verifies it."""
+    store = await _store()
+    try:
+        run_id = args["run_id"]
+        _run(store, run_id)
+        candidate = args["candidate"]
+        if not isinstance(candidate, str) or not candidate.strip() or len(candidate) > 512:
+            raise PolicyDenied("Final candidate must be non-empty text up to 512 bytes")
+        candidate = candidate.strip()
+        if any(ord(char) < 0x20 or ord(char) == 0x7F for char in candidate):
+            raise PolicyDenied("Final candidate contains control characters")
+        path_value = os.environ.get("PRESTIGE_BENCH_SUBMISSION", "")
+        if not path_value:
+            raise PolicyDenied("No benchmark submission path is configured")
+        target = Path(path_value).resolve()
+        allowed = os.environ.get("PRESTIGE_ALLOWED_DIRS", "")
+        if allowed and not target.is_relative_to(Path(allowed).resolve()):
+            raise PolicyDenied("Submission path is outside the benchmark workspace")
+        if target.exists():
+            raise PolicyDenied("A final submission already exists")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        payload = json.dumps({"flag": candidate, "run_id": run_id}, sort_keys=True)
+        descriptor = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        try:
+            with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+                stream.write(payload + "\n")
+        except BaseException:
+            target.unlink(missing_ok=True)
+            raise
+        digest = hashlib.sha256(candidate.encode("utf-8")).hexdigest()
+        store.event(
+            run_id,
+            "final_submission",
+            {
+                "sha256": digest,
+                "bytes": len(candidate.encode("utf-8")),
+                "trust": "operator_submission",
+            },
+        )
+        return {"status": "submitted", "sha256": digest}
     except PolicyDenied as error:
         return {"status": "denied", "reason": str(error)}
     except Exception as error:
@@ -1700,6 +1750,25 @@ _TOOLS: dict[str, tuple[Tool, Any]] = {
             },
         ),
         _verify_candidate,
+    ),
+    "prestige_submit_final": (
+        Tool(
+            name="prestige_submit_final",
+            description=(
+                "Submit one explicit final answer to the operator's benchmark submission "
+                "file. This records the answer but does not independently verify it."
+            ),
+            inputSchema={
+                "type": "object",
+                "required": ["run_id", "candidate"],
+                "additionalProperties": False,
+                "properties": {
+                    "run_id": {"type": "string"},
+                    "candidate": {"type": "string"},
+                },
+            },
+        ),
+        _submit_final,
     ),
     "prestige_start_analysis": (
         Tool(

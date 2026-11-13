@@ -1,5 +1,9 @@
 # SAS CTF 2026 real-model benchmark
 
+> This V1 report is preserved as historical evidence. V2, with an explicit final
+> submission protocol, blind verification, three repetitions and a larger
+> eligibility inventory, is in [CTF_EVALUATION_V2.md](CTF_EVALUATION_V2.md).
+
 Status: **pilot only — inconclusive on general superiority, with no observed
 advantage for full PRESTIGE.**
 

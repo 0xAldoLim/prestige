@@ -1,0 +1,486 @@
+{
+  "schema_version": 1,
+  "corpus_commit": "d17d17c63d23460e30c3f0402510dbd5b6bd2f5e",
+  "competition": "SAS CTF 2026 Quals",
+  "directories": 23,
+  "tasks_documented": 24,
+  "ready_packages": 15,
+  "verified_eligible": 1,
+  "priority_order": [
+    "rev-fpga",
+    "pwn-snaking",
+    "web-gav",
+    "rev-cerum",
+    "mlw-backfloppa",
+    "net-incident-67"
+  ],
+  "challenges": [
+    {
+      "id": "game-backrooms",
+      "title": "Backrooms",
+      "categories": [
+        "game"
+      ],
+      "priority": null,
+      "preparation_status": "source_only",
+      "participant_files": [],
+      "operator_file_count": 4,
+      "required_local_service": "none",
+      "missing_or_external_dependencies": [],
+      "trusted_verification": "none",
+      "deployment_status": "excluded",
+      "health_check": "not_run",
+      "benchmark_eligible": false,
+      "exclusion_reason": "No participant-facing files in the package (source_only)."
+    },
+    {
+      "id": "game-guba",
+      "title": "Escape the Guba I & II",
+      "categories": [
+        "game"
+      ],
+      "priority": null,
+      "preparation_status": "incomplete",
+      "participant_files": [
+        "static/README.md"
+      ],
+      "operator_file_count": 0,
+      "required_local_service": "external large map/VM downloads",
+      "missing_or_external_dependencies": [
+        "https://storage.yandexcloud.net/sas-3/ctf_guba_b9acbc8580f13404d4ae635b0620f516.bsp (~189 MB) - not downloaded",
+        "https://storage.yandexcloud.net/sas-3/v3.7z (~2.6 GB) - not downloaded"
+      ],
+      "trusted_verification": "none",
+      "deployment_status": "excluded",
+      "health_check": "not_run",
+      "benchmark_eligible": false,
+      "exclusion_reason": "Manifest incomplete: required external artifacts are missing."
+    },
+    {
+      "id": "misc-cbt",
+      "title": "CBT",
+      "categories": [
+        "misc"
+      ],
+      "priority": null,
+      "preparation_status": "source_only",
+      "participant_files": [],
+      "operator_file_count": 18,
+      "required_local_service": "none",
+      "missing_or_external_dependencies": [],
+      "trusted_verification": "none",
+      "deployment_status": "excluded",
+      "health_check": "not_run",
+      "benchmark_eligible": false,
+      "exclusion_reason": "No participant-facing files in the package (source_only)."
+    },
+    {
+      "id": "misc-gatekeeper",
+      "title": "Gatekeeper v2.0",
+      "categories": [
+        "misc",
+        "pwn"
+      ],
+      "priority": null,
+      "preparation_status": "ready",
+      "participant_files": [
+        "static/static.tar.gz"
+      ],
+      "operator_file_count": 95,
+      "required_local_service": "remote sandbox service (RISC-V QEMU)",
+      "missing_or_external_dependencies": [],
+      "trusted_verification": "none",
+      "deployment_status": "not_provisioned",
+      "health_check": "not_run",
+      "benchmark_eligible": false,
+      "exclusion_reason": "Requires remote sandbox service (RISC-V QEMU); not provisioned under the available host/resource and verification constraints."
+    },
+    {
+      "id": "misc-kolobok",
+      "title": "Kolobok",
+      "categories": [
+        "misc"
+      ],
+      "priority": null,
+      "preparation_status": "source_only",
+      "participant_files": [],
+      "operator_file_count": 14,
+      "required_local_service": "none",
+      "missing_or_external_dependencies": [],
+      "trusted_verification": "none",
+      "deployment_status": "excluded",
+      "health_check": "not_run",
+      "benchmark_eligible": false,
+      "exclusion_reason": "No participant-facing files in the package (source_only)."
+    },
+    {
+      "id": "misc-readyssornot",
+      "title": "Readyiss or not",
+      "categories": [
+        "misc",
+        "pwn"
+      ],
+      "priority": null,
+      "preparation_status": "source_only",
+      "participant_files": [],
+      "operator_file_count": 18,
+      "required_local_service": "none",
+      "missing_or_external_dependencies": [],
+      "trusted_verification": "none",
+      "deployment_status": "excluded",
+      "health_check": "not_run",
+      "benchmark_eligible": false,
+      "exclusion_reason": "No participant-facing files in the package (source_only)."
+    },
+    {
+      "id": "misc-tgs",
+      "title": "Behind the Buffet",
+      "categories": [
+        "misc"
+      ],
+      "priority": null,
+      "preparation_status": "source_only",
+      "participant_files": [],
+      "operator_file_count": 5,
+      "required_local_service": "none",
+      "missing_or_external_dependencies": [],
+      "trusted_verification": "none",
+      "deployment_status": "excluded",
+      "health_check": "not_run",
+      "benchmark_eligible": false,
+      "exclusion_reason": "No participant-facing files in the package (source_only)."
+    },
+    {
+      "id": "mlw-backfloppa",
+      "title": "Backfloppa",
+      "categories": [
+        "malware"
+      ],
+      "priority": 5,
+      "preparation_status": "ready",
+      "participant_files": [
+        "static/README.md"
+      ],
+      "operator_file_count": 11,
+      "required_local_service": "malware/eBPF carrier service and runtime",
+      "missing_or_external_dependencies": [],
+      "trusted_verification": "none",
+      "deployment_status": "not_provisioned",
+      "health_check": "not_run",
+      "benchmark_eligible": false,
+      "exclusion_reason": "Requires malware/eBPF carrier service and runtime; not provisioned under the available host/resource and verification constraints."
+    },
+    {
+      "id": "mlw-cyrill",
+      "title": "First Day First",
+      "categories": [
+        "malware"
+      ],
+      "priority": null,
+      "preparation_status": "source_only",
+      "participant_files": [],
+      "operator_file_count": 0,
+      "required_local_service": "none",
+      "missing_or_external_dependencies": [],
+      "trusted_verification": "none",
+      "deployment_status": "excluded",
+      "health_check": "not_run",
+      "benchmark_eligible": false,
+      "exclusion_reason": "No participant-facing files in the package (source_only)."
+    },
+    {
+      "id": "net-incident-67",
+      "title": "Incident 67",
+      "categories": [
+        "network"
+      ],
+      "priority": 6,
+      "preparation_status": "ready",
+      "participant_files": [
+        "static/task.zip"
+      ],
+      "operator_file_count": 44,
+      "required_local_service": "containerlab network topology with router/tool SSH endpoints",
+      "missing_or_external_dependencies": [],
+      "trusted_verification": "none",
+      "deployment_status": "not_provisioned",
+      "health_check": "not_run",
+      "benchmark_eligible": false,
+      "exclusion_reason": "Requires containerlab network topology with router/tool SSH endpoints; not provisioned under the available host/resource and verification constraints."
+    },
+    {
+      "id": "pwn-jsculator",
+      "title": "JSculator",
+      "categories": [
+        "pwn",
+        "0day"
+      ],
+      "priority": null,
+      "preparation_status": "ready",
+      "participant_files": [
+        "static/jsculator.tar.gz"
+      ],
+      "operator_file_count": 5,
+      "required_local_service": "TCP QuickJS jail service",
+      "missing_or_external_dependencies": [],
+      "trusted_verification": "none",
+      "deployment_status": "not_provisioned",
+      "health_check": "not_run",
+      "benchmark_eligible": false,
+      "exclusion_reason": "Requires TCP QuickJS jail service; not provisioned under the available host/resource and verification constraints."
+    },
+    {
+      "id": "pwn-sasenger",
+      "title": "Sasenger",
+      "categories": [
+        "pwn"
+      ],
+      "priority": null,
+      "preparation_status": "ready",
+      "participant_files": [
+        "static/sasenger-player.zip"
+      ],
+      "operator_file_count": 73,
+      "required_local_service": "Android/cuttlefish VM plus relay service",
+      "missing_or_external_dependencies": [],
+      "trusted_verification": "none",
+      "deployment_status": "not_provisioned",
+      "health_check": "not_run",
+      "benchmark_eligible": false,
+      "exclusion_reason": "Requires Android/cuttlefish VM plus relay service; not provisioned under the available host/resource and verification constraints."
+    },
+    {
+      "id": "pwn-snaking",
+      "title": "Snaking",
+      "categories": [
+        "pwn"
+      ],
+      "priority": 2,
+      "preparation_status": "ready",
+      "participant_files": [
+        "static/snaking.zip"
+      ],
+      "operator_file_count": 8,
+      "required_local_service": "TCP service (Python/JVM jnius; Docker, privileged jail)",
+      "missing_or_external_dependencies": [],
+      "trusted_verification": "none",
+      "deployment_status": "not_provisioned",
+      "health_check": "not_run",
+      "benchmark_eligible": false,
+      "exclusion_reason": "Requires TCP service (Python/JVM jnius; Docker, privileged jail); not provisioned under the available host/resource and verification constraints."
+    },
+    {
+      "id": "pwn-snaking-revenge",
+      "title": "Snaking Revenge",
+      "categories": [
+        "pwn"
+      ],
+      "priority": null,
+      "preparation_status": "ready",
+      "participant_files": [
+        "static/snaking.tar.gz"
+      ],
+      "operator_file_count": 8,
+      "required_local_service": "TCP service (Python/JVM jnius; Docker, privileged jail)",
+      "missing_or_external_dependencies": [],
+      "trusted_verification": "none",
+      "deployment_status": "not_provisioned",
+      "health_check": "not_run",
+      "benchmark_eligible": false,
+      "exclusion_reason": "Requires TCP service (Python/JVM jnius; Docker, privileged jail); not provisioned under the available host/resource and verification constraints."
+    },
+    {
+      "id": "rev-cerum",
+      "title": "Cerum",
+      "categories": [
+        "reverse"
+      ],
+      "priority": 4,
+      "preparation_status": "ready",
+      "participant_files": [
+        "static/Cerum.vst3"
+      ],
+      "operator_file_count": 104,
+      "required_local_service": "VST3 plugin + license service; excluded resource may hide answer",
+      "missing_or_external_dependencies": [
+        "sources/Cerum/resources/flag.jpg - Image resource named flag.jpg; may show the answer. Excluded pending review."
+      ],
+      "trusted_verification": "none",
+      "deployment_status": "not_provisioned",
+      "health_check": "not_run",
+      "benchmark_eligible": false,
+      "exclusion_reason": "No local license implementation/checker verified; excluded flag.jpg prevents independent answer establishment. No service was started."
+    },
+    {
+      "id": "rev-fpga",
+      "title": "Lut, I am your father",
+      "categories": [
+        "reverse"
+      ],
+      "priority": 1,
+      "preparation_status": "ready",
+      "participant_files": [
+        "static/ciphertext.hex",
+        "static/firmware.bin",
+        "static/pinout.md"
+      ],
+      "operator_file_count": 23,
+      "required_local_service": "offline FPGA bitstream analysis",
+      "missing_or_external_dependencies": [],
+      "trusted_verification": "none",
+      "deployment_status": "not_provisioned",
+      "health_check": "not_run",
+      "benchmark_eligible": false,
+      "exclusion_reason": "Offline artifacts are available, but no independent reference answer/checker was established; gen_trace.py requires omitted simulation files."
+    },
+    {
+      "id": "rev-venom",
+      "title": "Venom Protect",
+      "categories": [
+        "reverse"
+      ],
+      "priority": null,
+      "preparation_status": "ready",
+      "participant_files": [
+        "static/static.zip"
+      ],
+      "operator_file_count": 0,
+      "required_local_service": "none",
+      "missing_or_external_dependencies": [],
+      "trusted_verification": "none",
+      "deployment_status": "excluded",
+      "health_check": "not_run",
+      "benchmark_eligible": false,
+      "exclusion_reason": "Previously exposed in an earlier PRESTIGE investigation; regression only."
+    },
+    {
+      "id": "web-gav",
+      "title": "Gav",
+      "categories": [
+        "web"
+      ],
+      "priority": 3,
+      "preparation_status": "ready",
+      "participant_files": [
+        "static/gav-task.tgz"
+      ],
+      "operator_file_count": 22,
+      "required_local_service": "multi-container web stack (Patroni/Postgres/web)",
+      "missing_or_external_dependencies": [],
+      "trusted_verification": "none",
+      "deployment_status": "not_provisioned",
+      "health_check": "not_run",
+      "benchmark_eligible": false,
+      "exclusion_reason": "Requires multi-container web stack (Patroni/Postgres/web); not provisioned under the available host/resource and verification constraints."
+    },
+    {
+      "id": "web-naas",
+      "title": "Nexus as a Service",
+      "categories": [
+        "web"
+      ],
+      "priority": null,
+      "preparation_status": "ready",
+      "participant_files": [
+        "static/naas.tgz"
+      ],
+      "operator_file_count": 110,
+      "required_local_service": "web service (multi-container); client may not build",
+      "missing_or_external_dependencies": [
+        "sources/client/cmd/solver.go - Hidden 'solver' subcommand; may be a solution helper. Excluded pending review; client may not build without it."
+      ],
+      "trusted_verification": "none",
+      "deployment_status": "not_provisioned",
+      "health_check": "not_run",
+      "benchmark_eligible": false,
+      "exclusion_reason": "Requires web service (multi-container); client may not build; not provisioned under the available host/resource and verification constraints."
+    },
+    {
+      "id": "web-paradoxy",
+      "title": "paradoxy",
+      "categories": [
+        "web"
+      ],
+      "priority": null,
+      "preparation_status": "source_only",
+      "participant_files": [],
+      "operator_file_count": 14,
+      "required_local_service": "none",
+      "missing_or_external_dependencies": [],
+      "trusted_verification": "none",
+      "deployment_status": "excluded",
+      "health_check": "not_run",
+      "benchmark_eligible": false,
+      "exclusion_reason": "No participant-facing files in the package (source_only)."
+    },
+    {
+      "id": "web-sentinel",
+      "title": "Redis Nightmare",
+      "categories": [
+        "web"
+      ],
+      "priority": null,
+      "preparation_status": "ready",
+      "participant_files": [
+        "static/hint.zip",
+        "static/static.zip"
+      ],
+      "operator_file_count": 21,
+      "required_local_service": "Redis/Salt multi-container service",
+      "missing_or_external_dependencies": [],
+      "trusted_verification": "none",
+      "deployment_status": "not_provisioned",
+      "health_check": "not_run",
+      "benchmark_eligible": false,
+      "exclusion_reason": "Requires Redis/Salt multi-container service; not provisioned under the available host/resource and verification constraints."
+    },
+    {
+      "id": "web-xod-revenge",
+      "title": "XOD Revenge",
+      "categories": [
+        "web"
+      ],
+      "priority": null,
+      "preparation_status": "ready",
+      "participant_files": [
+        "static/static.zip"
+      ],
+      "operator_file_count": 6,
+      "required_local_service": "PHP web challenge plus browser bot",
+      "missing_or_external_dependencies": [],
+      "trusted_verification": "none",
+      "deployment_status": "not_provisioned",
+      "health_check": "not_run",
+      "benchmark_eligible": false,
+      "exclusion_reason": "Requires PHP web challenge plus browser bot; not provisioned under the available host/resource and verification constraints."
+    },
+    {
+      "id": "welcome-sanity-files",
+      "title": "Sanity Files",
+      "categories": [
+        "welcome"
+      ],
+      "priority": null,
+      "preparation_status": "ready",
+      "participant_files": [
+        "static/SAS487212900.pdf"
+      ],
+      "operator_file_count": 0,
+      "required_local_service": "none",
+      "missing_or_external_dependencies": [],
+      "trusted_verification": "operator_sha256",
+      "deployment_status": "provisioned",
+      "health_check": "passed",
+      "benchmark_eligible": true,
+      "exclusion_reason": null
+    }
+  ],
+  "local_adversarial_variants": [
+    {
+      "id": "welcome-adversarial",
+      "source": "welcome-sanity-files",
+      "eligible": true,
+      "trusted_verification": "operator_sha256"
+    }
+  ]
+}

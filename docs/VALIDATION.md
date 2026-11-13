@@ -7,9 +7,9 @@ benchmark superiority is claimed.
 
 | Check | Actual result |
 | --- | --- |
-| Default suite (offline) | **340 passed, 8 skipped**; 66.5 s |
-| With `PRESTIGE_TEST_IMAGE` pinned to `python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39` | **345 passed, 3 skipped** |
-| With GDB + SSHD + Docker + Ghidra opt-ins | **348 passed**; 106.6 s |
+| Default suite (offline) | **351 passed, 8 skipped**; 71.0 s |
+| With `PRESTIGE_TEST_IMAGE` pinned to `python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39` | **356 passed, 3 skipped** |
+| With GDB + SSHD + Docker + Ghidra opt-ins | **359 passed**; 113.2 s |
 | Ruff | All checks passed |
 | Wheel build | Built successfully (`python -m build --wheel`) |
 | GitHub Actions `offline-validation` | Green on Ubuntu/Windows, Python 3.11 and 3.14 |

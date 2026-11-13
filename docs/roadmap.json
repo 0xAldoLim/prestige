@@ -3,7 +3,7 @@
   "updated": "2026-11-12",
   "release_ready": false,
   "baseline_commit": "7a32b4557840d0a49b3590346d843e2a0b6426c1",
-  "current_head": "040eb06",
+  "current_head": "992ce5d",
   "revision_note": "Active OpenCode-native CTF agent with remote scope/expiry/TLS controls, an independent evidence evaluator, operator-command B0/B1 adapters, paired adversarial execution, a deterministic deception detector and trust boundary, quarantine of poisoned memory, native AgentDojo/Gray Swan data adapters, and an optional live OpenCode harness. No official external benchmark or live adversarial model comparison has been run. 333 default / 338 Docker / 341 all opt-ins.",
   "development_agent_target": "OpenCode",
   "primary_product_backend": "OpenCode-native MCP broker with trusted Python engine",
@@ -447,6 +447,33 @@
         "docs/UPSTREAM_SKILLS.md"
       ],
       "remaining": "r2pipe/MBA/playbook/scripts integrated; Tavily similar-search rejected; no measured skill gain yet."
+    },
+    {
+      "id": "benchmark-v2-submission",
+      "status": "tested",
+      "evidence": [
+        "src/prestige/ctf_benchmark.py",
+        "src/prestige/mcp_server.py",
+        "tests/test_ctf_benchmark.py"
+      ],
+      "remaining": "Explicit final submission, blind mode, no preloaded commitment, 3 repetitions, resume and C tool-call instrumentation."
+    },
+    {
+      "id": "benchmark-v2-eligibility",
+      "status": "integration-tested",
+      "evidence": [
+        "benchmark-results/sasctf-2026-eligibility.json",
+        "docs/benchmarks/CTF_EVALUATION_V2.md"
+      ],
+      "remaining": "23 challenges inventoried; 1 verified runnable; priority services blocked."
+    },
+    {
+      "id": "benchmark-v2-pilot",
+      "status": "partial",
+      "evidence": [
+        "benchmark-results/sasctf-2026-v2.json"
+      ],
+      "remaining": "A/B 6/6, C 5/6, D 2/6; one original challenge plus adversarial variant; no broad corpus."
     }
   ]
 }

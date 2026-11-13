@@ -111,6 +111,39 @@ requirements.
   independent answer; the other ready packages were not provisioned with local
   services/answers and are not counted as attempts.
 
+## 2026-11-12 Benchmark V2 methodology
+
+- Final-submission protocol: each run gets one operator path; only a JSON
+  `{"flag": "..."}` file is graded. A/B/C may write it; C/D may call
+  `prestige_submit_final` exactly once. Intermediate text is not a solve.
+- Blind mode performs no preloaded answer commitment; post-run operator SHA-256
+  verification is separate. Interactive mode is explicit but no legitimate checker
+  was available for the selected challenge.
+- `run_matrix` now supports three repetitions by default, fresh state/workspace per
+  attempt, randomized order, attempt numbers, raw JSONL, and resumable results.
+- V2 eligibility inventory records all 23 corpus directories. Only
+  `welcome-sanity-files` has a trusted answer and participant-only runnable view;
+  the 14 other `ready` packages are not counted as attempts. Priority blockers for
+  rev-fpga, pwn-snaking, web-gav, rev-cerum, mlw-backfloppa and net-incident-67 are
+  recorded in `benchmark-results/sasctf-2026-eligibility.json`.
+- V1 report remains immutable historical evidence. V2 results are in
+  `docs/benchmarks/CTF_EVALUATION_V2.md`.
+
+## 2026-11-12 Benchmark V2 results
+
+- Final submission protocol and blind mode are implemented; no answer commitment is
+  preloaded. V2 ran 24 real OpenCode runs: 2 views × 4 conditions × 3 repetitions,
+  180 s screening, seed 2027, sequential fresh-state runs.
+- Results: A 6/6, B 6/6, C 5/6, D 2/6. D never submitted on the clean challenge
+  (0/3) and solved 2/3 adversarial runs. No wrong flag was submitted.
+- D used 144 `prestige_*` calls, 2.19M cache-read tokens and a 180 s median; C never
+  invoked PRESTIGE. D's clean failures were orchestration/budget failures, not wrong
+  answers. Full report: `docs/benchmarks/CTF_EVALUATION_V2.md`; data:
+  `benchmark-results/sasctf-2026-v2.json`.
+- Eligibility: 23 directories, 15 `ready`, 1 independently verified runnable
+  challenge. The priority service challenges remain blocked because no safe local
+  service or independent answer was established; they are not counted as attempts.
+
 ## What works now
 
 - **OpenCode-native MCP broker**
@@ -260,9 +293,9 @@ requirements.
     limits, bounded output.
   - `WorkspaceRunner` output directory made writable for the containerized user.
 - **Tests**
-  - Default suite: **340 passed, 8 skipped**.
-  - With `PRESTIGE_TEST_IMAGE`: **345 passed, 3 skipped**.
-  - With GDB + SSHD + Docker + Ghidra opt-ins: **348 passed**.
+  - Default suite: **351 passed, 8 skipped**.
+  - With `PRESTIGE_TEST_IMAGE`: **356 passed, 3 skipped**.
+  - With GDB + SSHD + Docker + Ghidra opt-ins: **359 passed**.
 - **Operator known-answer helper**
   - `prestige verify-candidate --expected-sha256 <digest> [--candidate-file PATH]`
     reads a candidate from stdin/file, reports only digests + `match`, and never
@@ -274,7 +307,7 @@ requirements.
 ```bash
 PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39 \
   python -m pytest -q
-# 348 passed in ~107 s
+# 359 passed in ~113 s
 ```
 
 ## Real challenge status

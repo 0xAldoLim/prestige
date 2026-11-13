@@ -121,6 +121,12 @@ Status legend: `done`, `partial`, `blocked-external`, `not-started`.
 | BM-5 | Bounded local PDF text extraction for player-facing artifacts | done | `pdf` tool, `tests/test_engine.py::test_pdf_tool_extracts_bounded_text_without_following_links` |
 | BM-6 | Real-model pilot on the SAS corpus with measured solves, time, tokens and adversarial behavior | partial | One verified corpus task plus one local adversarial variant; no broad corpus run or statistical claim |
 | BM-7 | Non-textual technical decoys and fake success claims cannot become verified candidates | done | `tests/test_adversarial_resilience.py::test_nontextual_decoy_and_fake_success_branch_do_not_verify` |
+| BM-8 | A solve requires one explicit operator-read final submission; intermediate text never counts | done | `ctf_benchmark.read_submission`, `prestige_submit_final`, `tests/test_ctf_benchmark.py` |
+| BM-9 | Blind evaluation uses no preloaded answer commitment; interactive mode is explicit | done | `run_condition(mode=...)`, `test_blind_mode_preloads_no_answer_commitment` |
+| BM-10 | Three repetitions, randomized order, fresh state and resumable batches | done | `run_matrix`, `test_repetitions_and_resume_do_not_duplicate_runs` |
+| BM-11 | Machine-readable eligibility inventory separates ready from verified runnable | done | `benchmark-results/sasctf-2026-eligibility.json`, `test_eligibility_inventory_separates_ready_from_verified` |
+| BM-12 | Real V2 A/B/C/D screening on every safely provisioned challenge | partial | 24 real runs on `welcome-sanity-files` + local adversarial variant: A 6/6, B 6/6, C 5/6, D 2/6. Priority service challenges documented as blocked, not counted |
+| BM-13 | V2 explicit submission, blind verification, repetitions/resume and eligibility inventory | done | `tests/test_ctf_benchmark.py`, `benchmark-results/sasctf-2026-eligibility.json`, `docs/benchmarks/CTF_EVALUATION_V2.md` |
 
 ## 9. Benchmarking
 

@@ -92,6 +92,7 @@ official checker acceptance without a real authorized checker.
 - `prestige_get_status` — current state, artifacts, observations and budget.
 - `prestige_run_experiment` — execute one authorized tool and record evidence.
 - `prestige_verify_candidate` — record and digest-check a candidate.
+- `prestige_submit_final` — write the operator-visible benchmark final submission exactly once (no self-verification).
 - `prestige_start_analysis` — start a durable cached analysis job.
 - `prestige_get_analysis` — poll job status and result.
 - `prestige_cancel_analysis` — cancel a queued or running job.
