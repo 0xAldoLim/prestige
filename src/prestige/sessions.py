@@ -5,6 +5,7 @@ operation. Metadata is persisted in SQLite so orphaned containers can be detecte
 and cleaned after an MCP process restart.
 """
 
+import shlex
 import subprocess
 import threading
 import time
@@ -174,8 +175,14 @@ def _record_start(home, session: Session) -> None:
 def start_session(home, run_id: str, image: str, artifacts, command: str = "python3") -> dict:
     if not _image_ok(image):
         raise PolicyDenied("Use an existing immutable Docker image digest")
-    if command not in ALLOWED_COMMANDS:
-        raise PolicyDenied("Session command is not allowlisted")
+    if command in ALLOWED_COMMANDS:
+        argv = ALLOWED_COMMANDS[command]
+    else:
+        if not isinstance(command, str) or not command.strip() or len(command) > 512:
+            raise PolicyDenied("Invalid session command")
+        argv = shlex.split(command)
+        if not argv or len(argv) > 64 or any(len(item) > 4096 for item in argv):
+            raise PolicyDenied("Invalid session command")
     if not isinstance(run_id, str) or not run_id:
         raise PolicyDenied("Session requires an owning investigation")
     session_id = uuid.uuid4().hex[:16]
@@ -190,7 +197,7 @@ def start_session(home, run_id: str, image: str, artifacts, command: str = "pyth
         raise PrestigeError("Session container failed: " + created.stderr[-500:])
     try:
         process = subprocess.Popen(
-            ["docker", "exec", "-i", name, *ALLOWED_COMMANDS[command]],
+            ["docker", "exec", "-i", name, *argv],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,

@@ -43,7 +43,8 @@ def test_workspace_arguments_and_tool_allowlist(store, challenge):
     assert str(artifacts.root.resolve()) in args[args.index("--mount") + 1]
     assert "readonly" in args[args.index("--mount") + 1]
     for action in (
-        Action("command", "", {"argv": ["curl", "https://ctfd.example"]}),
+        Action("command", "", {"argv": []}),
+        Action("command", "", {"argv": ["sh"], "stdin": 3}),
         Action("python", "", {"code": "pass", "timeout": 31}),
         Action("python", "", {"code": "pass", "override": True}),
     ):
@@ -93,3 +94,21 @@ def test_real_workspace_persistence_read_only_inputs_and_no_network(store, chall
     )
     assert result["stdout"].strip() == "retained"
     assert artifacts.read(artifact) == challenge[0].read_bytes()
+
+
+def test_worker_accepts_arbitrary_local_command(store, challenge):
+    run = new_run(store, challenge[0])
+    artifacts = Artifacts(store, run)
+    runner = WorkspaceRunner("sha256:" + "a" * 64, artifacts)
+    calls = []
+
+    def fake_run(script, timeout):
+        calls.append((script, timeout))
+        return {"returncode": 0, "stdout": "ok", "stderr": ""}
+
+    runner.run = fake_run
+    result = runner.execute(
+        Action("command", "", {"argv": ["sh", "-c", "echo ok"], "timeout": 5})
+    )
+    assert result["stdout"] == "ok"
+    assert "sh" in calls[0][0]

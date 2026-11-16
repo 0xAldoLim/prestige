@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "prestige-ctf"
-version = "0.1.0"
-description = "Experimental, evidence-driven offline CTF investigation orchestrator"
+version = "3.0.0"
+description = "OpenCode-native autonomous CTF solver with isolated tools and independent verification"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"

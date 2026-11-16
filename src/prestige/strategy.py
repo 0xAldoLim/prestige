@@ -20,10 +20,11 @@ FAST_TOOLS = (
     "hex",
     "xor",
     "zip",
+    "command",
 )
 EXPERT_TOOLS = FAST_TOOLS + ("python", "command", "radare2", "ghidra")
 
-LANE_MAX_TURNS = {"fast": 8, "auto": 12, "expert": 18}
+LANE_MAX_TURNS = {"fast": 8, "auto": 30, "expert": 30}
 LANE_MAX_SECONDS = {"fast": 120.0, "auto": 300.0, "expert": 600.0}
 
 

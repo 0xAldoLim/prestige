@@ -24,7 +24,7 @@ def test_session_rejects_unknown_command_and_image(tmp_path):
     with pytest.raises(PolicyDenied):
         start_session(tmp_path, "run1", "not-a-digest", None, "python3")
     with pytest.raises(PolicyDenied):
-        start_session(tmp_path, "run1", "sha256:" + "a" * 64, None, "sh")
+        start_session(tmp_path, "run1", "sha256:" + "a" * 64, None, " ")
 
 
 @asynccontextmanager
@@ -186,7 +186,7 @@ def test_orphaned_session_metadata_is_detected(tmp_path):
 
 
 @pytest.mark.skipif(not IMAGE, reason="Explicit local immutable image required")
-async def test_mcp_rejects_disallowed_session_command(tmp_path):
+async def test_mcp_rejects_empty_session_command(tmp_path):
     home = tmp_path / "state"
     from prestige.config import set_config
 
@@ -201,7 +201,7 @@ async def test_mcp_rejects_disallowed_session_command(tmp_path):
 
     async with _mcp_client(home) as session:
         result = await session.call_tool(
-            "prestige_session_start", {"run_id": run_id, "command": "sh"}
+            "prestige_session_start", {"run_id": run_id, "command": " "}
         )
         body = json.loads(result.content[0].text)
         assert body.get("status") == "error"

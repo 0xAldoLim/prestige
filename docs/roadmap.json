@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "updated": "2026-11-12",
+  "updated": "2026-11-15",
   "release_ready": false,
   "baseline_commit": "7a32b4557840d0a49b3590346d843e2a0b6426c1",
-  "current_head": "3b52889",
+  "current_head": "dba1dd4",
   "revision_note": "Active OpenCode-native CTF agent with remote scope/expiry/TLS controls, an independent evidence evaluator, operator-command B0/B1 adapters, paired adversarial execution, a deterministic deception detector and trust boundary, quarantine of poisoned memory, native AgentDojo/Gray Swan data adapters, and an optional live OpenCode harness. No official external benchmark or live adversarial model comparison has been run. 333 default / 338 Docker / 341 all opt-ins.",
   "development_agent_target": "OpenCode",
   "primary_product_backend": "OpenCode-native MCP broker with trusted Python engine",
@@ -474,6 +474,44 @@
         "benchmark-results/sasctf-2026-v2.json"
       ],
       "remaining": "A/B 6/6, C 5/6, D 2/6; one original challenge plus adversarial variant; no broad corpus."
+    },
+    {
+      "id": "v3-lightweight-exec",
+      "status": "tested",
+      "evidence": [
+        "src/prestige/sandbox.py",
+        "src/prestige/sessions.py",
+        "src/prestige/mcp_server.py",
+        "tests/test_workspace_tools.py"
+      ],
+      "remaining": "Arbitrary argv runs only inside the reviewed worker; image must contain desired tools."
+    },
+    {
+      "id": "v3-target-binding",
+      "status": "tested",
+      "evidence": [
+        "prestige_target_bind",
+        "tests/test_mcp_server.py"
+      ],
+      "remaining": "Operator registration remains model-inaccessible."
+    },
+    {
+      "id": "v3-web-research",
+      "status": "tested",
+      "evidence": [
+        "src/prestige/research.py",
+        "tests/test_research.py"
+      ],
+      "remaining": "Providers require operator configuration/network; blind benchmarks disable research."
+    },
+    {
+      "id": "v3-service-pilot",
+      "status": "partial",
+      "evidence": [
+        "docs/benchmarks/CTF_EVALUATION_V3.md",
+        "benchmark-results/sasctf-2026-v3.json"
+      ],
+      "remaining": "One original pwn-jsculator service; A 1/3, B 2/3, C 0/3, D 1/3; other priority services blocked."
     }
   ]
 }

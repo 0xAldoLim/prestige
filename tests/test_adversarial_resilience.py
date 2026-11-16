@@ -375,3 +375,24 @@ def test_blind_mode_preloads_no_answer_commitment(tmp_path):
     )
     assert result["verified"] is True
     assert not (Path(result["state_dir"]) / "commitments.json").exists()
+
+
+async def test_submit_final_rejects_nested_json(tmp_path):
+    home = tmp_path / "state"
+    submission = tmp_path / "submission.json"
+    os.environ["PRESTIGE_BENCH_SUBMISSION"] = str(submission)
+    try:
+        challenge = tmp_path / "challenge.txt"
+        challenge.write_bytes(b"offline")
+        async with _mcp_client(home) as session:
+            run_id, _, _ = await _create(session, challenge)
+            result = await _call(
+                session,
+                "prestige_submit_final",
+                {"run_id": run_id, "candidate": '{"flag":"SAS{nested}"}'},
+            )
+            assert result["status"] == "denied"
+            assert "nested JSON" in result["reason"]
+            assert not submission.exists()
+    finally:
+        os.environ.pop("PRESTIGE_BENCH_SUBMISSION", None)

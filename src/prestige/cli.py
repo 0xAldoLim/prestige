@@ -77,6 +77,8 @@ def parser():
     research_fetch.add_argument("url")
     research_search = research.add_parser("search")
     research_search.add_argument("query")
+    research_web = research.add_parser("web-search")
+    research_web.add_argument("query")
     config = commands.add_parser("config").add_subparsers(dest="operation", required=True)
     config.add_parser("show")
     setting = config.add_parser("set")
@@ -381,6 +383,8 @@ def dispatch(args, store: Store, config: dict):
             return broker.status()
         if args.operation == "fetch":
             return broker.fetch(args.url)
+        if args.operation == "web-search":
+            return broker.web_search(args.query)
         return broker.search(args.query)
     if args.command == "config":
         if args.operation == "set":

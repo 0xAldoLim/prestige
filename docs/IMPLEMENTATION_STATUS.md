@@ -48,9 +48,9 @@ guarantee.
 
 ## Validation record
 
-- Default suite: **351 passed, 8 skipped**.
-- With `PRESTIGE_TEST_IMAGE`: **356 passed, 3 skipped**.
-- With GDB + SSHD + Docker + Ghidra opt-ins: **359 passed**.
+- Default suite: **355 passed, 9 skipped**.
+- With `PRESTIGE_TEST_IMAGE`: **360 passed, 4 skipped**.
+- With GDB + SSHD + Docker + Ghidra opt-ins: 362 other tests passed; the local GDB image was removed by the environment reset, so the all-opt-in run is blocked by that dependency.
 - Ruff clean; wheel builds.
 
 See [VALIDATION.md](VALIDATION.md) for commands and exact outcomes. GitHub CI runs

@@ -39,6 +39,10 @@ Status legend: `done`, `partial`, `blocked-external`, `not-started`.
 | ST-4 | Repeated non-informative experiments are suppressed | done | `tests/test_engine.py::test_repeated_actions_suppressed`, `tests/test_mcp_server.py::test_mcp_suppresses_duplicate_deterministic_experiments` |
 | ST-5 | Investigation state survives session interruption and resumes without budget reset | done | `tests/test_mcp_server.py::test_mcp_state_survives_reconnect`, `test_mcp_resume_reconstructs_context_without_resetting_budget` |
 | ST-6 | Independent evidence evaluator derives categorical confidence and recommendations | done | `src/prestige/evaluator.py`, `prestige_evaluate_hypotheses`, `tests/test_evaluator.py` |
+| ST-7 | Lightweight default execution avoids mandatory planning and supports direct isolated commands | done | `prestige_exec`, `opencode.jsonc` V3 agent, `tests/test_workspace_tools.py` |
+| ST-8 | Operator-registered targets can be bound without model registration/scope expansion | done | `prestige_target_bind`, `tests/test_mcp_server.py` schema, remote scope tests |
+| ST-9 | Configurable web research providers with provenance and disabled-by-default policy | done | `ResearchBroker.web_search`, `prestige_research_web_search`, `tests/test_research.py` |
+| ST-10 | AUTO/EXPERT attempt ceiling supports real multi-stage work without a fixed 12-turn stop | done | `src/prestige/strategy.py`, `tests/test_strategy.py` |
 
 ## 4. Owner skills integration
 
@@ -127,6 +131,7 @@ Status legend: `done`, `partial`, `blocked-external`, `not-started`.
 | BM-11 | Machine-readable eligibility inventory separates ready from verified runnable | done | `benchmark-results/sasctf-2026-eligibility.json`, `test_eligibility_inventory_separates_ready_from_verified` |
 | BM-12 | Real V2 A/B/C/D screening on every safely provisioned challenge | partial | 24 real runs on `welcome-sanity-files` + local adversarial variant: A 6/6, B 6/6, C 5/6, D 2/6. Priority service challenges documented as blocked, not counted |
 | BM-13 | V2 explicit submission, blind verification, repetitions/resume and eligibility inventory | done | `tests/test_ctf_benchmark.py`, `benchmark-results/sasctf-2026-eligibility.json`, `docs/benchmarks/CTF_EVALUATION_V2.md` |
+| BM-14 | V3 lightweight execution, isolated arbitrary command, target binding and one new real service challenge | partial | `prestige_exec`, `prestige_target_bind`, `pwn-jsculator` 3× A/B/C/D; other priority services blocked |
 
 ## 9. Benchmarking
 

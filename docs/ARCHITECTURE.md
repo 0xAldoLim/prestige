@@ -18,7 +18,9 @@ restricted `prestige` agent whose permissions allow only `prestige_*` tools.
 the artifact into content-addressed storage, and returns a `run_id`.
 `prestige_get_status` returns bounded state: artifact previews, recent observations,
 hypotheses, progress and candidates. `prestige_run_experiment` executes one authorized
-tool and records an observation. `prestige_verify_candidate` records a candidate and
+tool and records an observation. V3 adds `prestige_exec`, which runs bounded argv inside
+the isolated worker without a host shell, and `prestige_target_bind`, which lets the
+model bind an already operator-registered target but never register or widen scope. `prestige_verify_candidate` records a candidate and
 reports an explicit stage (`discovered`, `derived`, `reproduced`,
 `independently_verified`). `prestige_start_analysis` / `prestige_get_analysis` /
 `prestige_cancel_analysis` provide durable, cached jobs for expensive tools.
@@ -71,7 +73,9 @@ outcomes from PRESTIGE state; no solve is inferred from model text.
 
 ## Lanes and duplicate suppression
 
-AUTO keeps the same canonical artifact/evidence store when moving from FAST to EXPERT.
+V3 raises the AUTO/EXPERT attempt ceiling to 30 so an investigation is not exhausted
+merely because it used more than twelve evidence actions. FAST remains the lightweight
+direct path; EXPERT is jumped to only on observed stagnation or task complexity.
 Duplicate fingerprints include content hash, tool and normalized JSON arguments. A
 deterministic stagnation rule stops or escalates after two actions without new artifacts.
 Durable jobs reuse queued, running or completed results; deterministic experiment tools
@@ -79,6 +83,11 @@ reuse prior observations unless `force=true`. This is a simple heuristic, not ca
 expected information gain or semantic equivalence of arbitrary code.
 
 ## Skills and learning
+
+Web research supports DuckDuckGo HTML, Tavily (API key from the environment) and an
+operator-hosted SearXNG endpoint. Search results are metadata; fetched pages remain
+allowlisted and cached with provenance. Blind benchmarks disable research or restrict
+it so challenge solutions cannot be retrieved.
 
 SkillsBridge returns small lexical reference chunks with paths, lines and content hashes.
 Knowledge first searches accepted local records, then the configured skill corpus. New local
@@ -91,7 +100,11 @@ The optional Docker worker is a separate offline data plane. It uses an immutabl
 digest, a non-root user, no network, no host Docker socket, restricted capabilities,
 narrow mounts, CPU/memory/pids/time limits and bounded output. It is not a substitute for
 isolating every provider built-in tool, and Docker is not a hardened VM guarantee.
-Persistent debugger sessions are not yet implemented.
+Persistent sessions can run any executable or argv string available in the reviewed
+worker, including interpreters, shells, GDB and radare2. The container, not an executable
+name allowlist, is the isolation boundary. `prestige_exec` likewise permits arbitrary
+argv inside the worker while retaining no network, dropped capabilities, narrow mounts
+and resource limits.
 
 ## Scheduling and remote scope
 

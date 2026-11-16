@@ -27,6 +27,8 @@ def load_config(home: Path) -> dict:
         "remote.enabled",
         "research.enabled",
         "research.allowed_hosts",
+        "research.search_provider",
+        "research.searxng_url",
     }:
         raise PrestigeError("Unknown configuration fields")
     for key, value in result.items():
@@ -49,10 +51,13 @@ def set_config(home: Path, key: str, value: str | list[str]) -> None:
         "remote.enabled",
         "research.enabled",
         "research.allowed_hosts",
+        "research.search_provider",
+        "research.searxng_url",
     }:
         raise PrestigeError(
             "Supported settings: skills.path, sandbox.image, allowed_source_dirs, "
-            "remote.enabled, research.enabled, research.allowed_hosts"
+            "remote.enabled, research.enabled, research.allowed_hosts, "
+            "research.search_provider, research.searxng_url"
         )
     config = load_config(home)
     if key in {"allowed_source_dirs", "research.allowed_hosts"} and isinstance(value, str):

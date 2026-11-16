@@ -252,12 +252,11 @@ class WorkspaceRunner(DockerRunner):
                 or not all(isinstance(x, str) and len(x) <= 4096 for x in argv)
             ):
                 raise PolicyDenied("Invalid command arguments")
-            if (
-                argv[0] not in self.COMMANDS
-                or len(argv) > 64
-                or not isinstance(args.get("stdin", ""), str)
-            ):
-                raise PolicyDenied("Command is not in the security-tool allowlist")
+            if len(argv) > 64 or not isinstance(args.get("stdin", ""), str):
+                raise PolicyDenied("Invalid command arguments")
+            # The command runs inside the bounded, network-disabled worker. The
+            # security boundary is the container, mount and budget, not an
+            # arbitrary executable-name allowlist.
             script = (
                 "import subprocess,sys\na="
                 + repr(argv)

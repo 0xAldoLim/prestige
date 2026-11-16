@@ -29,7 +29,7 @@ def test_fast_and_expert_rules_differ_operationally():
     assert fast.max_turns == 8
     assert fast.max_seconds == 120
     assert set(expert.allowed_tools) == set(EXPERT_TOOLS)
-    assert expert.max_turns == 18
+    assert expert.max_turns == 20
     assert expert.max_seconds == 600
     assert set(fast.allowed_tools) < set(expert.allowed_tools)
 

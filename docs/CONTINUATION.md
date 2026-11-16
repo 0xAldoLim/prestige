@@ -144,6 +144,22 @@ requirements.
   challenge. The priority service challenges remain blocked because no safe local
   service or independent answer was established; they are not counted as attempts.
 
+## 2026-11-15 PRESTIGE V3
+
+- V3 lightweight agent: `prestige_exec` runs bounded arbitrary argv inside the pinned,
+  network-disabled worker; `prestige_target_bind` binds operator-registered services;
+  AUTO/EXPERT attempt ceiling raised from 12 to 30 after V2 budget exhaustion.
+- Persistent sessions accept any argv installed in the worker rather than four names.
+- Added configurable web search providers (DuckDuckGo, Tavily, SearXNG) with caching,
+  provenance and untrusted-content labels; research remains disabled for blind runs.
+- `prestige_submit_final` rejects nested JSON submissions after a V3 protocol failure.
+- Provisioned and exercised `pwn-jsculator` locally with an operator-private flag.
+  Three repetitions: A 1/3, B 2/3, C 0/3, D 1/3, 180 s budget, no wrong final flag.
+  D's successful run took 57.1 s; two D runs ended without submission. This does not
+  establish superiority. Report: `docs/benchmarks/CTF_EVALUATION_V3.md`.
+- Other priority service challenges remained blocked; only one new original challenge
+  was independently verifiable. No availability or solve was fabricated.
+
 ## What works now
 
 - **OpenCode-native MCP broker**
@@ -293,9 +309,9 @@ requirements.
     limits, bounded output.
   - `WorkspaceRunner` output directory made writable for the containerized user.
 - **Tests**
-  - Default suite: **351 passed, 8 skipped**.
-  - With `PRESTIGE_TEST_IMAGE`: **356 passed, 3 skipped**.
-  - With GDB + SSHD + Docker + Ghidra opt-ins: **359 passed**.
+  - Default suite: **355 passed, 9 skipped**.
+  - With `PRESTIGE_TEST_IMAGE`: **360 passed, 4 skipped**.
+  - With GDB + SSHD + Docker + Ghidra opt-ins: 362 passed before the local GDB image was removed by the environment reset; the all-opt-in run is now blocked by that missing image.
 - **Operator known-answer helper**
   - `prestige verify-candidate --expected-sha256 <digest> [--candidate-file PATH]`
     reads a candidate from stdin/file, reports only digests + `match`, and never
@@ -307,7 +323,7 @@ requirements.
 ```bash
 PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39 \
   python -m pytest -q
-# 359 passed in ~113 s
+# 360 passed in ~78 s
 ```
 
 ## Real challenge status

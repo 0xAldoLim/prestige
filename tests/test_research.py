@@ -287,3 +287,37 @@ def test_untrusted_tls_certificate_is_rejected(home, tmp_path, monkeypatch):
     finally:
         httpd.shutdown()
         httpd.server_close()
+
+
+def test_web_search_duckduckgo_metadata_without_fetching_targets(home):
+    set_config(home, "research.search_provider", "duckduckgo")
+    html = (
+        '<a class="result__a" href="https://example.test/docs">'
+        'Technical <b>reference</b></a>'
+    )
+    broker = ResearchBroker(
+        home, search_fetcher=lambda url, data, headers: (200, html)
+    )
+    results = broker.web_search("nonce reuse", 3)
+    assert results[0]["url"] == "https://example.test/docs"
+    assert results[0]["title"] == "Technical reference"
+    assert results[0]["trust"] == "external_untrusted"
+
+
+def test_web_search_requires_enablement_and_known_provider(home, monkeypatch):
+    monkeypatch.delenv("PRESTIGE_RESEARCH_ENABLED", raising=False)
+    set_config(home, "research.enabled", "false")
+    broker = ResearchBroker(home, search_fetcher=lambda *args: (200, ""))
+    with pytest.raises(PolicyDenied):
+        broker.web_search("anything")
+    set_config(home, "research.enabled", "true")
+    set_config(home, "research.search_provider", "unknown")
+    with pytest.raises(PolicyDenied):
+        broker.web_search("anything")
+
+
+def test_web_search_tavily_requires_key(home, monkeypatch):
+    set_config(home, "research.search_provider", "tavily")
+    monkeypatch.delenv("TAVILY_API_KEY", raising=False)
+    with pytest.raises(PolicyDenied):
+        ResearchBroker(home, search_fetcher=lambda *args: (200, "{}")).web_search("x")

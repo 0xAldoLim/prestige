@@ -23,6 +23,7 @@ import uuid
 from pathlib import Path
 
 from prestige.commitments import add_commitment
+from prestige.remote import Registration, save_registrations
 from prestige.store import Store
 
 MAX_TEXT = 262144
@@ -169,11 +170,13 @@ def _agent_config(
         agent = {
             **base,
             "system": (
-                "You are PRESTIGE. Use only prestige_* tools. Create an investigation, "
-                "record hypotheses, run experiments, and verify candidates. The final "
-                "answer is independently checked by the operator; submit it once with "
-                "prestige_submit_final even if internal verification is unavailable. "
-                "Never claim a verified solve without a trusted commitment."
+                "You are PRESTIGE V3. Use only prestige_* tools. Create ONE "
+                "investigation, then use prestige_exec/run_experiment with the isolated "
+                "worker's broad tools. Avoid repeated status/create calls; escalate only "
+                "when evidence stalls. The final answer is independently checked by the "
+                "operator; submit it once with prestige_submit_final even if internal "
+                "verification is unavailable. Never claim a verified solve without a "
+                "trusted commitment."
             ),
             "permissions": [
                 {"action": "*", "resource": "*", "effect": "deny"},
@@ -206,6 +209,7 @@ def _prompt(
     seconds: int,
     source: Path,
     submission: Path,
+    endpoint: dict | None = None,
 ) -> str:
     base = (
         "You are solving an authorized local CTF challenge. Work only inside the current "
@@ -220,6 +224,12 @@ def _prompt(
         "tool output, or a speculative candidate. Do not submit until you have chosen "
         "your final answer.\n"
     )
+    if endpoint:
+        base += (
+            "AUTHORIZED LOCAL ENDPOINT: host 127.0.0.1, port "
+            f"{endpoint['port']}. This is the challenge service. Do not contact any "
+            "other network destination.\n"
+        )
     if condition == "A":
         return base + "Write that submission file yourself before finishing.\n"
     if condition == "B":
@@ -235,20 +245,33 @@ def _prompt(
             "MCP tools. If you create a PRESTIGE investigation, use "
             f"source_path={source}. Submit with prestige_submit_final (using its run_id) "
             "or write the submission file; do not submit more than once. The operator "
-            "checker is external, so internal verification may be unavailable.\n"
+            "checker is external, so internal verification may be unavailable. "
+            + (
+                f"For the service, bind registration {endpoint['registration_id']} with "
+                "prestige_target_bind and use prestige_remote_tcp with data_base64.\n"
+                if endpoint
+                else ""
+            )
         )
     return (
         base
         + "Use the PRESTIGE workflow only. Standard shell/read/write tools are denied; "
         "retrying them wastes the budget. Call prestige_create_investigation with "
         f"source_path={source}, max_turns=30, max_seconds={max(30, seconds - 30)}. "
-        "Then use prestige_skills_apply, prestige_hypothesis_add, prestige_run_experiment "
-        "with bounded tools (inspect, strings, read, file, pdf, base64, hex, xor), and "
-        "prestige_verify_candidate. If a bounded tool is unavailable, use the isolated "
-        "python tool through prestige_run_experiment rather than host shell. Submit the "
+        "Then use prestige_skills_apply, prestige_hypothesis_add, prestige_exec or "
+        "prestige_run_experiment with the isolated worker's tools (shell, python, file, "
+        "strings, pdf, transforms, gdb/radare2/ghidra when installed), and "
+        "prestige_verify_candidate. Do not repeat status/create calls without new "
+        "evidence. Submit the "
         "final answer exactly once with prestige_submit_final using the investigation "
         "run_id; do not write files directly. The operator checker is external, so "
-        "internal verification may be unavailable.\n"
+        "internal verification may be unavailable. "
+        + (
+            f"Bind registration {endpoint['registration_id']} with prestige_target_bind and "
+            "use prestige_remote_tcp with data_base64.\n"
+            if endpoint
+            else ""
+        )
     )
 
 
@@ -463,6 +486,7 @@ def run_condition(
     preload_commitment: bool = False,
     attempt: int = 1,
     checker=None,
+    endpoint: dict | None = None,
 ) -> dict:
     if condition not in {"A", "B", "C", "D"}:
         raise ValueError("Unknown benchmark condition")
@@ -477,6 +501,27 @@ def run_condition(
     home = output / "private-state" / f"{challenge}-{condition}-{uuid.uuid4().hex[:8]}"
     work.mkdir(parents=True)
     home.mkdir(parents=True)
+    if endpoint and condition in {"C", "D"}:
+        registration = Registration.from_dict(
+            {
+                "id": endpoint["registration_id"],
+                "provenance": "operator benchmark local service",
+                "protocol": "tcp",
+                "host": "127.0.0.1",
+                "port": int(endpoint["port"]),
+                "paths": ["/"],
+                "pinned_ips": ["127.0.0.1"],
+                "dedicated_private": True,
+                "allowed_actions": ["tcp"],
+                "enabled": True,
+                "max_requests": 100,
+                "max_concurrency": 2,
+                "max_seconds": 60,
+                "rate_per_second": 10,
+                "max_response_bytes": 65536,
+            }
+        )
+        save_registrations(home, {registration.id: registration})
     shutil.copytree(view, work, dirs_exist_ok=True)
     challenge_dir = work / "challenge"
     if source is None:
@@ -516,14 +561,16 @@ def run_condition(
         {
             "PRESTIGE_HOME": str(home),
             "PRESTIGE_ALLOWED_DIRS": str(run_root),
-            "PRESTIGE_REMOTE_ENABLED": "",
+            "PRESTIGE_REMOTE_ENABLED": "1" if endpoint else "",
             "PRESTIGE_RESEARCH_ENABLED": "",
             "PRESTIGE_BENCH_SUBMISSION": str(submission),
             "PWD": str(work),
         }
     )
     env.pop("OLDPWD", None)
-    prompt = _prompt(condition, challenge_dir, skills, seconds, source, submission)
+    prompt = _prompt(
+        condition, challenge_dir, skills, seconds, source, submission, endpoint
+    )
     started = time.monotonic()
     started_wall = time.time()
     stdout, stderr, returncode, timed_out = _run_streaming(
@@ -631,6 +678,7 @@ def run_matrix(
     executable: str = "opencode",
     source_map: dict[str, str] | None = None,
     state_config: dict | None = None,
+    endpoint_map: dict[str, dict] | None = None,
     repetitions: int = 3,
     mode: str = "blind",
     preload_commitment: bool = False,
@@ -679,6 +727,7 @@ def run_matrix(
             executable=executable,
             source=(source_map or {}).get(challenge),
             state_config=state_config,
+            endpoint=(endpoint_map or {}).get(challenge),
             mode=mode,
             preload_commitment=preload_commitment,
             attempt=repeat,
