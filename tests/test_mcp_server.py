@@ -665,3 +665,53 @@ async def test_mcp_preserves_elapsed_time_for_pre_started_runs(tmp_path):
         assert store.run(run_id)["status"] == "budget_exhausted"
     finally:
         store.close()
+
+
+async def test_mcp_target_bind_only_uses_operator_registration(tmp_path):
+    from prestige.remote import Registration, save_registrations
+
+    home = tmp_path / "state"
+    challenge = tmp_path / "challenge.txt"
+    challenge.write_bytes(b"offline")
+    from prestige.engine import new_run
+    from prestige.store import Store
+
+    store = Store(home)
+    try:
+        run_id = new_run(store, challenge)
+    finally:
+        store.close()
+    registration = Registration.from_dict(
+        {
+            "id": "local1",
+            "provenance": "operator local test",
+            "protocol": "tcp",
+            "host": "127.0.0.1",
+            "port": 31337,
+            "paths": ["/"],
+            "pinned_ips": ["127.0.0.1"],
+            "dedicated_private": True,
+            "allowed_actions": ["tcp"],
+            "enabled": True,
+        }
+    )
+    save_registrations(home, {"local1": registration})
+    async with _mcp_client(tmp_path) as session:
+        bound = json.loads(
+            (
+                await session.call_tool(
+                    "prestige_target_bind",
+                    {"run_id": run_id, "registration_id": "local1"},
+                )
+            ).content[0].text
+        )
+        assert bound["status"] == "ok"
+        denied = json.loads(
+            (
+                await session.call_tool(
+                    "prestige_target_bind",
+                    {"run_id": run_id, "registration_id": "not-registered"},
+                )
+            ).content[0].text
+        )
+        assert denied["status"] == "error"

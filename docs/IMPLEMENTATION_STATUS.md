@@ -48,8 +48,8 @@ guarantee.
 
 ## Validation record
 
-- Default suite: **355 passed, 9 skipped**.
-- With `PRESTIGE_TEST_IMAGE`: **360 passed, 4 skipped**.
+- Default suite: **356 passed, 9 skipped**.
+- With `PRESTIGE_TEST_IMAGE`: **361 passed, 4 skipped**.
 - With GDB + SSHD + Docker + Ghidra opt-ins: 362 other tests passed; the local GDB image was removed by the environment reset, so the all-opt-in run is blocked by that dependency.
 - Ruff clean; wheel builds.
 

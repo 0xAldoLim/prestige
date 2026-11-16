@@ -309,8 +309,8 @@ requirements.
     limits, bounded output.
   - `WorkspaceRunner` output directory made writable for the containerized user.
 - **Tests**
-  - Default suite: **355 passed, 9 skipped**.
-  - With `PRESTIGE_TEST_IMAGE`: **360 passed, 4 skipped**.
+  - Default suite: **356 passed, 9 skipped**.
+  - With `PRESTIGE_TEST_IMAGE`: **361 passed, 4 skipped**.
   - With GDB + SSHD + Docker + Ghidra opt-ins: 362 passed before the local GDB image was removed by the environment reset; the all-opt-in run is now blocked by that missing image.
 - **Operator known-answer helper**
   - `prestige verify-candidate --expected-sha256 <digest> [--candidate-file PATH]`
@@ -323,7 +323,7 @@ requirements.
 ```bash
 PRESTIGE_TEST_GHIDRA=1 PRESTIGE_TEST_IMAGE=python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39 \
   python -m pytest -q
-# 360 passed in ~78 s
+# 361 passed in ~72 s
 ```
 
 ## Real challenge status

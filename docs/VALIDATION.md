@@ -7,8 +7,8 @@ benchmark superiority is claimed.
 
 | Check | Actual result |
 | --- | --- |
-| Default suite (offline) | **355 passed, 9 skipped**; 65.3 s |
-| With `PRESTIGE_TEST_IMAGE` pinned to `python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39` | **360 passed, 4 skipped** |
+| Default suite (offline) | **356 passed, 9 skipped**; 64.3 s |
+| With `PRESTIGE_TEST_IMAGE` pinned to `python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39` | **361 passed, 4 skipped** |
 | With GDB + SSHD + Docker + Ghidra opt-ins | 362 passed before the local GDB image was removed by the environment reset; all-opt-in run blocked by missing `sha256:942d…` image |
 | Ruff | All checks passed |
 | Wheel build | Built successfully (`python -m build --wheel`) |
