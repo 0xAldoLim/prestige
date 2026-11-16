@@ -1,4 +1,4 @@
-# Continuation / migration checkpoint — 2026-11-10
+# Continuation / migration checkpoint — 2026-11-15
 
 PRESTIGE is an **OpenCode-native** autonomous offline CTF investigation system.
 OpenCode owns the generic agent runtime; the Python engine owns investigation strategy,
@@ -8,10 +8,12 @@ requirements.
 
 ## Current HEAD
 
-- Validated code HEAD: `d98958b` (CI green on Ubuntu/Windows, Python 3.11 and 3.14); this docs-only refresh is the commit containing this line.
-- Latest pushed commit: see the latest `git log` on `origin/main`.
+- V3.1 stabilization code commit: `fa7031e` (persistent interactive TCP sessions,
+  reproducible worker images, doctor inventory and qualification report).
+- Last fully validated CI baseline before this increment: `d98958b` (green on
+  Ubuntu/Windows, Python 3.11 and 3.14). CI for the V3.1 commits is checked after
+  push and is not claimed here until observed.
 - GitHub account: `0xAldoLim`
-- CI: `offline-validation` passing on Ubuntu/Windows, Python 3.11 and 3.14.
 
 ## 2026-11-11 hardening increment
 
@@ -159,6 +161,27 @@ requirements.
   establish superiority. Report: `docs/benchmarks/CTF_EVALUATION_V3.md`.
 - Other priority service challenges remained blocked; only one new original challenge
   was independently verifiable. No availability or solve was fabricated.
+
+## 2026-11-15 PRESTIGE V3.1 stabilization
+
+- **Persistent interactive TCP sessions**: `prestige_remote_session_open/send/read/close`
+  hold one operator-registered, investigation-bound TCP connection with arbitrary
+  binary send, timeout/exact/delimiter reads, live reuse, EOF/reset detection, expiry
+  cancellation and cleanup. Scope, pinned destination and concurrency accounting stay
+  outside the model. Tests: `tests/test_remote_session.py`, including direct and MCP
+  end-to-end handshake → leak → computed stage → flag flows.
+- **Reproducible worker images**: `docker/worker-core.Dockerfile` and
+  `docker/worker-pwn.Dockerfile` build reviewed core/pwn workers; the pwn image adds
+  GDB, gdbserver, strace and ltrace. `docs/WORKER_IMAGES.md` records local image IDs,
+  build commands and the caveat that local IDs are not registry digests.
+- **Doctor worker inventory**: `prestige doctor` reports the configured image, its
+  resolved local ID and whether expected tools are present. It does not weaken the
+  rule that untrusted binaries run only in the reviewed worker.
+- **V3.1 qualification**: one original service (`pwn-jsculator`) was rerun 3× per
+  condition at 180 s. A 1/3, latest-skills B 1/3, C 0/3, D post-fix 1/3; no wrong
+  final flag. The five-challenge qualification target remains unmet. Historical report:
+  `docs/benchmarks/CTF_EVALUATION_V3_1.md`; data:
+  `benchmark-results/sasctf-2026-v3_1.json`.
 
 ## What works now
 
@@ -463,6 +486,8 @@ no performance or superiority claim is made.
 15. Operational FAST/AUTO/EXPERT lanes and explicit escalation.
 16. Four live held-out runs through the real OpenCode/MCP loop, all commitment-
     verified; one matched skills/no-skills pair with no improvement claim.
+17. Persistent interactive TCP sessions, reproducible core/pwn worker images and
+    V3.1 service qualification (no superiority claim).
 
 ## Next executable milestone
 
@@ -486,7 +511,7 @@ no performance or superiority claim is made.
 - git 2.53.0, Docker 28.5.2+dfsg3
 - `file`, `objdump`, `readelf`, `gdb`, `r2`/`radare2`
 - Ghidra headless: `/usr/share/ghidra/support/analyzeHeadless`
-- OpenCode v2.2.6
+- OpenCode v2.2.7 (V3.1 qualification runs used v2.2.6)
 
 ## Configured providers
 

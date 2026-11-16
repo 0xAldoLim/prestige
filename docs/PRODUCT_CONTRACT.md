@@ -39,7 +39,7 @@ Status legend: `done`, `partial`, `blocked-external`, `not-started`.
 | ST-4 | Repeated non-informative experiments are suppressed | done | `tests/test_engine.py::test_repeated_actions_suppressed`, `tests/test_mcp_server.py::test_mcp_suppresses_duplicate_deterministic_experiments` |
 | ST-5 | Investigation state survives session interruption and resumes without budget reset | done | `tests/test_mcp_server.py::test_mcp_state_survives_reconnect`, `test_mcp_resume_reconstructs_context_without_resetting_budget` |
 | ST-6 | Independent evidence evaluator derives categorical confidence and recommendations | done | `src/prestige/evaluator.py`, `prestige_evaluate_hypotheses`, `tests/test_evaluator.py` |
-| ST-7 | Lightweight default execution avoids mandatory planning and supports direct isolated commands | done | `prestige_exec`, `opencode.jsonc` V3 agent, `tests/test_workspace_tools.py` |
+| ST-7 | Lightweight default execution avoids mandatory planning and supports direct isolated commands | done | `prestige_exec`, `opencode.jsonc` `prestige` agent, `tests/test_workspace_tools.py` |
 | ST-8 | Operator-registered targets can be bound without model registration/scope expansion | done | `prestige_target_bind`, `tests/test_mcp_server.py` schema, remote scope tests |
 | ST-9 | Configurable web research providers with provenance and disabled-by-default policy | done | `ResearchBroker.web_search`, `prestige_research_web_search`, `tests/test_research.py` |
 | ST-10 | AUTO/EXPERT attempt ceiling supports real multi-stage work without a fixed 12-turn stop | done | `src/prestige/strategy.py`, `tests/test_strategy.py` |
@@ -81,6 +81,7 @@ Status legend: `done`, `partial`, `blocked-external`, `not-started`.
 | RM-18 | In-flight HTTPS cancellation controls the TLS socket and releases the lease | done | CA-signed HTTPS tests incl. cross-process cancellation |
 | RM-19 | Expiry automatically requests operator assistance without probing for a replacement | done | `test_expired_mcp_request_asks_for_operator` |
 | RM-20 | In-flight cancellation does not depend on platform socket-shutdown semantics | done | `_supervise`, `test_cancellation_independent_of_socket_shutdown`, Windows CI |
+| RM-21 | Persistent interactive TCP sessions support binary send, exact/delimiter reads, EOF detection, expiry cancellation and cleanup | done | `prestige_remote_session_*`, `tests/test_remote_session.py` |
 
 ## 6. Persistent interactive tools
 

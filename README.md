@@ -1,4 +1,4 @@
-# PRESTIGE V3
+# PRESTIGE V3.1
 
 **An OpenCode-native autonomous CTF solver with isolated tools, evidence and independent verification.**
 
@@ -7,13 +7,14 @@ agent that can use real analysis tools without handing the model unrestricted ac
 to the operator's host. OpenCode owns model transport and interactive sessions;
 PRESTIGE owns tool execution, evidence, scope, verification and recovery.
 
-V3 is a release candidate. It is not claimed to solve every challenge. Benchmark
-results are published with their exact cohort, budget and limitations in
+V3.1 is a release candidate. It is not claimed to solve every challenge. Benchmark
+results are published with their exact cohort, budget and limitations in the
+[V3.1 stabilization report](docs/benchmarks/CTF_EVALUATION_V3_1.md),
 [Benchmark V2](docs/benchmarks/CTF_EVALUATION_V2.md) and the companion
 [CTF evaluation](docs/benchmarks/CTF_EVALUATION.md). Current evidence does not show a
 solve-rate advantage over a strong OpenCode + skills baseline.
 
-## What V3 provides
+## What V3.1 provides
 
 - **Lightweight default agent**: create one investigation, then use isolated tools
   directly. No mandatory hypothesis or status ceremony.
@@ -23,8 +24,11 @@ solve-rate advantage over a strong OpenCode + skills baseline.
 - **Broad installed-tool access**: shell, Python, file utilities, GDB, radare2/Ghidra
   when present in the reviewed worker image; missing tools fail with an actionable
   diagnostic instead of falling back to the host.
-- **Authorized remote services**: HTTP, HTTPS, TCP and SSH through operator-registered,
-  investigation-bound targets. The model cannot register, enable or widen scope.
+- **Authorized remote services**: HTTP, HTTPS, one-shot TCP and persistent interactive
+  TCP sessions through operator-registered, investigation-bound targets. Persistent
+  sessions support arbitrary binary send, exact/delimiter reads, live connection reuse,
+  EOF/reset detection, expiry cancellation and cleanup. SSH is supported through the
+  remote SSH adapter. The model cannot register, enable or widen scope.
 - **Persistent sessions**: Python, GDB, radare2, shells or other commands installed in
   the worker can remain alive across model turns.
 - **Skills and research**: owner CTF skills are read-only; web search supports
@@ -52,7 +56,7 @@ git clone https://github.com/0xAldoLim/prestige.git
 cd prestige
 python3 -m venv .venv
 . .venv/bin/activate
-python -m pip install -e '.[dev]'
+python -m pip install -e '.[mcp]'
 prestige doctor
 ```
 
@@ -60,7 +64,7 @@ Windows PowerShell:
 
 ```powershell
 py -3 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+.\.venv\Scripts\python.exe -m pip install -e ".[mcp]"
 .\.venv\Scripts\python.exe -m prestige doctor
 ```
 
@@ -74,15 +78,18 @@ immutable local image:
 
 ```bash
 prestige --home ./.prestige config set sandbox.image \
-  python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39
+  sha256:987cc389afc23e21fce00011bd094249e66c7d1a36f9d0c6e318fddfc63a65f1
+prestige --home ./.prestige doctor
 prestige security sandbox-test \
-  --image python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39
+  --image sha256:987cc389afc23e21fce00011bd094249e66c7d1a36f9d0c6e318fddfc63a65f1
 ```
 
 The default image is intentionally minimal. Build a reviewed worker image containing
-the CTF tools you need (GDB/pwndbg, pwntools, radare2, Ghidra, tshark, binwalk,
-exiftool, Playwright, etc.) and pin it by digest. A missing tool in the image is a
-tooling failure, not permission to run it on the host.
+the CTF tools you need and pin it by digest. Reproducible core and pwn Dockerfiles are
+in [`docker/`](docker/) and documented in [worker images](docs/WORKER_IMAGES.md). The
+pwn image includes GDB, pwntools, Z3, GCC, file/strings/xxd, curl, git and network
+utilities. Radare2/Ghidra/Playwright are optional additions. A missing tool in the
+image is a tooling failure, not permission to run it on the host.
 
 ## OpenCode integration
 
@@ -212,6 +219,8 @@ Run `prestige --help` or `python -m prestige --help` for the full surface.
 
 ## Benchmarks and evidence
 
+- V3.1 stabilization and qualification: `docs/benchmarks/CTF_EVALUATION_V3_1.md`
+- Machine-readable V3.1: `benchmark-results/sasctf-2026-v3_1.json`
 - V2 evaluation: `docs/benchmarks/CTF_EVALUATION_V2.md`
 - Machine-readable V2: `benchmark-results/sasctf-2026-v2.json`
 - Eligibility inventory: `benchmark-results/sasctf-2026-eligibility.json`
