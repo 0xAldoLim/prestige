@@ -1,5 +1,7 @@
 # Benchmark V3 — real service challenge
 
+V3 implementation: `646e48a`; target-binding test/validation: `d98958b`; CI green on Ubuntu/Windows Python 3.11/3.14.
+
 V3 is a separate cohort from the V1/V2 Sanity Files pilot. `welcome-sanity-files`,
 `welcome-adversarial` and `rev-venom` are regression-only and are excluded from the
 primary V3 discovery results.
