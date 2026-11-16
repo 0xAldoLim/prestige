@@ -16,6 +16,9 @@ Status legend: `done`, `partial`, `blocked-external`, `not-started`.
 | RT-3 | No provider credentials are requested, accepted or persisted by MCP | done | `tests/test_mcp_server.py::test_mcp_schema_contains_no_provider_credentials` |
 | RT-4 | Optional Codex/OpenAI-compatible adapters remain opt-in | done | `src/prestige/codex_sdk.py`, `src/prestige/openai_backend.py`, `tests/test_openai_backend.py` |
 | RT-5 | Model-choice changes never alter security boundaries | done | `tests/test_adversarial.py`, `tests/test_security.py` |
+| RT-6 | Delegation-only Kimi orchestrator and autonomous DeepSeek executor use the exact assigned models | done | `opencode.jsonc`, `tests/test_model_routing.py`, `docs/MODEL_ROUTING.md` |
+| RT-7 | Built-in OpenCode agents are disabled and provider policy allows only `opencode-go` | done | `opencode.jsonc`, `tests/test_model_routing.py` |
+| RT-8 | Routing and provider policy are configuration, not a security sandbox; operator scope stays authoritative | done | `docs/MODEL_ROUTING.md`, `docs/PROVIDERS.md`, existing trust-boundary tests |
 
 ## 2. Trusted scope and verification
 

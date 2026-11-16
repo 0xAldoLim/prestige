@@ -10,9 +10,11 @@ requirements.
 
 - V3.1 stabilization code commit: `fa7031e` (persistent interactive TCP sessions,
   reproducible worker images, doctor inventory and qualification report).
+- The strict two-model routing change is the follow-up commit containing this line;
+  use `git log`/`origin/main` for the final SHA.
 - Last fully validated CI baseline before this increment: `d98958b` (green on
-  Ubuntu/Windows, Python 3.11 and 3.14). CI for the V3.1 commits is checked after
-  push and is not claimed here until observed.
+  Ubuntu/Windows, Python 3.11 and 3.14). CI for the V3.1/routing commits is checked
+  after push and is not claimed here until observed.
 - GitHub account: `0xAldoLim`
 
 ## 2026-11-11 hardening increment
@@ -182,6 +184,36 @@ requirements.
   final flag. The five-challenge qualification target remains unmet. Historical report:
   `docs/benchmarks/CTF_EVALUATION_V3_1.md`; data:
   `benchmark-results/sasctf-2026-v3_1.json`.
+
+## 2026-11-15 strict two-model routing
+
+- `opencode.jsonc` now has a delegation-only `orchestrator` on
+  `opencode-go/kimi-k3.1-pro`, an autonomous `executor` subagent on
+  `opencode-go/deepseek-v4.1-flash`, and the existing `prestige` CTF agent on the same
+  DeepSeek model with `mode: all`. Built-in `build`, `plan`, `general` and `explore`
+  agents are disabled; provider policy denies every provider except `opencode-go`.
+- Orchestrator permissions: `read`/`glob`/`grep` allowed, `subagent` only for
+  `executor`/`prestige`; shell/edit/write/browser/web/skill denied. Executor may
+  execute normally but cannot spawn subagents. The `prestige` host-tool denials and
+  `prestige_*` allowlist are unchanged.
+- OpenCode v2.2.7 validation confirmed the exact agent IDs/models. One real trace
+  (`opencode run --agent orchestrator`) recorded orchestrator messages on
+  `opencode-go/kimi-k3.1-pro` and child executor messages on
+  `opencode-go/deepseek-v4.1-flash`; the executor wrote and verified a tiny file.
+  Redacted evidence and reproduction commands are in `docs/MODEL_ROUTING.md`.
+- The connected catalog (`opencode api get /api/model`) displays the DeepSeek API ID
+  `deepseek-v4.1-flash` as `DeepSeek V4.1 Flash 1017`. No `-1017` API ID exists and
+  the provider exposes no independent checkpoint field, so the repository configures
+  and traces the required regular API ID without claiming a non-1017 or older
+  checkpoint pin. Both recorded trace sessions were re-read through the OpenCode API
+  on 2026-11-15 and matched those API IDs.
+- `tests/test_model_routing.py` asserts the offline configuration, disabled built-ins,
+  delegation restrictions and provider policy; the real-model trace test is opt-in
+  via `PRESTIGE_TEST_REAL_MODEL_TRACE=1` and is not part of the default paid/network
+  path.
+- Routing is configuration, not a security sandbox. PRESTIGE's Python broker and
+  operator-controlled registrations, source paths, images, budgets and verification
+  commitments remain authoritative.
 
 ## What works now
 
@@ -488,6 +520,8 @@ no performance or superiority claim is made.
     verified; one matched skills/no-skills pair with no improvement claim.
 17. Persistent interactive TCP sessions, reproducible core/pwn worker images and
     V3.1 service qualification (no superiority claim).
+18. Strict Kimi orchestrator / DeepSeek executor routing with disabled built-ins,
+    opencode-go-only provider policy and an opt-in real trace test.
 
 ## Next executable milestone
 
@@ -516,7 +550,10 @@ no performance or superiority claim is made.
 ## Configured providers
 
 - OpenCode Go models are the default and only required runtime.
-- Verified models: `opencode-go/beam-free`, `opencode-go/kimi-k2.7-code`,
+- Runtime routing (validated with OpenCode v2.2.7):
+  `opencode-go/kimi-k3.1-pro` orchestrator and
+  `opencode-go/deepseek-v4.1-flash` executor/prestige.
+- Earlier verified models: `opencode-go/beam-free`, `opencode-go/kimi-k2.7-code`,
   `opencode-go/kimi-k3.1-pro`.
 - Standalone OpenAI/Codex providers remain optional and unconfigured.
 

@@ -16,6 +16,8 @@ solve-rate advantage over a strong OpenCode + skills baseline.
 
 ## What V3.1 provides
 
+- **Strict model routing**: a delegation-only Kimi orchestrator, a DeepSeek execution
+  subagent and a DeepSeek PRESTIGE CTF agent, with built-in agents disabled.
 - **Lightweight default agent**: create one investigation, then use isolated tools
   directly. No mandatory hypothesis or status ceremony.
 - **Isolated arbitrary tool execution**: `prestige_exec` runs bounded argv inside the
@@ -93,19 +95,46 @@ image is a tooling failure, not permission to run it on the host.
 
 ## OpenCode integration
 
-The project registers a restricted `prestige` agent in `opencode.jsonc`. It can call
-only `prestige_*` MCP tools; host shell/read/write/browser tools are denied. The
-isolated worker provides shell and language capabilities through `prestige_exec`.
+The project uses strict two-model routing in `opencode.jsonc`:
+
+- **`orchestrator`** (`opencode-go/kimi-k3.1-pro`, primary) plans, delegates and
+  reviews. It may read/glob/grep and call only the `executor` and `prestige`
+  subagents; it has no shell, edit, write, browser, web or skill tools.
+- **`executor`** (`opencode-go/deepseek-v4.1-flash`, subagent) does implementation,
+  commands, debugging, tests and research autonomously and cannot spawn subagents.
+- **`prestige`** (`opencode-go/deepseek-v4.1-flash`, mode `all`) is the direct CTF
+  solver. It can call only `prestige_*` MCP tools; host shell/read/write/browser/skill
+  tools are denied. The isolated worker provides execution through `prestige_exec`.
+
+`default_agent` is `orchestrator`, the root fallback model is
+`opencode-go/deepseek-v4.1-flash`, and provider policy denies every provider except
+`opencode-go`. Built-in `build`, `plan`, `general` and `explore` agents are disabled.
+The provider displays that DeepSeek API ID as `DeepSeek V4.1 Flash 1017`; `1017` is a
+display label, not a separately configured model or an independently pinned checkpoint.
+See [model routing](docs/MODEL_ROUTING.md) for the validated trace, model-identity
+details and the minimal-Kimi-intervention policy.
 
 ```bash
+# interactive development starts the orchestrator
+opencode
+
+# scripted delegated work: Kimi plans, DeepSeek executes
+opencode run --standalone --agent orchestrator \
+  "Run the offline test suite with the executor and report exact failures."
+
+# direct CTF solving through the trusted Python broker
 python -m prestige agent
-# or use the plugin registration in opencode.jsonc
-opencode run --standalone --agent prestige --model opencode-go/kimi-k3.1-pro \
-  "Solve the authorized challenge in this workspace."
+opencode run --standalone --agent prestige \
+  "Solve the operator-authorized challenge in this workspace."
 ```
 
-If you use a custom structure, configure `PRESTIGE_HOME` and
+Do not add `--model` for normal use; the checked-in configuration pins the assigned
+models. If you use a custom structure, configure `PRESTIGE_HOME` and
 `PRESTIGE_ALLOWED_DIRS`. Do not expose provider credentials to the worker.
+
+Model routing is a cost and instruction-following arrangement, not a security
+sandbox. PRESTIGE's operator-controlled scope, tool authorization, verification
+commitments and isolated worker remain authoritative.
 
 ## Solve a local challenge
 
@@ -225,6 +254,7 @@ Run `prestige --help` or `python -m prestige --help` for the full surface.
 - Machine-readable V2: `benchmark-results/sasctf-2026-v2.json`
 - Eligibility inventory: `benchmark-results/sasctf-2026-eligibility.json`
 - V3 service pilot: see the V3 section in the benchmark report
+- Model routing and real trace evidence: `docs/MODEL_ROUTING.md`
 
 The repository intentionally does not publish private answers, raw transcripts,
 operator state or sensitive target configurations.

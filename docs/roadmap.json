@@ -4,7 +4,7 @@
   "release_ready": false,
   "baseline_commit": "7a32b4557840d0a49b3590346d843e2a0b6426c1",
   "current_head": "fa7031e",
-  "revision_note": "Active OpenCode-native CTF agent with persistent interactive TCP sessions, reproducible core/pwn worker images, remote scope/expiry/TLS controls, an independent evidence evaluator, paired adversarial execution, a deterministic deception detector and quarantine of poisoned memory. V3.1 qualification reran one original service (A 1/3, B 1/3, C 0/3, D 1/3) and does not establish superiority. No official external benchmark or live adversarial model comparison has been run. 370 default tests passing, 10 opt-in skips.",
+  "revision_note": "Active OpenCode-native CTF agent with persistent interactive TCP sessions, reproducible core/pwn worker images, strict Kimi-orchestrator/DeepSeek-executor routing, remote scope/expiry/TLS controls, an independent evidence evaluator, paired adversarial execution, a deterministic deception detector and quarantine of poisoned memory. V3.1 qualification reran one original service (A 1/3, B 1/3, C 0/3, D 1/3) and does not establish superiority. No official external benchmark or live adversarial model comparison has been run. 371 default tests passing, 10 opt-in skips.",
   "development_agent_target": "OpenCode",
   "primary_product_backend": "OpenCode-native MCP broker with trusted Python engine",
   "items": [
@@ -541,6 +541,16 @@
         "benchmark-results/sasctf-2026-v3_1.json"
       ],
       "remaining": "One original pwn-jsculator service; A 1/3, latest-skills B 1/3, C 0/3, D 1/3; five-challenge target unmet."
+    },
+    {
+      "id": "strict-model-routing",
+      "status": "tested",
+      "evidence": [
+        "opencode.jsonc",
+        "tests/test_model_routing.py",
+        "docs/MODEL_ROUTING.md"
+      ],
+      "remaining": "Kimi orchestrator plus DeepSeek executor/prestige validated offline and with one real trace; configuration is not a security sandbox."
     }
   ]
 }

@@ -9,8 +9,36 @@ PRESTIGE is split into two cooperating layers:
    verification and isolated execution.
 
 OpenCode talks to the engine through a stdio MCP server (`src/prestige/mcp_server.py`,
-started by `prestige agent`). The project `opencode.jsonc` registers that server and a
-restricted `prestige` agent whose permissions allow only `prestige_*` tools.
+started by `prestige agent`). The project `opencode.jsonc` registers that server and
+three project agents: a delegation-only `orchestrator` (Kimi K3.1 Pro), an autonomous
+`executor` (DeepSeek V4.1 Flash) and the restricted `prestige` CTF agent (DeepSeek
+V4.1 Flash), whose permissions allow only `prestige_*` tools.
+
+## Model routing
+
+Routing is deliberately asymmetric:
+
+- `orchestrator` is `primary` on `opencode-go/kimi-k3.1-pro`. It may read/glob/grep,
+  but shell/edit/write/browser/web/skill are denied and its only subagents are
+  `executor` and `prestige`. It decomposes work, gives each subagent a self-contained
+  task with acceptance criteria, and reviews recorded evidence. It is instructed to
+  intervene only for initial planning, meaningful failures, strategy changes, major
+  decisions and final evaluation.
+- `executor` is a `subagent` on `opencode-go/deepseek-v4.1-flash`. It executes
+  implementation, commands, debugging, tests and research end to end without asking
+  the orchestrator to approve individual tool calls, and cannot spawn further
+  subagents.
+- `prestige` is mode `all` on `opencode-go/deepseek-v4.1-flash`. It is the direct CTF
+  path and keeps the existing host-tool denials: only `prestige_*` MCP tools are
+  allowed.
+
+`default_agent` is `orchestrator`; the root fallback model is
+`opencode-go/deepseek-v4.1-flash`. The built-in `build`, `plan`, `general` and
+`explore` agents are disabled, and provider policy denies every provider except
+`opencode-go`. Configuration and model choice are not a security sandbox: the Python
+broker still enforces operator-controlled source paths, target registrations, budgets,
+image policy and verification commitments. Real routing evidence is recorded in
+[MODEL_ROUTING.md](MODEL_ROUTING.md).
 
 ## Investigation flow
 

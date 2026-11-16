@@ -8,10 +8,29 @@ evidence persistence, progress evaluation and candidate verification.
 ## Start
 
 Open a terminal in this repository. If OpenCode is installed and authenticated,
-run the restricted `prestige` agent directly:
+interactive development starts the delegation-only orchestrator:
 
 ```bash
-opencode run --standalone --agent prestige --model opencode-go/kimi-k2.7-code \
+opencode
+```
+
+The project config routes planning to `opencode-go/kimi-k3.1-pro` and all execution
+to `opencode-go/deepseek-v4.1-flash`. The orchestrator may read/glob/grep and call
+only the `executor` and `prestige` subagents; it has no shell, edit, write, browser,
+web or skill tools. Built-in `build`, `plan`, `general` and `explore` agents are
+disabled, and provider policy allows only `opencode-go`.
+
+For a scripted delegated task:
+
+```bash
+opencode run --standalone --agent orchestrator \
+  "Run the offline test suite with the executor and report exact results."
+```
+
+For direct CTF work through the trusted broker:
+
+```bash
+opencode run --standalone --agent prestige \
   "Resume the existing authorized offline investigation."
 ```
 
@@ -21,11 +40,13 @@ Or invoke the registered custom command:
 /prestige-resume
 ```
 
-No model or provider has been forced by this repository. No global OpenCode settings
-have been changed. The repository's `opencode.jsonc` registers the `prestige` MCP server
-and a restricted `prestige` agent that can call only `prestige_*` MCP tools. See
-[PROVIDERS.md](PROVIDERS.md) for model-family and Claude guidance; a Claude subscription
-is not assumed to grant API credits and Claude is never mandatory.
+Do not add `--model` for normal use; the checked-in configuration pins the assigned
+models. The repository's `opencode.jsonc` registers the `prestige` MCP server and the
+three project agents. See [MODEL_ROUTING.md](MODEL_ROUTING.md) for the validated
+routing trace and [PROVIDERS.md](PROVIDERS.md) for model-family and Claude guidance;
+a Claude subscription is not assumed to grant API credits and Claude is never
+mandatory. Routing is not a security sandbox; PRESTIGE's operator scope remains
+authoritative.
 
 If OpenCode is not on PATH, install it through its official mechanism and authenticate
 a provider if required. Then paste:
@@ -58,8 +79,14 @@ not a claim that later local work has been pushed.
   narrow local learning, advisory Ollama, queue and synthetic benchmark harness.
 - OpenCode-native MCP broker (`src/prestige/mcp_server.py`) exposes trusted tools over
   stdio and is registered by `.opencode/plugins/prestige/index.ts`.
-- Restricted `prestige` agent in `opencode.jsonc` can call only `prestige_*` tools;
-  shell/read/write/browser/skill are denied.
+- `opencode.jsonc` defines a delegation-only `orchestrator` on Kimi, an autonomous
+  `executor` on DeepSeek and a restricted `prestige` CTF agent on DeepSeek. The
+  `prestige` agent can call only `prestige_*` tools; shell/read/write/browser/skill
+  are denied. Built-in agents are disabled and provider policy allows only
+  `opencode-go`.
+- Real routing evidence (2026-11-15, OpenCode v2.2.7) is recorded in
+  [MODEL_ROUTING.md](MODEL_ROUTING.md): the orchestrator ran Kimi and its child
+  executor ran DeepSeek on a verified tiny file task.
 - Durable analysis jobs (`src/prestige/jobs.py`) cache Ghidra/radare2/python work by
   artifact digest and normalized arguments, persisting state outside the conversation.
 - `WorkspaceRunner` is wired into MCP investigations via operator-controlled config
