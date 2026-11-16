@@ -1225,6 +1225,152 @@ async def _remote_tcp(args: dict) -> dict:
         store.close()
 
 
+async def _remote_session_open(args: dict) -> dict:
+    store = await _store()
+    try:
+        run_id = args["run_id"]
+        run = _run(store, run_id)
+        if _terminal(run):
+            raise PrestigeError("Investigation is terminal")
+        elapsed = _check_budget(run, store, run_id)
+        registration = _registration(args, run_id)
+        if "tcp" not in registration.allowed_actions or registration.protocol != "tcp":
+            raise PolicyDenied("Registration does not authorize a persistent TCP session")
+        timeout = args.get("timeout", 10)
+        if type(timeout) not in (int, float) or not 0 < timeout <= 30:
+            raise PolicyDenied("Invalid session timeout")
+        timeout = min(float(timeout), max(0.1, run["settings"]["max_seconds"] - elapsed))
+        broker = broker_for(_home(), registration)
+        result = await asyncio.to_thread(broker.open_session, timeout, run_id)
+        store.event(
+            run_id,
+            "remote_session_open",
+            {
+                "registration_id": registration.id,
+                "session_id": result["session_id"],
+                "trust": "fact",
+            },
+        )
+        return {"status": "ok", "result": result}
+    except Exception as error:
+        _record_remote_failure(store, args, error)
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
+    finally:
+        store.close()
+
+
+async def _remote_session_send(args: dict) -> dict:
+    from prestige.remote import send_tcp_session
+
+    store = await _store()
+    try:
+        run_id = args["run_id"]
+        run = _run(store, run_id)
+        if _terminal(run):
+            raise PrestigeError("Investigation is terminal")
+        _check_budget(run, store, run_id)
+        try:
+            data = base64.b64decode(args.get("data_base64", ""), validate=True)
+        except (binascii.Error, ValueError) as error:
+            raise PolicyDenied("Invalid base64 session data") from error
+        result = await asyncio.to_thread(
+            send_tcp_session, str(args["session_id"]), data, run_id
+        )
+        digest = hashlib.sha256(data).hexdigest()
+        store.event(
+            run_id,
+            "remote_session_send",
+            {
+                "session_id": result["session_id"],
+                "bytes": result["sent"],
+                "sha256": digest,
+                "trust": "fact",
+            },
+        )
+        return {"status": "ok", "result": result}
+    except Exception as error:
+        _record_remote_failure(store, args, error)
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
+    finally:
+        store.close()
+
+
+async def _remote_session_read(args: dict) -> dict:
+    from prestige.remote import read_tcp_session
+
+    store = await _store()
+    try:
+        run_id = args["run_id"]
+        run = _run(store, run_id)
+        if _terminal(run):
+            raise PrestigeError("Investigation is terminal")
+        _check_budget(run, store, run_id)
+        delimiter = None
+        if args.get("delimiter_base64"):
+            try:
+                delimiter = base64.b64decode(args["delimiter_base64"], validate=True)
+            except (binascii.Error, ValueError) as error:
+                raise PolicyDenied("Invalid session delimiter") from error
+        result = await asyncio.to_thread(
+            read_tcp_session,
+            str(args["session_id"]),
+            run_id,
+            float(args.get("timeout", 1.0)),
+            int(args.get("max_bytes", 4096)),
+            delimiter,
+            args.get("exact"),
+        )
+        data = result.pop("data")
+        artifact = Artifacts(store, run_id).add(data, "remote-session-read.bin")
+        store.event(
+            run_id,
+            "remote_session_read",
+            {
+                "session_id": result["session_id"],
+                "bytes": result["bytes"],
+                "sha256": hashlib.sha256(data).hexdigest(),
+                "artifact": artifact,
+                "eof": result["eof"],
+                "trust": "fact",
+            },
+        )
+        return {
+            "status": "ok",
+            "result": {
+                **result,
+                "artifact": artifact,
+                "data_base64": base64.b64encode(data).decode("ascii"),
+                "preview": _body_preview(data),
+            },
+        }
+    except Exception as error:
+        _record_remote_failure(store, args, error)
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
+    finally:
+        store.close()
+
+
+async def _remote_session_close(args: dict) -> dict:
+    store = await _store()
+    try:
+        run_id = args["run_id"]
+        _run(store, run_id)
+        from prestige.remote import _tcp_session
+
+        session = _tcp_session(str(args["session_id"]), run_id)
+        result = await asyncio.to_thread(session.close)
+        store.event(
+            run_id,
+            "remote_session_close",
+            {"session_id": result["session_id"], "trust": "fact"},
+        )
+        return {"status": "ok", "result": result}
+    except Exception as error:
+        return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
+    finally:
+        store.close()
+
+
 async def _remote_ssh(args: dict) -> dict:
     store = await _store()
     try:
@@ -2187,6 +2333,82 @@ _TOOLS: dict[str, tuple[Tool, Any]] = {
             },
         ),
         _remote_tcp,
+    ),
+    "prestige_remote_session_open": (
+        Tool(
+            name="prestige_remote_session_open",
+            description=(
+                "Open a persistent TCP session to an operator-registered target bound "
+                "to this investigation. Scope, expiry and concurrency remain enforced."
+            ),
+            inputSchema={
+                "type": "object",
+                "required": ["run_id", "registration_id"],
+                "additionalProperties": False,
+                "properties": {
+                    "run_id": {"type": "string"},
+                    "registration_id": {"type": "string"},
+                    "timeout": {"type": "number"},
+                },
+            },
+        ),
+        _remote_session_open,
+    ),
+    "prestige_remote_session_send": (
+        Tool(
+            name="prestige_remote_session_send",
+            description="Send bounded binary data on a persistent remote session.",
+            inputSchema={
+                "type": "object",
+                "required": ["run_id", "session_id", "data_base64"],
+                "additionalProperties": False,
+                "properties": {
+                    "run_id": {"type": "string"},
+                    "session_id": {"type": "string"},
+                    "data_base64": {"type": "string"},
+                },
+            },
+        ),
+        _remote_session_send,
+    ),
+    "prestige_remote_session_read": (
+        Tool(
+            name="prestige_remote_session_read",
+            description=(
+                "Read bytes from a persistent remote session. Supports exact byte "
+                "counts, a base64 delimiter, or a bounded timeout; returns base64 data."
+            ),
+            inputSchema={
+                "type": "object",
+                "required": ["run_id", "session_id"],
+                "additionalProperties": False,
+                "properties": {
+                    "run_id": {"type": "string"},
+                    "session_id": {"type": "string"},
+                    "timeout": {"type": "number"},
+                    "max_bytes": {"type": "integer"},
+                    "delimiter_base64": {"type": "string"},
+                    "exact": {"type": "integer"},
+                },
+            },
+        ),
+        _remote_session_read,
+    ),
+    "prestige_remote_session_close": (
+        Tool(
+            name="prestige_remote_session_close",
+            description="Close and clean up a persistent remote session.",
+            inputSchema={
+                "type": "object",
+                "required": ["run_id", "session_id"],
+                "additionalProperties": False,
+                "properties": {
+                    "run_id": {"type": "string"},
+                    "session_id": {"type": "string"},
+                },
+            },
+        ),
+        _remote_session_close,
     ),
     "prestige_remote_ssh": (
         Tool(

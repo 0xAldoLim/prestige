@@ -10,6 +10,7 @@ import ipaddress
 import json
 import os
 import re
+import select
 import socket
 import ssl
 import subprocess
@@ -368,6 +369,199 @@ def canonical_request_target(target: str) -> tuple[str, str]:
     return path, query
 
 
+_TCP_SESSIONS: dict[str, "RemoteTCPSession"] = {}
+_TCP_SESSION_LOCK = threading.Lock()
+
+
+def _tcp_session(session_id: str, run_id: str | None = None) -> "RemoteTCPSession":
+    with _TCP_SESSION_LOCK:
+        session = _TCP_SESSIONS.get(session_id)
+    if session is None:
+        raise RemoteDenied("Unknown or closed remote session")
+    if run_id is not None and session.run_id != run_id:
+        raise RemoteDenied("Remote session belongs to a different investigation")
+    return session
+
+
+class RemoteTCPSession:
+    """A live registered TCP connection with bounded binary I/O.
+
+    The operator registration, pinned destination and expiry monitor remain the
+    authority. The model receives only a session id and bounded byte views.
+    """
+
+    def __init__(self, broker, sock, monitor, token, run_id, timeout):
+        self.broker = broker
+        self.sock = sock
+        self.monitor = monitor
+        self.token = token
+        self.run_id = run_id
+        self.timeout = timeout
+        self.session_id = uuid.uuid4().hex
+        self.buffer = bytearray()
+        self.lock = threading.RLock()
+        self.closed = False
+        self._released = False
+        self.registration_id = broker.registration.id
+
+    def _check(self):
+        if self.closed:
+            raise RemoteDenied("Remote session is closed")
+        if self.monitor.cancelled:
+            raise RemoteExpired("Remote session expired or was cancelled")
+        self.broker._check(self.run_id)
+
+    def send(self, data: bytes) -> dict:
+        if not isinstance(data, (bytes, bytearray)) or len(data) > 65536:
+            raise RemoteDenied("Session input is invalid or too large")
+        with self.lock:
+            self._check()
+            deadline = time.monotonic() + min(self.timeout, 30)
+            sent = 0
+            view = memoryview(bytes(data))
+            while view:
+                self._check()
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise PrestigeError("Session send timed out")
+                self.sock.settimeout(min(0.5, remaining))
+                try:
+                    count = self.sock.send(view)
+                except socket.timeout:
+                    continue
+                except OSError as error:
+                    if self.monitor.cancelled:
+                        raise RemoteExpired("Remote session expired or was cancelled") from error
+                    raise PrestigeError(f"Remote session send failed: {error}") from error
+                if count == 0:
+                    raise PrestigeError("Remote session closed during send")
+                sent += count
+                view = view[count:]
+            return {"session_id": self.session_id, "sent": sent}
+
+    def _recv(self, max_bytes: int, timeout: float) -> bytes:
+        deadline = time.monotonic() + min(timeout, 30)
+        while True:
+            self._check()
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return b""
+            try:
+                ready, _, _ = select.select([self.sock], [], [], min(0.2, remaining))
+            except OSError as error:
+                if self.monitor.cancelled:
+                    raise RemoteExpired("Remote session expired or was cancelled") from error
+                raise PrestigeError(f"Remote session read failed: {error}") from error
+            if not ready:
+                continue
+            self.sock.settimeout(min(0.5, remaining))
+            try:
+                chunk = self.sock.recv(min(4096, max_bytes))
+            except socket.timeout:
+                continue
+            except OSError as error:
+                if self.monitor.cancelled:
+                    raise RemoteExpired("Remote session expired or was cancelled") from error
+                raise PrestigeError(f"Remote session read failed: {error}") from error
+            if not chunk:
+                self.closed = True
+                return b""
+            return chunk
+
+    def read(
+        self, timeout: float = 1.0, max_bytes: int = 4096,
+        delimiter: bytes | None = None, exact: int | None = None,
+    ) -> dict:
+        if type(timeout) not in (int, float) or not 0 < timeout <= 30:
+            raise RemoteDenied("Invalid session read timeout")
+        if type(max_bytes) is not int or not 1 <= max_bytes <= 65536:
+            raise RemoteDenied("Invalid session read bound")
+        if delimiter is not None and (
+            not isinstance(delimiter, (bytes, bytearray)) or not delimiter or len(delimiter) > 64
+        ):
+            raise RemoteDenied("Invalid session delimiter")
+        if exact is not None and (type(exact) is not int or not 1 <= exact <= max_bytes):
+            raise RemoteDenied("Invalid exact read size")
+        with self.lock:
+            self._check()
+            deadline = time.monotonic() + min(timeout, 30)
+            want = exact if exact is not None else max_bytes
+            while True:
+                if exact is not None and len(self.buffer) >= want:
+                    data = bytes(self.buffer[:want])
+                    del self.buffer[:want]
+                    return self._result(data)
+                if delimiter is not None:
+                    index = self.buffer.find(bytes(delimiter))
+                    if index >= 0:
+                        end = index + len(delimiter)
+                        data = bytes(self.buffer[:end])
+                        del self.buffer[:end]
+                        return self._result(data)
+                if len(self.buffer) >= want:
+                    data = bytes(self.buffer[:want])
+                    del self.buffer[:want]
+                    return self._result(data)
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    data = bytes(self.buffer[:want])
+                    del self.buffer[:want]
+                    return self._result(data)
+                chunk = self._recv(min(4096, want - len(self.buffer)), remaining)
+                if not chunk:
+                    data = bytes(self.buffer[:want])
+                    del self.buffer[:want]
+                    return {**self._result(data), "eof": True}
+                self.buffer.extend(chunk)
+
+    def _result(self, data: bytes) -> dict:
+        return {
+            "session_id": self.session_id,
+            "bytes": len(data),
+            "data": data,
+            "text": data.decode("utf-8", errors="replace"),
+            "eof": self.closed,
+        }
+
+    def close(self) -> dict:
+        with self.lock:
+            if self._released:
+                return {"session_id": self.session_id, "closed": True}
+            self.closed = True
+            self._released = True
+        self.monitor.stop()
+        self.broker._release(self.sock)
+        release(self.broker.home, self.token)
+        with _TCP_SESSION_LOCK:
+            _TCP_SESSIONS.pop(self.session_id, None)
+        return {"session_id": self.session_id, "closed": True}
+
+    def summary(self) -> dict:
+        return {
+            "session_id": self.session_id,
+            "registration_id": self.registration_id,
+            "run_id": self.run_id,
+            "alive": not self.closed and not self.monitor.cancelled,
+            "buffered": len(self.buffer),
+        }
+
+
+def send_tcp_session(session_id: str, data: bytes, run_id: str | None = None) -> dict:
+    return _tcp_session(session_id, run_id).send(data)
+
+
+def read_tcp_session(
+    session_id: str,
+    run_id: str | None = None,
+    timeout: float = 1.0,
+    max_bytes: int = 4096,
+    delimiter: bytes | None = None,
+    exact: int | None = None,
+) -> dict:
+    return _tcp_session(session_id, run_id).read(timeout, max_bytes, delimiter, exact)
+
+
+
 class RemoteBroker:
     def __init__(self, home: Path, registration: Registration):
         self.home = home
@@ -714,6 +908,38 @@ class RemoteBroker:
             if sock is not None:
                 self._release(sock)
             release(self.home, token)
+
+    # ---- persistent interactive TCP ------------------------------------
+    def open_session(self, timeout: float = 10.0, run_id: str | None = None) -> dict:
+        self._check(run_id)
+        if self.registration.protocol != "tcp":
+            raise RemoteDenied("Persistent sessions require a TCP registration")
+        if type(timeout) not in (int, float) or not 0 < timeout <= 30:
+            raise RemoteDenied("Invalid session timeout")
+        token = reserve(self.home, self.registration, run_id, self.registration.max_seconds)
+        sock = None
+        monitor = None
+        try:
+            sock = self._connect(timeout)
+            monitor = _CancellationMonitor(self.home, self.registration, sock)
+            monitor.start()
+            session = RemoteTCPSession(
+                self, sock, monitor, token, run_id, timeout
+            )
+            with _TCP_SESSION_LOCK:
+                _TCP_SESSIONS[session.session_id] = session
+            return session.summary()
+        except BaseException:
+            if monitor is not None:
+                monitor.stop()
+            if sock is not None:
+                self._release(sock)
+            release(self.home, token)
+            raise
+
+    def close_session(self, session_id: str, run_id: str | None = None) -> dict:
+        session = _tcp_session(session_id, run_id)
+        return session.close()
 
     # ---- SSH ------------------------------------------------------------
     def ssh(self, command: str, timeout: float = 20.0, run_id: str | None = None) -> dict:

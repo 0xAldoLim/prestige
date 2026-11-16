@@ -7,6 +7,7 @@ import json
 import re
 import shutil
 import sqlite3
+import subprocess
 import sys
 from pathlib import Path
 
@@ -241,6 +242,37 @@ def dispatch(args, store: Store, config: dict):
         from prestige.codex_sdk import capabilities
         from prestige.local_models import hardware
 
+        image = config.get("sandbox.image")
+        worker = {"image": image, "available": False, "id": None, "tools": {}}
+        if image and shutil.which("docker"):
+            inspected = subprocess.run(
+                ["docker", "image", "inspect", image, "--format", "{{.Id}}"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=False,
+            )
+            worker["available"] = inspected.returncode == 0
+            worker["id"] = inspected.stdout.strip() or None
+            if worker["available"]:
+                probe = subprocess.run(
+                    [
+                        "docker", "run", "--rm", "--pull=never", "--network=none",
+                        "--read-only", "--user", "65534:65534", "--cap-drop=ALL",
+                        "--security-opt=no-new-privileges", image, "sh", "-c",
+                        "for t in python3 sh gcc gdb r2 curl git file strings xxd; do "
+                        "command -v $t >/dev/null 2>&1 && echo $t; done",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                    check=False,
+                )
+                worker["tools"] = {
+                    name: name in probe.stdout.split() for name in (
+                        "python3", "sh", "gcc", "gdb", "r2", "curl", "git", "file", "strings", "xxd"
+                    )
+                }
         return {
             "version": __version__,
             "python": sys.version.split()[0],
@@ -252,6 +284,7 @@ def dispatch(args, store: Store, config: dict):
                 for tool in ("docker", "gdb", "ghidra", "file", "strings", "wsl")
             },
             "sandbox": "not validated by doctor; run security sandbox-test explicitly",
+            "worker": worker,
             "remote": "disabled",
             "state": str(store.home),
             "telemetry": False,

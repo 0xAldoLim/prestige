@@ -72,6 +72,10 @@ async def test_mcp_lists_prestige_tools(tmp_path):
             "prestige_target_bind",
             "prestige_exec",
             "prestige_research_web_search",
+            "prestige_remote_session_close",
+            "prestige_remote_session_read",
+            "prestige_remote_session_send",
+            "prestige_remote_session_open",
         }
 
 
