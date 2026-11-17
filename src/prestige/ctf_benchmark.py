@@ -33,9 +33,8 @@ ADAPTIVE_CONDITIONS = ("DD", "KE", "DP")
 BENCHMARK_CONDITIONS = ("A", "B", "C", "D", *ADAPTIVE_CONDITIONS)
 ADAPTIVE_AGENTS = {"DD": "bench", "KE": "orchestrator", "DP": "prestige"}
 
-# Free execution route. Paid opencode-go/deepseek-v4.1-flash (Flash 1017) is
-# explicitly disabled in the checked-in config and must never be a fallback.
-FREE_EXECUTION_MODEL = "opencode/deepseek-v4.1-flash-free"
+# Paid DeepSeek Flash 1017 execution route. Benchmark runs require budget approval.
+FREE_EXECUTION_MODEL = "opencode-go/deepseek-v4.1-flash"
 
 # Fields that are answer-derived or contain private operator paths and must never
 # appear in a public benchmark result.

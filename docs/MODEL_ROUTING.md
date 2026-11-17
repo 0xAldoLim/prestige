@@ -1,5 +1,27 @@
 # OpenCode model routing and delegation
 
+## Current routing policy (2026-11-17)
+
+The tracked root `opencode.jsonc` permanently selects:
+
+- Orchestrator: `opencode-go/kimi-k3.1-pro`
+- Executor and PRESTIGE: `opencode-go/deepseek-v4.1-flash`
+- Root, compaction, title and summary: `opencode-go/deepseek-v4.1-flash`
+
+The execution model is **DeepSeek V4.1 Flash 1017**.
+`1017` is part of the display name, not the API ID.
+
+Flash Free and V4 Pro are disabled. This configuration is committed
+to Git and does not require temporary environment overrides.
+
+Start a new OpenCode conversation after applying this change.
+Historical routing traces below describe earlier configurations.
+The paid 30-attempt benchmark remains gated on explicit budget approval.
+
+---
+
+## Historical documentation
+
 Validated against OpenCode **v2.2.7** on 2026-11-16 with the checked-in
 `opencode.jsonc`.
 

@@ -29,7 +29,7 @@ def test_dd_pins_free_deepseek_direct_without_prestige(tmp_path):
     home, allowed, submission = _paths(tmp_path)
     config = _agent_config("DD", home, allowed, submission)
     agent = config["agents"]["bench"]
-    assert agent["model"] == "opencode/deepseek-v4.1-flash-free"
+    assert agent["model"] == "opencode-go/deepseek-v4.1-flash"
     assert agent["mode"] == "primary"
     assert "mcp" not in config
 
@@ -41,7 +41,7 @@ def test_ke_uses_checked_in_kimi_orchestrator_and_deepseek_executor(tmp_path):
     executor = config["agents"]["executor"]
     assert orchestrator["model"] == "opencode-go/kimi-k3.1-pro"
     assert orchestrator["mode"] == "primary"
-    assert executor["model"] == "opencode/deepseek-v4.1-flash-free"
+    assert executor["model"] == "opencode-go/deepseek-v4.1-flash"
     assert executor["mode"] == "subagent"
     assert "mcp" not in config
     resources = {rule.get("resource") for rule in orchestrator["permissions"]}
@@ -54,7 +54,7 @@ def test_dp_pins_deepseek_prestige_and_mcp_only(tmp_path):
     home, allowed, submission = _paths(tmp_path)
     config = _agent_config("DP", home, allowed, submission, endpoint={"registration_id": "jsvc", "port": 31337})
     agent = config["agents"]["prestige"]
-    assert agent["model"] == "opencode/deepseek-v4.1-flash-free"
+    assert agent["model"] == "opencode-go/deepseek-v4.1-flash"
     mcp = config["mcp"]["prestige"]
     assert mcp["command"] == ["python", "-m", "prestige", "agent"]
     assert mcp["environment"]["PRESTIGE_HOME"] == str(home)
