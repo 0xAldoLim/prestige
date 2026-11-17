@@ -8,7 +8,7 @@ records a categorical confidence and an actionable recommendation.
 import json
 import re
 
-from prestige import deception, hypotheses
+from prestige import deception, hypotheses, progress
 from prestige.store import Store
 
 _STOPWORDS = {
@@ -206,6 +206,7 @@ def evaluate(store: Store, run_id: str) -> dict:
             "evaluations": [],
             "recommendation": "no_active_hypotheses",
             "cross_check": _cross_check(active),
+            "progress": progress.assess(store, run_id),
         }
     recommendations = {item["recommendation"] for item in evaluations}
     cross_check = _cross_check(active)
@@ -223,6 +224,11 @@ def evaluate(store: Store, run_id: str) -> dict:
         overall = "continue"
     else:
         overall = "run_discriminating_test"
+    assessment = progress.assess(store, run_id)
+    # A pending or duplicate test only justifies EXPERT tooling when durable
+    # evidence shows repeated unproductive work and enough budget remains to
+    # use it. Merely lacking a result, or running one uninformative test, is
+    # not evidence of stagnation and stays on the direct path.
     if (
         overall in {
             "run_discriminating_test",
@@ -231,6 +237,9 @@ def evaluate(store: Store, run_id: str) -> dict:
         }
         and run.get("lane") in {"fast", "auto"}
         and run.get("mode") != "expert"
+        and assessment["state"] in {"no_progress", "loop_suspected"}
+        and assessment["budget"]["remaining_attempts"] >= 2
+        and assessment["budget"]["remaining_seconds"] > 30
     ):
         overall = "escalate"
     return {
@@ -238,4 +247,5 @@ def evaluate(store: Store, run_id: str) -> dict:
         "recommendation": overall,
         "cross_check": cross_check,
         "active": len(active),
+        "progress": assessment,
     }

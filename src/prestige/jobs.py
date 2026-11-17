@@ -71,6 +71,25 @@ class JobManager:
             lambda store: store.rows("SELECT * FROM jobs WHERE run_id=?", (self.run_id,))
         )
 
+    def find_cached(self, artifact_id: str, tool: str, args: dict) -> str | None:
+        """Return an existing queued/running/completed job for identical inputs.
+
+        The cache key covers artifact digest, tool and normalized arguments, so a
+        duplicate request can be answered from durable state without starting a
+        second job. Cancelled and failed jobs are not reused.
+        """
+        cache_key = _cache_key(artifact_id, tool, args)
+        rows = self._with_store(
+            lambda store: store.rows(
+                "SELECT job_id FROM jobs WHERE run_id=? AND cache_key=? "
+                "AND status IN ('queued','running','completed') "
+                "ORDER BY CASE status WHEN 'completed' THEN 0 WHEN 'running' THEN 1 ELSE 2 END, "
+                "started IS NULL, started LIMIT 1",
+                (self.run_id, cache_key),
+            )
+        )
+        return rows[0]["job_id"] if rows else None
+
     def start(
         self,
         artifact_id: str,
@@ -92,19 +111,11 @@ class JobManager:
             lambda store: Artifacts(store, self.run_id).resolve_path(artifact_id)
         )
 
-        cache_key = _cache_key(artifact_id, tool, args)
-        cached = self._with_store(
-            lambda store: store.rows(
-                "SELECT job_id FROM jobs WHERE run_id=? AND cache_key=? "
-                "AND status IN ('queued','running','completed') "
-                "ORDER BY CASE status WHEN 'completed' THEN 0 WHEN 'running' THEN 1 ELSE 2 END, "
-                "started IS NULL, started LIMIT 1",
-                (self.run_id, cache_key),
-            )
-        )
+        cached = self.find_cached(artifact_id, tool, args)
         if cached:
-            return cached[0]["job_id"]
+            return cached
 
+        cache_key = _cache_key(artifact_id, tool, args)
         job_id = uuid.uuid4().hex[:16]
 
         def insert_queued(store: Store):

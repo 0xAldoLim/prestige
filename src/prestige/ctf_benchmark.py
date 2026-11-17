@@ -20,6 +20,7 @@ import subprocess
 import threading
 import time
 import uuid
+from copy import deepcopy
 from pathlib import Path
 
 from prestige.commitments import add_commitment
@@ -27,6 +28,30 @@ from prestige.remote import Registration, save_registrations
 from prestige.store import Store
 
 MAX_TEXT = 262144
+
+ADAPTIVE_CONDITIONS = ("DD", "KE", "DP")
+BENCHMARK_CONDITIONS = ("A", "B", "C", "D", *ADAPTIVE_CONDITIONS)
+ADAPTIVE_AGENTS = {"DD": "bench", "KE": "orchestrator", "DP": "prestige"}
+
+# Free execution route. Paid opencode-go/deepseek-v4.1-flash (Flash 1017) is
+# explicitly disabled in the checked-in config and must never be a fallback.
+FREE_EXECUTION_MODEL = "opencode/deepseek-v4.1-flash-free"
+
+# Fields that are answer-derived or contain private operator paths and must never
+# appear in a public benchmark result.
+_PUBLIC_RESULT_DROP = {
+    "submitted_sha256",
+    "candidate_digests",
+    "wrong_candidate_digests",
+    "final_text_sha256",
+    "state_dir",
+    "workdir",
+    "submission_path",
+    "checker_result",
+    "stderr_tail",
+    "config",
+}
+
 
 
 def inventory(corpus: Path) -> list[dict]:
@@ -158,9 +183,80 @@ def read_submission(path: Path) -> dict:
     }
 
 
-def _agent_config(
-    condition: str, home: Path, allowed: Path, submission: Path | None = None
+def _checked_in_agents() -> dict:
+    """Load the checked-in agent definitions without modifying production config."""
+    path = Path(__file__).resolve().parents[2] / "opencode.jsonc"
+    return json.loads(path.read_text(encoding="utf-8"))["agents"]
+
+
+def _adaptive_agent_config(
+    condition: str,
+    home: Path,
+    allowed: Path,
+    submission: Path | None,
+    endpoint: dict | None,
 ) -> dict:
+    agents = _checked_in_agents()
+    if condition == "DD":
+        return {
+            "agents": {
+                "bench": {
+                    "mode": "primary",
+                    "description": "DeepSeek free direct benchmark agent",
+                    "model": FREE_EXECUTION_MODEL,
+                    "permissions": [{"action": "*", "resource": "*", "effect": "allow"}],
+                }
+            }
+        }
+    if condition == "KE":
+        # Exact checked-in definitions with only the PRESTIGE delegation removed:
+        # this condition must not acquire PRESTIGE tools or a second executor path.
+        orchestrator = deepcopy(agents["orchestrator"])
+        orchestrator["permissions"] = [
+            rule
+            for rule in orchestrator.get("permissions", [])
+            if rule.get("resource") != "prestige"
+        ]
+        orchestrator["system"] = orchestrator.get(
+            "system", ""
+        ).replace(
+            ", or to the `prestige` subagent for CTF challenge work", ""
+        )
+        return {
+            "agents": {
+                "orchestrator": orchestrator,
+                "executor": deepcopy(agents["executor"]),
+            }
+        }
+    if condition == "DP":
+        config = {"agents": {"prestige": deepcopy(agents["prestige"])}}
+        config["mcp"] = {
+            "prestige": {
+                "type": "local",
+                "command": ["python", "-m", "prestige", "agent"],
+                "environment": {
+                    "PRESTIGE_HOME": str(home),
+                    "PRESTIGE_ALLOWED_DIRS": str(allowed),
+                    "PRESTIGE_BENCH_SUBMISSION": str(submission or ""),
+                    "PRESTIGE_REMOTE_ENABLED": "1" if endpoint else "",
+                    "PRESTIGE_RESEARCH_ENABLED": "",
+                },
+                "enabled": True,
+            }
+        }
+        return config
+    raise ValueError("Unknown adaptive benchmark condition")
+
+
+def _agent_config(
+    condition: str,
+    home: Path,
+    allowed: Path,
+    submission: Path | None = None,
+    endpoint: dict | None = None,
+) -> dict:
+    if condition in ADAPTIVE_CONDITIONS:
+        return _adaptive_agent_config(condition, home, allowed, submission, endpoint)
     base = {
         "mode": "primary",
         "description": "CTF benchmark agent",
@@ -253,6 +349,42 @@ def _prompt(
                 else ""
             )
         )
+    if condition == "DD":
+        return (
+            base
+            + "Use standard tools. "
+            + (f"You may consult the owner's CTF skills read-only at {skills}. " if skills else "")
+            + "Write the submission file yourself exactly once before finishing.\n"
+        )
+    if condition == "KE":
+        return (
+            base
+            + "You are the orchestrator. Delegate all execution to the executor "
+            "subagent; give it a complete task with acceptance criteria and let it work "
+            "autonomously. "
+            + (f"The executor may consult the owner's CTF skills read-only at {skills}. " if skills else "")
+            + "Have the executor write the submission file exactly once before finishing.\n"
+        )
+    if condition == "DP":
+        return (
+            base
+            + "Use the PRESTIGE workflow only. Standard shell/read/write tools are denied; "
+            "retrying them wastes the budget. Call prestige_create_investigation with "
+            f"source_path={source}, mode=auto, max_turns=30, "
+            f"max_seconds={max(30, seconds - 30)}. Use prestige_skills_apply, "
+            "prestige_hypothesis_add, prestige_exec or prestige_run_experiment with the "
+            "isolated worker's tools, and prestige_verify_candidate. Do not repeat "
+            "status/create calls without new evidence. Submit the final answer exactly "
+            "once with prestige_submit_final using the investigation run_id; do not "
+            "write files directly. The operator checker is external, so internal "
+            "verification may be unavailable. "
+            + (
+                f"Bind registration {endpoint['registration_id']} with prestige_target_bind and "
+                "use prestige_remote_tcp with data_base64.\n"
+                if endpoint
+                else ""
+            )
+        )
     return (
         base
         + "Use the PRESTIGE workflow only. Standard shell/read/write tools are denied; "
@@ -275,19 +407,27 @@ def _prompt(
     )
 
 
-def _command(model: str, executable: str = "opencode") -> list[str]:
-    return [
+def _command(
+    model: str,
+    executable: str = "opencode",
+    condition: str | None = None,
+    agent: str = "bench",
+) -> list[str]:
+    command = [
         executable,
         "run",
         "--standalone",
         "--agent",
-        "bench",
+        agent,
         "--format",
         "json",
         "--archived",
-        "--model",
-        model,
     ]
+    # Adaptive agents pin their models in the benchmark config. A global
+    # --model override could flatten the KE orchestrator/executor split.
+    if condition not in ADAPTIVE_CONDITIONS:
+        command += ["--model", model]
+    return command
 
 
 def parse_jsonl(text: str) -> dict:
@@ -345,6 +485,111 @@ def parse_jsonl(text: str) -> dict:
         "text": "\n".join(text_parts)[:MAX_TEXT],
         "model_inference_observed": bool(steps and sessions),
     }
+
+
+def capture_routing(
+    sessions: list[str],
+    *,
+    work: Path,
+    env: dict,
+    executable: str,
+    run_root: Path,
+) -> dict:
+    """Read per-message agent/model IDs through the OpenCode API.
+
+    Only routing metadata is persisted, never message text, prompts or tool output.
+    """
+    summary = {
+        "captured": False,
+        "sessions": [],
+        "agents": {},
+        "models": {},
+        "subagent_calls": [],
+        "errors": [],
+    }
+    for session in sessions:
+        command = [executable, "api", "get", f"/api/session/{session}/message"]
+        try:
+            completed = subprocess.run(
+                command,
+                cwd=str(work),
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=20,
+                check=False,
+            )
+            if completed.returncode != 0:
+                summary["errors"].append(f"{session}: returncode {completed.returncode}")
+                continue
+            payload = json.loads(completed.stdout)
+        except (OSError, ValueError, subprocess.TimeoutExpired) as error:
+            summary["errors"].append(f"{session}: {type(error).__name__}")
+            continue
+        messages = payload.get("data") if isinstance(payload, dict) else None
+        if not isinstance(messages, list):
+            summary["errors"].append(f"{session}: unexpected API payload")
+            continue
+        counts = {"session": session, "assistant_messages": 0, "agents": {}, "models": {}}
+        for message in messages:
+            if not isinstance(message, dict) or message.get("type") != "assistant":
+                continue
+            counts["assistant_messages"] += 1
+            agent = str(message.get("agent") or "unknown")
+            model = message.get("model") if isinstance(message.get("model"), dict) else {}
+            provider = str(model.get("providerID") or "unknown")
+            model_id = str(model.get("id") or "unknown")
+            counts["agents"][agent] = counts["agents"].get(agent, 0) + 1
+            summary["agents"][agent] = summary["agents"].get(agent, 0) + 1
+            label = f"{provider}/{model_id}"
+            counts["models"][label] = counts["models"].get(label, 0) + 1
+            summary["models"][label] = summary["models"].get(label, 0) + 1
+            for item in message.get("content") or []:
+                if not isinstance(item, dict) or item.get("tool") != "subagent":
+                    continue
+                state = item.get("state") if isinstance(item.get("state"), dict) else {}
+                inputs = state.get("input") if isinstance(state.get("input"), dict) else {}
+                summary["subagent_calls"].append(
+                    {
+                        "from_session": session,
+                        "from_agent": agent,
+                        "target_agent": str(inputs.get("agent") or "unknown"),
+                    }
+                )
+        summary["sessions"].append(counts)
+        summary["captured"] = True
+    (run_root / "routing-private.json").write_text(
+        json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    return summary
+
+
+def _scrub_public(value):
+    if isinstance(value, dict):
+        return {
+            key: _scrub_public(item)
+            for key, item in value.items()
+            if key not in _PUBLIC_RESULT_DROP and key != "candidate_match"
+        }
+    if isinstance(value, list):
+        return [_scrub_public(item) for item in value]
+    return value
+
+
+def public_result(result: dict) -> dict:
+    """Return a result without answers, answer hashes or private operator paths."""
+    return {**_scrub_public(result), "public_redacted": True}
+
+
+def public_summary(summary: dict) -> dict:
+    """Return a publication-safe summary; raw traces and answer hashes stay private."""
+    return _scrub_public(summary)
+
+
+def write_public_summary(summary: dict, path: Path) -> dict:
+    public = public_summary(summary)
+    Path(path).write_text(json.dumps(public, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return public
 
 
 def _state_summary(home: Path, expected: str) -> dict:
@@ -473,7 +718,7 @@ def run_condition(
     view: Path,
     condition: str,
     *,
-    model: str,
+    model: str = FREE_EXECUTION_MODEL,
     output: Path,
     answers: dict,
     challenge: str,
@@ -488,7 +733,7 @@ def run_condition(
     checker=None,
     endpoint: dict | None = None,
 ) -> dict:
-    if condition not in {"A", "B", "C", "D"}:
+    if condition not in BENCHMARK_CONDITIONS:
         raise ValueError("Unknown benchmark condition")
     if mode not in {"blind", "interactive"}:
         raise ValueError("Unknown evaluation mode")
@@ -501,7 +746,8 @@ def run_condition(
     home = output / "private-state" / f"{challenge}-{condition}-{uuid.uuid4().hex[:8]}"
     work.mkdir(parents=True)
     home.mkdir(parents=True)
-    if endpoint and condition in {"C", "D"}:
+    prestige_conditions = {"C", "D", "DP"}
+    if endpoint and condition in prestige_conditions:
         registration = Registration.from_dict(
             {
                 "id": endpoint["registration_id"],
@@ -526,7 +772,7 @@ def run_condition(
     challenge_dir = work / "challenge"
     if source is None:
         candidates = sorted(path for path in challenge_dir.rglob("*") if path.is_file())
-        if condition in {"C", "D"}:
+        if condition in prestige_conditions:
             source = challenge_dir
         else:
             source = candidates[0] if len(candidates) == 1 else challenge_dir
@@ -534,15 +780,15 @@ def run_condition(
         source = Path(source)
         if not source.is_absolute():
             source = challenge_dir / source
-        if condition in {"C", "D"} and source.is_file() and len(
+        if condition in prestige_conditions and source.is_file() and len(
             [path for path in challenge_dir.rglob("*") if path.is_file()]
         ) > 1:
             source = challenge_dir
     submission = run_root / "submission.json"
-    config = _agent_config(condition, home, run_root, submission)
+    config = _agent_config(condition, home, run_root, submission, endpoint=endpoint)
     (work / "opencode.json").write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
     expected = answers.get(challenge)
-    if condition in {"C", "D"}:
+    if condition in prestige_conditions:
         config_values = dict(state_config or {})
         if skills:
             config_values.setdefault("skills.path", str(skills))
@@ -571,16 +817,26 @@ def run_condition(
     prompt = _prompt(
         condition, challenge_dir, skills, seconds, source, submission, endpoint
     )
+    agent = ADAPTIVE_AGENTS.get(condition, "bench")
     started = time.monotonic()
     started_wall = time.time()
     stdout, stderr, returncode, timed_out = _run_streaming(
-        _command(model, executable) + [prompt], work, env, seconds
+        _command(model, executable, condition, agent) + [prompt], work, env, seconds
     )
     elapsed = time.monotonic() - started
     parsed = parse_jsonl(stdout)
     (run_root / "events.jsonl").write_text(stdout, encoding="utf-8")
     (run_root / "final.txt").write_text(parsed["text"], encoding="utf-8")
     (run_root / "stderr.txt").write_text(stderr, encoding="utf-8")
+    routing = None
+    if condition in ADAPTIVE_CONDITIONS and parsed["sessions"]:
+        routing = capture_routing(
+            parsed["sessions"],
+            work=work,
+            env=env,
+            executable=executable,
+            run_root=run_root,
+        )
     state = _state_summary(home, expected) if expected else {
         "runs": 0,
         "verified": 0,
@@ -620,6 +876,7 @@ def run_condition(
     return {
         "challenge": challenge,
         "condition": condition,
+        "agent": agent,
         "model": model,
         "attempt": attempt,
         "mode": mode,
@@ -642,6 +899,7 @@ def run_condition(
             ).encode("utf-8")
         ).hexdigest(),
         "config": config,
+        "routing": routing,
         "parsed": {
             key: value for key, value in parsed.items() if key != "text"
         },
@@ -669,7 +927,7 @@ def run_matrix(
     challenges: list[str],
     conditions: list[str],
     *,
-    model: str,
+    model: str = FREE_EXECUTION_MODEL,
     output: Path,
     answers: dict,
     skills: Path | None = None,
@@ -683,6 +941,7 @@ def run_matrix(
     mode: str = "blind",
     preload_commitment: bool = False,
     resume: bool = True,
+    public_output: Path | None = None,
 ) -> dict:
     if type(repetitions) is not int or not 1 <= repetitions <= 20:
         raise ValueError("repetitions must be in 1..20")
@@ -840,6 +1099,8 @@ def run_matrix(
     (output / "summary.json").write_text(
         json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
+    if public_output is not None:
+        write_public_summary(summary, Path(public_output))
     return summary
 
 

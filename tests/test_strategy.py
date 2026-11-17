@@ -118,12 +118,30 @@ async def test_mcp_fast_denies_expert_tool_then_escalates(tmp_path):
         )
         assert escalated["result"]["lane"] == "expert"
         assert "ghidra" in escalated["result"]["allowed_tools"]
+        assert escalated["result"]["budget"]["remaining_attempts"] == 1
+        assert escalated["result"]["progress"]["state"] in {
+            "exploring",
+            "not_started",
+            "no_progress",
+            "loop_suspected",
+        }
+
+        again = json.loads(
+            (
+                await session.call_tool(
+                    "prestige_escalate",
+                    {"run_id": run_id, "reason": "repeat"},
+                )
+            ).content[0].text
+        )
+        assert again["result"]["already"] is True
 
         status2 = json.loads(
             (await session.call_tool("prestige_get_status", {"run_id": run_id})).content[0].text
         )
         assert status2["lane"] == "expert"
-        assert status2["attempts"] == 2  # denied attempt + escalation attempt
+        # Denied experiment + one escalation; a second escalation is idempotent.
+        assert status2["attempts"] == 2
         assert status2["turns"] == 0 or status2["attempts"] >= 2
 
     store = Store(home)

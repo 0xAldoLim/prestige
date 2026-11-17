@@ -1,0 +1,1209 @@
+{
+  "attempts": 15,
+  "by_condition": {
+    "DD": {
+      "attempts": 5,
+      "cost": 0.0,
+      "deception_events": 0,
+      "failed_tools": 0,
+      "median_seconds": 180.01,
+      "prestige_tool_calls": 0,
+      "prestige_verified": 0,
+      "seconds": 900.0509999999999,
+      "submission_statuses": {
+        "invalid": 0,
+        "missing": 5,
+        "valid": 0,
+        "wrong": 0
+      },
+      "tool_calls": 15,
+      "total_tokens": 51641,
+      "verified": 0,
+      "wrong_candidates": 0
+    },
+    "DP": {
+      "attempts": 5,
+      "cost": 0.0,
+      "deception_events": 27,
+      "failed_tools": 2,
+      "median_seconds": 180.01,
+      "prestige_tool_calls": 35,
+      "prestige_verified": 0,
+      "seconds": 900.0509999999999,
+      "submission_statuses": {
+        "invalid": 0,
+        "missing": 5,
+        "valid": 0,
+        "wrong": 0
+      },
+      "tool_calls": 35,
+      "total_tokens": 86483,
+      "verified": 0,
+      "wrong_candidates": 0
+    },
+    "KE": {
+      "attempts": 5,
+      "cost": 0.0,
+      "deception_events": 0,
+      "failed_tools": 0,
+      "median_seconds": 180.011,
+      "prestige_tool_calls": 0,
+      "prestige_verified": 0,
+      "seconds": 900.053,
+      "submission_statuses": {
+        "invalid": 0,
+        "missing": 5,
+        "valid": 0,
+        "wrong": 0
+      },
+      "tool_calls": 0,
+      "total_tokens": 0,
+      "verified": 0,
+      "wrong_candidates": 0
+    }
+  },
+  "challenges": [
+    "sunk-cost"
+  ],
+  "claim": "Observed runs only; no statistical superiority is claimed.",
+  "conditions": [
+    "DD",
+    "KE",
+    "DP"
+  ],
+  "failed": 0,
+  "invalid_submissions": 0,
+  "missing_submissions": 15,
+  "mode": "blind",
+  "model": "adaptive",
+  "preload_commitment": false,
+  "repetitions": 5,
+  "results": [
+    {
+      "agent": "orchestrator",
+      "answer_configured": true,
+      "attempt": 2,
+      "challenge": "sunk-cost",
+      "condition": "KE",
+      "config_hash": "a03cbeed1981d576328b2189826470e15a4fdec5d4457f5958b44fe4997dc302",
+      "mode": "blind",
+      "model": "adaptive",
+      "parsed": {
+        "cost": 0.0,
+        "events": 1,
+        "failed_tools": 0,
+        "model_inference_observed": false,
+        "prestige_tool_calls": 0,
+        "sessions": [
+          "ses_e1ce1d3dbffespSpiF5edXWZQc"
+        ],
+        "steps": 0,
+        "tokens": {
+          "cache_read": 0,
+          "cache_write": 0,
+          "input": 0,
+          "output": 0,
+          "reasoning": 0
+        },
+        "tool_calls": 0,
+        "tool_names": [],
+        "total_tokens": 0
+      },
+      "prestige_state": {
+        "deception_events": 0,
+        "deception_max_risk": "none",
+        "runs": 0,
+        "statuses": [],
+        "verified": 0
+      },
+      "prestige_verified": false,
+      "returncode": -9,
+      "routing": {
+        "agents": {
+          "orchestrator": 1
+        },
+        "captured": true,
+        "errors": [],
+        "models": {
+          "opencode-go/kimi-k3.1-pro": 1
+        },
+        "sessions": [
+          {
+            "agents": {
+              "orchestrator": 1
+            },
+            "assistant_messages": 1,
+            "models": {
+              "opencode-go/kimi-k3.1-pro": 1
+            },
+            "session": "ses_e1ce1d3dbffespSpiF5edXWZQc"
+          }
+        ],
+        "subagent_calls": []
+      },
+      "seconds": 180.011,
+      "status": "timed_out",
+      "submission_seconds": null,
+      "submission_status": "missing",
+      "verification_strength": "operator_sha256",
+      "verified": false,
+      "verified_by": null
+    },
+    {
+      "agent": "orchestrator",
+      "answer_configured": true,
+      "attempt": 3,
+      "challenge": "sunk-cost",
+      "condition": "KE",
+      "config_hash": "a03cbeed1981d576328b2189826470e15a4fdec5d4457f5958b44fe4997dc302",
+      "mode": "blind",
+      "model": "adaptive",
+      "parsed": {
+        "cost": 0.0,
+        "events": 1,
+        "failed_tools": 0,
+        "model_inference_observed": false,
+        "prestige_tool_calls": 0,
+        "sessions": [
+          "ses_e1cdf149bffeenftG7zg6Sr5yD"
+        ],
+        "steps": 0,
+        "tokens": {
+          "cache_read": 0,
+          "cache_write": 0,
+          "input": 0,
+          "output": 0,
+          "reasoning": 0
+        },
+        "tool_calls": 0,
+        "tool_names": [],
+        "total_tokens": 0
+      },
+      "prestige_state": {
+        "deception_events": 0,
+        "deception_max_risk": "none",
+        "runs": 0,
+        "statuses": [],
+        "verified": 0
+      },
+      "prestige_verified": false,
+      "returncode": -9,
+      "routing": {
+        "agents": {
+          "orchestrator": 1
+        },
+        "captured": true,
+        "errors": [],
+        "models": {
+          "opencode-go/kimi-k3.1-pro": 1
+        },
+        "sessions": [
+          {
+            "agents": {
+              "orchestrator": 1
+            },
+            "assistant_messages": 1,
+            "models": {
+              "opencode-go/kimi-k3.1-pro": 1
+            },
+            "session": "ses_e1cdf149bffeenftG7zg6Sr5yD"
+          }
+        ],
+        "subagent_calls": []
+      },
+      "seconds": 180.011,
+      "status": "timed_out",
+      "submission_seconds": null,
+      "submission_status": "missing",
+      "verification_strength": "operator_sha256",
+      "verified": false,
+      "verified_by": null
+    },
+    {
+      "agent": "prestige",
+      "answer_configured": true,
+      "attempt": 2,
+      "challenge": "sunk-cost",
+      "condition": "DP",
+      "config_hash": "69008a81c68bb851befecec521de059069fec036e038090a8c43836088847b5c",
+      "mode": "blind",
+      "model": "adaptive",
+      "parsed": {
+        "cost": 0.0,
+        "events": 23,
+        "failed_tools": 0,
+        "model_inference_observed": true,
+        "prestige_tool_calls": 7,
+        "sessions": [
+          "ses_e1cdc54d2ffeGqrwsJEOBYh4Ea"
+        ],
+        "steps": 7,
+        "tokens": {
+          "cache_read": 47360,
+          "cache_write": 0,
+          "input": 25559,
+          "output": 815,
+          "reasoning": 18178
+        },
+        "tool_calls": 7,
+        "tool_names": [
+          "prestige_prestige_create_investigation",
+          "prestige_prestige_exec",
+          "prestige_prestige_exec",
+          "prestige_prestige_exec",
+          "prestige_prestige_exec",
+          "prestige_prestige_skills_apply",
+          "prestige_prestige_skills_search"
+        ],
+        "total_tokens": 26374
+      },
+      "prestige_state": {
+        "deception_events": 6,
+        "deception_max_risk": "none",
+        "runs": 1,
+        "statuses": [
+          "ready"
+        ],
+        "verified": 0
+      },
+      "prestige_verified": false,
+      "returncode": -9,
+      "routing": {
+        "agents": {
+          "prestige": 8
+        },
+        "captured": true,
+        "errors": [],
+        "models": {
+          "opencode-go/deepseek-v4.1-flash": 8
+        },
+        "sessions": [
+          {
+            "agents": {
+              "prestige": 8
+            },
+            "assistant_messages": 8,
+            "models": {
+              "opencode-go/deepseek-v4.1-flash": 8
+            },
+            "session": "ses_e1cdc54d2ffeGqrwsJEOBYh4Ea"
+          }
+        ],
+        "subagent_calls": []
+      },
+      "seconds": 180.01,
+      "status": "timed_out",
+      "submission_seconds": null,
+      "submission_status": "missing",
+      "verification_strength": "operator_sha256",
+      "verified": false,
+      "verified_by": null
+    },
+    {
+      "agent": "orchestrator",
+      "answer_configured": true,
+      "attempt": 5,
+      "challenge": "sunk-cost",
+      "condition": "KE",
+      "config_hash": "a03cbeed1981d576328b2189826470e15a4fdec5d4457f5958b44fe4997dc302",
+      "mode": "blind",
+      "model": "adaptive",
+      "parsed": {
+        "cost": 0.0,
+        "events": 1,
+        "failed_tools": 0,
+        "model_inference_observed": false,
+        "prestige_tool_calls": 0,
+        "sessions": [
+          "ses_e1cd9951fffeWHBj3KV2AEqlzh"
+        ],
+        "steps": 0,
+        "tokens": {
+          "cache_read": 0,
+          "cache_write": 0,
+          "input": 0,
+          "output": 0,
+          "reasoning": 0
+        },
+        "tool_calls": 0,
+        "tool_names": [],
+        "total_tokens": 0
+      },
+      "prestige_state": {
+        "deception_events": 0,
+        "deception_max_risk": "none",
+        "runs": 0,
+        "statuses": [],
+        "verified": 0
+      },
+      "prestige_verified": false,
+      "returncode": -9,
+      "routing": {
+        "agents": {
+          "orchestrator": 1
+        },
+        "captured": true,
+        "errors": [],
+        "models": {
+          "opencode-go/kimi-k3.1-pro": 1
+        },
+        "sessions": [
+          {
+            "agents": {
+              "orchestrator": 1
+            },
+            "assistant_messages": 1,
+            "models": {
+              "opencode-go/kimi-k3.1-pro": 1
+            },
+            "session": "ses_e1cd9951fffeWHBj3KV2AEqlzh"
+          }
+        ],
+        "subagent_calls": []
+      },
+      "seconds": 180.01,
+      "status": "timed_out",
+      "submission_seconds": null,
+      "submission_status": "missing",
+      "verification_strength": "operator_sha256",
+      "verified": false,
+      "verified_by": null
+    },
+    {
+      "agent": "bench",
+      "answer_configured": true,
+      "attempt": 2,
+      "challenge": "sunk-cost",
+      "condition": "DD",
+      "config_hash": "44d03d6247d015a47090390e074dd5188bb429f853e93f3a413a87f2f2a4e7cd",
+      "mode": "blind",
+      "model": "adaptive",
+      "parsed": {
+        "cost": 0.0,
+        "events": 10,
+        "failed_tools": 0,
+        "model_inference_observed": true,
+        "prestige_tool_calls": 0,
+        "sessions": [
+          "ses_e1cd6d4d8ffeeJ18aSycsm4Znf"
+        ],
+        "steps": 2,
+        "tokens": {
+          "cache_read": 11648,
+          "cache_write": 0,
+          "input": 8850,
+          "output": 277,
+          "reasoning": 10954
+        },
+        "tool_calls": 4,
+        "tool_names": [
+          "read",
+          "shell",
+          "read",
+          "read"
+        ],
+        "total_tokens": 9127
+      },
+      "prestige_state": {
+        "deception_events": 0,
+        "deception_max_risk": "none",
+        "runs": 0,
+        "statuses": [],
+        "verified": 0
+      },
+      "prestige_verified": false,
+      "returncode": -9,
+      "routing": {
+        "agents": {
+          "bench": 3
+        },
+        "captured": true,
+        "errors": [],
+        "models": {
+          "opencode-go/deepseek-v4.1-flash": 3
+        },
+        "sessions": [
+          {
+            "agents": {
+              "bench": 3
+            },
+            "assistant_messages": 3,
+            "models": {
+              "opencode-go/deepseek-v4.1-flash": 3
+            },
+            "session": "ses_e1cd6d4d8ffeeJ18aSycsm4Znf"
+          }
+        ],
+        "subagent_calls": []
+      },
+      "seconds": 180.011,
+      "status": "timed_out",
+      "submission_seconds": null,
+      "submission_status": "missing",
+      "verification_strength": "operator_sha256",
+      "verified": false,
+      "verified_by": null
+    },
+    {
+      "agent": "bench",
+      "answer_configured": true,
+      "attempt": 4,
+      "challenge": "sunk-cost",
+      "condition": "DD",
+      "config_hash": "44d03d6247d015a47090390e074dd5188bb429f853e93f3a413a87f2f2a4e7cd",
+      "mode": "blind",
+      "model": "adaptive",
+      "parsed": {
+        "cost": 0.0,
+        "events": 5,
+        "failed_tools": 0,
+        "model_inference_observed": true,
+        "prestige_tool_calls": 0,
+        "sessions": [
+          "ses_e1cd41383ffeqqmpIVZD12PgdH"
+        ],
+        "steps": 1,
+        "tokens": {
+          "cache_read": 1664,
+          "cache_write": 0,
+          "input": 8055,
+          "output": 71,
+          "reasoning": 0
+        },
+        "tool_calls": 1,
+        "tool_names": [
+          "shell"
+        ],
+        "total_tokens": 8126
+      },
+      "prestige_state": {
+        "deception_events": 0,
+        "deception_max_risk": "none",
+        "runs": 0,
+        "statuses": [],
+        "verified": 0
+      },
+      "prestige_verified": false,
+      "returncode": -9,
+      "routing": {
+        "agents": {
+          "bench": 2
+        },
+        "captured": true,
+        "errors": [],
+        "models": {
+          "opencode-go/deepseek-v4.1-flash": 2
+        },
+        "sessions": [
+          {
+            "agents": {
+              "bench": 2
+            },
+            "assistant_messages": 2,
+            "models": {
+              "opencode-go/deepseek-v4.1-flash": 2
+            },
+            "session": "ses_e1cd41383ffeqqmpIVZD12PgdH"
+          }
+        ],
+        "subagent_calls": []
+      },
+      "seconds": 180.01,
+      "status": "timed_out",
+      "submission_seconds": null,
+      "submission_status": "missing",
+      "verification_strength": "operator_sha256",
+      "verified": false,
+      "verified_by": null
+    },
+    {
+      "agent": "bench",
+      "answer_configured": true,
+      "attempt": 5,
+      "challenge": "sunk-cost",
+      "condition": "DD",
+      "config_hash": "44d03d6247d015a47090390e074dd5188bb429f853e93f3a413a87f2f2a4e7cd",
+      "mode": "blind",
+      "model": "adaptive",
+      "parsed": {
+        "cost": 0.0,
+        "events": 5,
+        "failed_tools": 0,
+        "model_inference_observed": true,
+        "prestige_tool_calls": 0,
+        "sessions": [
+          "ses_e1cd155c2ffeU6I8ftdnF5Swm5"
+        ],
+        "steps": 1,
+        "tokens": {
+          "cache_read": 2304,
+          "cache_write": 0,
+          "input": 7418,
+          "output": 71,
+          "reasoning": 0
+        },
+        "tool_calls": 1,
+        "tool_names": [
+          "shell"
+        ],
+        "total_tokens": 7489
+      },
+      "prestige_state": {
+        "deception_events": 0,
+        "deception_max_risk": "none",
+        "runs": 0,
+        "statuses": [],
+        "verified": 0
+      },
+      "prestige_verified": false,
+      "returncode": -9,
+      "routing": {
+        "agents": {
+          "bench": 2
+        },
+        "captured": true,
+        "errors": [],
+        "models": {
+          "opencode-go/deepseek-v4.1-flash": 2
+        },
+        "sessions": [
+          {
+            "agents": {
+              "bench": 2
+            },
+            "assistant_messages": 2,
+            "models": {
+              "opencode-go/deepseek-v4.1-flash": 2
+            },
+            "session": "ses_e1cd155c2ffeU6I8ftdnF5Swm5"
+          }
+        ],
+        "subagent_calls": []
+      },
+      "seconds": 180.01,
+      "status": "timed_out",
+      "submission_seconds": null,
+      "submission_status": "missing",
+      "verification_strength": "operator_sha256",
+      "verified": false,
+      "verified_by": null
+    },
+    {
+      "agent": "bench",
+      "answer_configured": true,
+      "attempt": 1,
+      "challenge": "sunk-cost",
+      "condition": "DD",
+      "config_hash": "44d03d6247d015a47090390e074dd5188bb429f853e93f3a413a87f2f2a4e7cd",
+      "mode": "blind",
+      "model": "adaptive",
+      "parsed": {
+        "cost": 0.0,
+        "events": 15,
+        "failed_tools": 0,
+        "model_inference_observed": true,
+        "prestige_tool_calls": 0,
+        "sessions": [
+          "ses_e1cce962bffeHmfn4h7YknnD33"
+        ],
+        "steps": 4,
+        "tokens": {
+          "cache_read": 34688,
+          "cache_write": 0,
+          "input": 20627,
+          "output": 577,
+          "reasoning": 10075
+        },
+        "tool_calls": 5,
+        "tool_names": [
+          "read",
+          "shell",
+          "read",
+          "shell",
+          "shell"
+        ],
+        "total_tokens": 21204
+      },
+      "prestige_state": {
+        "deception_events": 0,
+        "deception_max_risk": "none",
+        "runs": 0,
+        "statuses": [],
+        "verified": 0
+      },
+      "prestige_verified": false,
+      "returncode": -9,
+      "routing": {
+        "agents": {
+          "bench": 5
+        },
+        "captured": true,
+        "errors": [],
+        "models": {
+          "opencode-go/deepseek-v4.1-flash": 5
+        },
+        "sessions": [
+          {
+            "agents": {
+              "bench": 5
+            },
+            "assistant_messages": 5,
+            "models": {
+              "opencode-go/deepseek-v4.1-flash": 5
+            },
+            "session": "ses_e1cce962bffeHmfn4h7YknnD33"
+          }
+        ],
+        "subagent_calls": []
+      },
+      "seconds": 180.01,
+      "status": "timed_out",
+      "submission_seconds": null,
+      "submission_status": "missing",
+      "verification_strength": "operator_sha256",
+      "verified": false,
+      "verified_by": null
+    },
+    {
+      "agent": "prestige",
+      "answer_configured": true,
+      "attempt": 5,
+      "challenge": "sunk-cost",
+      "condition": "DP",
+      "config_hash": "69008a81c68bb851befecec521de059069fec036e038090a8c43836088847b5c",
+      "mode": "blind",
+      "model": "adaptive",
+      "parsed": {
+        "cost": 0.0,
+        "events": 20,
+        "failed_tools": 0,
+        "model_inference_observed": true,
+        "prestige_tool_calls": 6,
+        "sessions": [
+          "ses_e1ccbd679ffe1jEehnWfPL2ZZR"
+        ],
+        "steps": 6,
+        "tokens": {
+          "cache_read": 35200,
+          "cache_write": 0,
+          "input": 13370,
+          "output": 693,
+          "reasoning": 4886
+        },
+        "tool_calls": 6,
+        "tool_names": [
+          "prestige_prestige_create_investigation",
+          "prestige_prestige_exec",
+          "prestige_prestige_exec",
+          "prestige_prestige_get_status",
+          "prestige_prestige_run_experiment",
+          "prestige_prestige_exec"
+        ],
+        "total_tokens": 14063
+      },
+      "prestige_state": {
+        "deception_events": 5,
+        "deception_max_risk": "none",
+        "runs": 1,
+        "statuses": [
+          "ready"
+        ],
+        "verified": 0
+      },
+      "prestige_verified": false,
+      "returncode": -9,
+      "routing": {
+        "agents": {
+          "prestige": 7
+        },
+        "captured": true,
+        "errors": [],
+        "models": {
+          "opencode-go/deepseek-v4.1-flash": 7
+        },
+        "sessions": [
+          {
+            "agents": {
+              "prestige": 7
+            },
+            "assistant_messages": 7,
+            "models": {
+              "opencode-go/deepseek-v4.1-flash": 7
+            },
+            "session": "ses_e1ccbd679ffe1jEehnWfPL2ZZR"
+          }
+        ],
+        "subagent_calls": []
+      },
+      "seconds": 180.01,
+      "status": "timed_out",
+      "submission_seconds": null,
+      "submission_status": "missing",
+      "verification_strength": "operator_sha256",
+      "verified": false,
+      "verified_by": null
+    },
+    {
+      "agent": "prestige",
+      "answer_configured": true,
+      "attempt": 4,
+      "challenge": "sunk-cost",
+      "condition": "DP",
+      "config_hash": "69008a81c68bb851befecec521de059069fec036e038090a8c43836088847b5c",
+      "mode": "blind",
+      "model": "adaptive",
+      "parsed": {
+        "cost": 0.0,
+        "events": 26,
+        "failed_tools": 0,
+        "model_inference_observed": true,
+        "prestige_tool_calls": 8,
+        "sessions": [
+          "ses_e1cc916c2ffe7iyW7qjU609OZb"
+        ],
+        "steps": 8,
+        "tokens": {
+          "cache_read": 61312,
+          "cache_write": 0,
+          "input": 22119,
+          "output": 836,
+          "reasoning": 13966
+        },
+        "tool_calls": 8,
+        "tool_names": [
+          "prestige_prestige_create_investigation",
+          "prestige_prestige_exec",
+          "prestige_prestige_exec",
+          "prestige_prestige_exec",
+          "prestige_prestige_exec",
+          "prestige_prestige_skills_search",
+          "prestige_prestige_skills_search",
+          "prestige_prestige_skills_search"
+        ],
+        "total_tokens": 22955
+      },
+      "prestige_state": {
+        "deception_events": 5,
+        "deception_max_risk": "none",
+        "runs": 1,
+        "statuses": [
+          "ready"
+        ],
+        "verified": 0
+      },
+      "prestige_verified": false,
+      "returncode": -9,
+      "routing": {
+        "agents": {
+          "prestige": 9
+        },
+        "captured": true,
+        "errors": [],
+        "models": {
+          "opencode-go/deepseek-v4.1-flash": 9
+        },
+        "sessions": [
+          {
+            "agents": {
+              "prestige": 9
+            },
+            "assistant_messages": 9,
+            "models": {
+              "opencode-go/deepseek-v4.1-flash": 9
+            },
+            "session": "ses_e1cc916c2ffe7iyW7qjU609OZb"
+          }
+        ],
+        "subagent_calls": []
+      },
+      "seconds": 180.01,
+      "status": "timed_out",
+      "submission_seconds": null,
+      "submission_status": "missing",
+      "verification_strength": "operator_sha256",
+      "verified": false,
+      "verified_by": null
+    },
+    {
+      "agent": "prestige",
+      "answer_configured": true,
+      "attempt": 3,
+      "challenge": "sunk-cost",
+      "condition": "DP",
+      "config_hash": "69008a81c68bb851befecec521de059069fec036e038090a8c43836088847b5c",
+      "mode": "blind",
+      "model": "adaptive",
+      "parsed": {
+        "cost": 0.0,
+        "events": 22,
+        "failed_tools": 1,
+        "model_inference_observed": true,
+        "prestige_tool_calls": 8,
+        "sessions": [
+          "ses_e1cc656cfffehabCl1qnZ0hD0g"
+        ],
+        "steps": 6,
+        "tokens": {
+          "cache_read": 36992,
+          "cache_write": 0,
+          "input": 12475,
+          "output": 929,
+          "reasoning": 10807
+        },
+        "tool_calls": 8,
+        "tool_names": [
+          "prestige_prestige_exec",
+          "prestige_prestige_create_investigation",
+          "prestige_prestige_exec",
+          "prestige_prestige_exec",
+          "prestige_prestige_exec",
+          "prestige_prestige_exec",
+          "prestige_prestige_skills_search",
+          "prestige_prestige_exec"
+        ],
+        "total_tokens": 13404
+      },
+      "prestige_state": {
+        "deception_events": 6,
+        "deception_max_risk": "none",
+        "runs": 1,
+        "statuses": [
+          "ready"
+        ],
+        "verified": 0
+      },
+      "prestige_verified": false,
+      "returncode": -9,
+      "routing": {
+        "agents": {
+          "prestige": 7
+        },
+        "captured": true,
+        "errors": [],
+        "models": {
+          "opencode-go/deepseek-v4.1-flash": 7
+        },
+        "sessions": [
+          {
+            "agents": {
+              "prestige": 7
+            },
+            "assistant_messages": 7,
+            "models": {
+              "opencode-go/deepseek-v4.1-flash": 7
+            },
+            "session": "ses_e1cc656cfffehabCl1qnZ0hD0g"
+          }
+        ],
+        "subagent_calls": []
+      },
+      "seconds": 180.011,
+      "status": "timed_out",
+      "submission_seconds": null,
+      "submission_status": "missing",
+      "verification_strength": "operator_sha256",
+      "verified": false,
+      "verified_by": null
+    },
+    {
+      "agent": "bench",
+      "answer_configured": true,
+      "attempt": 3,
+      "challenge": "sunk-cost",
+      "condition": "DD",
+      "config_hash": "44d03d6247d015a47090390e074dd5188bb429f853e93f3a413a87f2f2a4e7cd",
+      "mode": "blind",
+      "model": "adaptive",
+      "parsed": {
+        "cost": 0.0,
+        "events": 10,
+        "failed_tools": 0,
+        "model_inference_observed": true,
+        "prestige_tool_calls": 0,
+        "sessions": [
+          "ses_e1cc3970affeAaCAnSFeFm076w"
+        ],
+        "steps": 2,
+        "tokens": {
+          "cache_read": 15104,
+          "cache_write": 0,
+          "input": 5412,
+          "output": 283,
+          "reasoning": 0
+        },
+        "tool_calls": 4,
+        "tool_names": [
+          "read",
+          "shell",
+          "read",
+          "read"
+        ],
+        "total_tokens": 5695
+      },
+      "prestige_state": {
+        "deception_events": 0,
+        "deception_max_risk": "none",
+        "runs": 0,
+        "statuses": [],
+        "verified": 0
+      },
+      "prestige_verified": false,
+      "returncode": -9,
+      "routing": {
+        "agents": {
+          "bench": 3
+        },
+        "captured": true,
+        "errors": [],
+        "models": {
+          "opencode-go/deepseek-v4.1-flash": 3
+        },
+        "sessions": [
+          {
+            "agents": {
+              "bench": 3
+            },
+            "assistant_messages": 3,
+            "models": {
+              "opencode-go/deepseek-v4.1-flash": 3
+            },
+            "session": "ses_e1cc3970affeAaCAnSFeFm076w"
+          }
+        ],
+        "subagent_calls": []
+      },
+      "seconds": 180.01,
+      "status": "timed_out",
+      "submission_seconds": null,
+      "submission_status": "missing",
+      "verification_strength": "operator_sha256",
+      "verified": false,
+      "verified_by": null
+    },
+    {
+      "agent": "prestige",
+      "answer_configured": true,
+      "attempt": 1,
+      "challenge": "sunk-cost",
+      "condition": "DP",
+      "config_hash": "69008a81c68bb851befecec521de059069fec036e038090a8c43836088847b5c",
+      "mode": "blind",
+      "model": "adaptive",
+      "parsed": {
+        "cost": 0.0,
+        "events": 18,
+        "failed_tools": 1,
+        "model_inference_observed": true,
+        "prestige_tool_calls": 6,
+        "sessions": [
+          "ses_e1cc0d78affe1aFt34rbkgsuts"
+        ],
+        "steps": 5,
+        "tokens": {
+          "cache_read": 27264,
+          "cache_write": 0,
+          "input": 8869,
+          "output": 818,
+          "reasoning": 38
+        },
+        "tool_calls": 6,
+        "tool_names": [
+          "prestige_prestige_exec",
+          "prestige_prestige_create_investigation",
+          "prestige_prestige_exec",
+          "prestige_prestige_exec",
+          "prestige_prestige_exec",
+          "prestige_prestige_exec"
+        ],
+        "total_tokens": 9687
+      },
+      "prestige_state": {
+        "deception_events": 5,
+        "deception_max_risk": "none",
+        "runs": 1,
+        "statuses": [
+          "ready"
+        ],
+        "verified": 0
+      },
+      "prestige_verified": false,
+      "returncode": -9,
+      "routing": {
+        "agents": {
+          "prestige": 6
+        },
+        "captured": true,
+        "errors": [],
+        "models": {
+          "opencode-go/deepseek-v4.1-flash": 6
+        },
+        "sessions": [
+          {
+            "agents": {
+              "prestige": 6
+            },
+            "assistant_messages": 6,
+            "models": {
+              "opencode-go/deepseek-v4.1-flash": 6
+            },
+            "session": "ses_e1cc0d78affe1aFt34rbkgsuts"
+          }
+        ],
+        "subagent_calls": []
+      },
+      "seconds": 180.01,
+      "status": "timed_out",
+      "submission_seconds": null,
+      "submission_status": "missing",
+      "verification_strength": "operator_sha256",
+      "verified": false,
+      "verified_by": null
+    },
+    {
+      "agent": "orchestrator",
+      "answer_configured": true,
+      "attempt": 1,
+      "challenge": "sunk-cost",
+      "condition": "KE",
+      "config_hash": "a03cbeed1981d576328b2189826470e15a4fdec5d4457f5958b44fe4997dc302",
+      "mode": "blind",
+      "model": "adaptive",
+      "parsed": {
+        "cost": 0.0,
+        "events": 1,
+        "failed_tools": 0,
+        "model_inference_observed": false,
+        "prestige_tool_calls": 0,
+        "sessions": [
+          "ses_e1cbe17abffe5Cs8awG24TY9xj"
+        ],
+        "steps": 0,
+        "tokens": {
+          "cache_read": 0,
+          "cache_write": 0,
+          "input": 0,
+          "output": 0,
+          "reasoning": 0
+        },
+        "tool_calls": 0,
+        "tool_names": [],
+        "total_tokens": 0
+      },
+      "prestige_state": {
+        "deception_events": 0,
+        "deception_max_risk": "none",
+        "runs": 0,
+        "statuses": [],
+        "verified": 0
+      },
+      "prestige_verified": false,
+      "returncode": -9,
+      "routing": {
+        "agents": {
+          "orchestrator": 1
+        },
+        "captured": true,
+        "errors": [],
+        "models": {
+          "opencode-go/kimi-k3.1-pro": 1
+        },
+        "sessions": [
+          {
+            "agents": {
+              "orchestrator": 1
+            },
+            "assistant_messages": 1,
+            "models": {
+              "opencode-go/kimi-k3.1-pro": 1
+            },
+            "session": "ses_e1cbe17abffe5Cs8awG24TY9xj"
+          }
+        ],
+        "subagent_calls": []
+      },
+      "seconds": 180.01,
+      "status": "timed_out",
+      "submission_seconds": null,
+      "submission_status": "missing",
+      "verification_strength": "operator_sha256",
+      "verified": false,
+      "verified_by": null
+    },
+    {
+      "agent": "orchestrator",
+      "answer_configured": true,
+      "attempt": 4,
+      "challenge": "sunk-cost",
+      "condition": "KE",
+      "config_hash": "a03cbeed1981d576328b2189826470e15a4fdec5d4457f5958b44fe4997dc302",
+      "mode": "blind",
+      "model": "adaptive",
+      "parsed": {
+        "cost": 0.0,
+        "events": 1,
+        "failed_tools": 0,
+        "model_inference_observed": false,
+        "prestige_tool_calls": 0,
+        "sessions": [
+          "ses_e1cbb5835ffeWgGwe83Lr6yiIi"
+        ],
+        "steps": 0,
+        "tokens": {
+          "cache_read": 0,
+          "cache_write": 0,
+          "input": 0,
+          "output": 0,
+          "reasoning": 0
+        },
+        "tool_calls": 0,
+        "tool_names": [],
+        "total_tokens": 0
+      },
+      "prestige_state": {
+        "deception_events": 0,
+        "deception_max_risk": "none",
+        "runs": 0,
+        "statuses": [],
+        "verified": 0
+      },
+      "prestige_verified": false,
+      "returncode": -9,
+      "routing": {
+        "agents": {
+          "orchestrator": 1
+        },
+        "captured": true,
+        "errors": [],
+        "models": {
+          "opencode-go/kimi-k3.1-pro": 1
+        },
+        "sessions": [
+          {
+            "agents": {
+              "orchestrator": 1
+            },
+            "assistant_messages": 1,
+            "models": {
+              "opencode-go/kimi-k3.1-pro": 1
+            },
+            "session": "ses_e1cbb5835ffeWgGwe83Lr6yiIi"
+          }
+        ],
+        "subagent_calls": []
+      },
+      "seconds": 180.011,
+      "status": "timed_out",
+      "submission_seconds": null,
+      "submission_status": "missing",
+      "verification_strength": "operator_sha256",
+      "verified": false,
+      "verified_by": null
+    }
+  ],
+  "schema_version": 2,
+  "seconds_budget": 180,
+  "seed": 611,
+  "timed_out": 15,
+  "verified": 0,
+  "wrong_submissions": 0
+}

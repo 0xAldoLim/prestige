@@ -301,7 +301,7 @@ def test_evaluation_state_survives_store_reopen(store, tmp_path):
         fresh.close()
 
 
-def test_fast_lane_escalation_recommendation(store, tmp_path):
+def test_pending_test_alone_does_not_recommend_escalation(store, tmp_path):
     path = tmp_path / "challenge.txt"
     path.write_bytes(b"hello-world")
     from prestige.engine import new_run
@@ -309,6 +309,32 @@ def test_fast_lane_escalation_recommendation(store, tmp_path):
     run_id = new_run(store, path, mode="fast")
     hypotheses.add(store, run_id, "needs a test", test_tool="strings")
     result = evaluate(store, run_id)
+    # A declared but not-yet-run test is not evidence of stagnation.
+    assert result["recommendation"] == "run_discriminating_test"
+    assert result["progress"]["state"] == "not_started"
+
+
+def test_repeated_unproductive_evidence_recommends_escalation(store, tmp_path):
+    path = tmp_path / "challenge.txt"
+    path.write_bytes(b"hello-world")
+    from prestige.engine import new_run
+
+    run_id = new_run(store, path, mode="fast", max_turns=8, max_seconds=120)
+    hypotheses.add(
+        store, run_id, "inspect exposes content", test_tool="inspect"
+    )
+    for _ in range(3):
+        store.event(
+            run_id,
+            "observation",
+            {
+                "action": {"tool": "inspect", "artifact": "", "args": {}},
+                "result": {"sha256": "same", "bytes": 1},
+                "trust": "fact",
+            },
+        )
+    result = evaluate(store, run_id)
+    assert result["progress"]["state"] == "loop_suspected"
     assert result["recommendation"] == "escalate"
 
 

@@ -37,6 +37,8 @@ from prestige.human import answer_operator, pending_request, request_operator
 from prestige.jobs import JobManager
 from prestige.knowledge import SkillsBridge
 from prestige.policy import validate_source_path
+from prestige.progress import assess as assess_progress
+from prestige.progress import remaining_budget
 from prestige.remote import RemoteExpired, broker_for, load_registrations
 from prestige.research import ResearchBroker
 from prestige.security import Rules
@@ -49,7 +51,7 @@ from prestige.sessions import (
     stop_session,
 )
 from prestige.store import Store, encoded
-from prestige.strategy import expert_rules, rules_for_mode
+from prestige.strategy import expert_rules, lane_for_mode, rules_for_mode
 from prestige.types import Action, PolicyDenied, PrestigeError
 
 
@@ -236,9 +238,13 @@ async def _create_investigation(args: dict) -> dict:
                 raise PolicyDenied(f"{forbidden} cannot be set by the model")
         # Isolated execution uses the operator-controlled runner image, never a model-supplied one.
         runner_image = load_config(_home()).get("sandbox.image")
-        # Budgets come from the model request but are capped by a trusted ceiling.
-        max_turns = min(max(1, args.get("max_turns", 12)), 1000)
-        max_seconds = min(max(1.0, args.get("max_seconds", 120)), 3600)
+        # Budgets come from the model request but are capped by a trusted ceiling
+        # and then by the selected lane. Report both values explicitly so a
+        # request that the lane cannot honor is never silently reduced.
+        requested_turns = min(max(1, args.get("max_turns", 12)), 1000)
+        requested_seconds = min(max(1.0, args.get("max_seconds", 120)), 3600)
+        max_turns = requested_turns
+        max_seconds = requested_seconds
         max_artifact_mib = args.get("max_artifact_mib", 1)
         if type(max_artifact_mib) is not int or not 1 <= max_artifact_mib <= 256:
             raise PolicyDenied("max_artifact_mib must be an integer in [1,256]")
@@ -246,6 +252,28 @@ async def _create_investigation(args: dict) -> dict:
         expected = expected_for(_home(), digest)
         mode = args.get("mode", "auto")
         rules = rules_for_mode(mode, max_turns, max_seconds)
+        requested_budget = {
+            "mode": mode,
+            "max_turns": requested_turns,
+            "max_seconds": requested_seconds,
+        }
+        effective_budget = {
+            "mode": mode,
+            "initial_lane": lane_for_mode(mode),
+            "max_turns": rules.max_turns,
+            "max_seconds": rules.max_seconds,
+        }
+        budget_adjusted = (
+            requested_budget["max_turns"] != effective_budget["max_turns"]
+            or requested_budget["max_seconds"] != effective_budget["max_seconds"]
+        )
+        budget_note = None
+        if budget_adjusted:
+            budget_note = (
+                f"{mode} lane reduces the requested budget to "
+                f"{rules.max_turns} attempts/{rules.max_seconds:g} seconds; "
+                "use mode=auto or mode=expert if more is required"
+            )
         run_id = new_run(
             store,
             source,
@@ -258,6 +286,7 @@ async def _create_investigation(args: dict) -> dict:
             max_tokens=args.get("max_tokens"),
             runner_image=runner_image,
             max_artifact_mib=max_artifact_mib,
+            requested_budget=requested_budget,
         )
         artifacts = Artifacts(store, run_id)
         scans = []
@@ -280,6 +309,12 @@ async def _create_investigation(args: dict) -> dict:
             "status": "ready",
             "artifact_sha256": digest,
             "commitment_applied": expected is not None,
+            "budget": {
+                "requested": requested_budget,
+                "effective": effective_budget,
+                "adjusted": budget_adjusted,
+                "note": budget_note,
+            },
             "deception": {
                 **overview,
                 "scanned_artifacts": len(scans),
@@ -321,6 +356,7 @@ async def _escalate(args: dict) -> dict:
             raise PrestigeError("Investigation is terminal")
         if run["lane"] == "expert":
             return {"status": "ok", "result": {"lane": "expert", "already": True}}
+        assessment = assess_progress(store, run_id)
         _check_budget(run, store, run_id)
         rules = expert_rules(Rules(**run["settings"]["rules"]))
         settings = dict(run["settings"])
@@ -338,12 +374,24 @@ async def _escalate(args: dict) -> dict:
                 "to": "expert",
                 "reason": str(args.get("reason", ""))[:300],
                 "allowed_tools": list(rules.allowed_tools),
+                "progress_state": assessment["state"],
+                "progress_recommendation": assessment["recommendation"],
                 "trust": "fact",
             },
         )
         return {
             "status": "ok",
-            "result": {"lane": "expert", "allowed_tools": list(rules.allowed_tools)},
+            "result": {
+                "lane": "expert",
+                "allowed_tools": list(rules.allowed_tools),
+                "budget": remaining_budget(_run(store, run_id)),
+                "progress": {
+                    "state": assessment["state"],
+                    "recommendation": assessment["recommendation"],
+                    "new_results_recent": assessment["new_results_recent"],
+                    "repeated_actions_recent": assessment["repeated_actions_recent"],
+                },
+            },
         }
     except Exception as error:
         return {"status": "error", "reason": f"{type(error).__name__}: {error}"}
@@ -404,6 +452,7 @@ async def _get_status(args: dict) -> dict:
                 "progress": progress,
                 "candidates": candidates,
                 "deception": _deception_overview(store, run_id),
+                "progress_signal": assess_progress(store, run_id),
                 "pending_operator_request": pending_request(store, run_id),
             }
         )
@@ -654,10 +703,23 @@ async def _start_analysis(args: dict) -> dict:
         run = _run(store, run_id)
         if _terminal(run):
             raise PrestigeError("Investigation is terminal")
+        manager = JobManager(store, run_id)
+        # Identical analysis requests are answered from the durable job cache
+        # before consuming another attempt. The job was created by this
+        # investigation, so no new authorization or scope is implied.
+        cached = manager.find_cached(
+            args["artifact_id"], args["tool"], args.get("args", {})
+        )
+        if cached:
+            return {
+                "job_id": cached,
+                "status": "cached",
+                "cached": True,
+                "attempts_unchanged": True,
+            }
         _check_budget(run, store, run_id)
         settings = run["settings"]
         rules = Rules(**settings["rules"])
-        manager = JobManager(store, run_id)
         job_id = manager.start(
             args["artifact_id"],
             args["tool"],
@@ -756,7 +818,6 @@ async def _resume_investigation(args: dict) -> dict:
     try:
         run_id = args["run_id"]
         run = _run(store, run_id)
-        settings = run["settings"]
         events = store.events(run_id)
         pending = pending_request(store, run_id)
         jobs = [
@@ -780,9 +841,25 @@ async def _resume_investigation(args: dict) -> dict:
                 "SELECT digest,verified FROM candidates WHERE run_id=?", (run_id,)
             )
         ]
-        elapsed = time.time() - run["created"]
-        remaining_seconds = max(0.0, settings["max_seconds"] - elapsed)
-        remaining_attempts = max(0, settings["max_turns"] - run["attempts"])
+        elapsed_budget = remaining_budget(run)
+        remaining_seconds = elapsed_budget["remaining_seconds"]
+        remaining_attempts = elapsed_budget["remaining_attempts"]
+        settings_budget = run["settings"]
+        requested_budget = settings_budget.get("requested_budget") or {
+            "mode": run["mode"],
+            "max_turns": settings_budget["max_turns"],
+            "max_seconds": settings_budget["max_seconds"],
+        }
+        effective_budget = {
+            "mode": run["mode"],
+            "lane": run["lane"],
+            "max_turns": settings_budget["max_turns"],
+            "max_seconds": settings_budget["max_seconds"],
+        }
+        budget_adjusted = (
+            requested_budget.get("max_turns") != effective_budget["max_turns"]
+            or requested_budget.get("max_seconds") != effective_budget["max_seconds"]
+        )
         next_actions = []
         if pending:
             next_actions.append(f"answer operator request {pending['request_id']}")
@@ -810,6 +887,12 @@ async def _resume_investigation(args: dict) -> dict:
                 "attempts": run["attempts"],
                 "remaining_attempts": remaining_attempts,
                 "remaining_seconds": round(remaining_seconds, 1),
+                "budget": {
+                    **elapsed_budget,
+                    "requested": requested_budget,
+                    "effective": effective_budget,
+                    "adjusted": budget_adjusted,
+                },
                 "recent_observations": observations,
                 "candidates": candidates,
                 "hypotheses": hypothesis_state.latest(store, run_id)[-4:],
@@ -821,6 +904,7 @@ async def _resume_investigation(args: dict) -> dict:
                 "pending_operator_request": pending,
                 "jobs": jobs,
                 "deception": deception_view,
+                "progress": assess_progress(store, run_id),
                 "next_actions": next_actions,
             }
         )

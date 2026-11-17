@@ -399,16 +399,25 @@ async def test_mcp_enforces_tool_attempt_budget(tmp_path):
 @pytest.mark.skipif(not shutil.which("opencode"), reason="OpenCode CLI not available")
 def test_prestige_agent_permissions_deny_host_tools():
     """The registered prestige agent must not be able to invoke host tools."""
-    result = subprocess.run(
-        ["opencode", "--standalone", "debug", "agents"],
-        capture_output=True,
-        text=True,
-        cwd=str(Path(__file__).parent.parent),
-    )
-    if result.returncode != 0:
-        pytest.skip("OpenCode debug service unavailable: " + result.stderr[:300])
-    agents = json.loads(result.stdout)
-    prestige = next((a for a in agents if a["id"] == "prestige"), None)
+    # The standalone debug service has shown a rare startup race in which the
+    # built-in helpers are returned without project agents. Retry once so a
+    # transient startup does not masquerade as a permissions regression; a real
+    # configuration error still fails deterministically.
+    prestige = None
+    for _attempt in range(2):
+        result = subprocess.run(
+            ["opencode", "--standalone", "debug", "agents"],
+            capture_output=True,
+            text=True,
+            cwd=str(Path(__file__).parent.parent),
+            timeout=120,
+        )
+        if result.returncode != 0:
+            pytest.skip("OpenCode debug service unavailable: " + result.stderr[:300])
+        agents = json.loads(result.stdout)
+        prestige = next((a for a in agents if a["id"] == "prestige"), None)
+        if prestige is not None:
+            break
     assert prestige is not None
 
     def effective(action: str, resource: str) -> str:
@@ -719,3 +728,188 @@ async def test_mcp_target_bind_only_uses_operator_registration(tmp_path):
             ).content[0].text
         )
         assert denied["status"] == "error"
+
+
+async def test_mcp_reports_effective_budget_instead_of_silently_clamping(tmp_path):
+    path = tmp_path / "challenge.txt"
+    path.write_bytes(b"data")
+
+    async with _mcp_client(tmp_path) as session:
+        created = json.loads(
+            (
+                await session.call_tool(
+                    "prestige_create_investigation",
+                    {
+                        "source_path": str(path),
+                        "mode": "fast",
+                        "max_turns": 30,
+                        "max_seconds": 150,
+                    },
+                )
+            ).content[0].text
+        )
+        budget = created["budget"]
+        assert budget["requested"] == {
+            "mode": "fast",
+            "max_turns": 30,
+            "max_seconds": 150,
+        }
+        assert budget["effective"]["max_turns"] == 8
+        assert budget["effective"]["max_seconds"] == 120
+        assert budget["adjusted"] is True
+        assert "fast" in budget["note"].lower()
+
+        run_id = created["run_id"]
+        status = json.loads(
+            (await session.call_tool("prestige_get_status", {"run_id": run_id})).content[0].text
+        )
+        assert status["progress_signal"]["budget"]["max_turns"] == 8
+        assert status["progress_signal"]["budget"]["max_seconds"] == 120
+
+        resumed = json.loads(
+            (
+                await session.call_tool("prestige_resume_investigation", {"run_id": run_id})
+            ).content[0].text
+        )
+        assert resumed["budget"]["requested"]["max_turns"] == 30
+        assert resumed["budget"]["effective"]["max_turns"] == 8
+        assert resumed["budget"]["adjusted"] is True
+        assert resumed["remaining_seconds"] <= 120
+
+
+async def test_mcp_resume_uses_started_clock_not_creation_time(tmp_path):
+    from prestige.store import Store
+
+    path = tmp_path / "challenge.txt"
+    path.write_bytes(b"data")
+
+    async with _mcp_client(tmp_path) as session:
+        created = json.loads(
+            (
+                await session.call_tool(
+                    "prestige_create_investigation",
+                    {
+                        "source_path": str(path),
+                        "max_turns": 8,
+                        "max_seconds": 300,
+                    },
+                )
+            ).content[0].text
+        )
+        run_id = created["run_id"]
+
+        store = Store(tmp_path / "state")
+        try:
+            store.update(run_id, started=time.time() - 250, attempts=1)
+        finally:
+            store.close()
+
+        resumed = json.loads(
+            (
+                await session.call_tool("prestige_resume_investigation", {"run_id": run_id})
+            ).content[0].text
+        )
+        # The wall clock starts at the first tool attempt, not at creation.
+        assert 40 <= resumed["remaining_seconds"] <= 60
+        assert resumed["remaining_attempts"] == 7
+
+
+async def test_mcp_duplicate_analysis_reuses_durable_job(tmp_path):
+    path = tmp_path / "challenge.txt"
+    path.write_bytes(b"data")
+
+    async with _mcp_client(tmp_path) as session:
+        created = json.loads(
+            (
+                await session.call_tool(
+                    "prestige_create_investigation",
+                    {"source_path": str(path), "mode": "auto", "max_turns": 4},
+                )
+            ).content[0].text
+        )
+        run_id = created["run_id"]
+        status = json.loads(
+            (await session.call_tool("prestige_get_status", {"run_id": run_id})).content[0].text
+        )
+        artifact_id = status["artifacts"][0]["id"]
+        payload = {
+            "run_id": run_id,
+            "tool": "inspect",
+            "artifact_id": artifact_id,
+            "args": {},
+        }
+        first = json.loads(
+            (await session.call_tool("prestige_start_analysis", payload)).content[0].text
+        )
+        second = json.loads(
+            (await session.call_tool("prestige_start_analysis", payload)).content[0].text
+        )
+        assert first["status"] == "queued"
+        assert second["status"] == "cached"
+        assert second["cached"] is True
+        assert second["job_id"] == first["job_id"]
+
+        after = json.loads(
+            (await session.call_tool("prestige_get_status", {"run_id": run_id})).content[0].text
+        )
+        assert after["attempts"] == 1
+
+
+async def test_mcp_terminal_budget_still_allows_one_final_submission(tmp_path):
+    submission = tmp_path / "submission.json"
+    path = tmp_path / "challenge.txt"
+    path.write_bytes(b"data")
+
+    async with _mcp_client(
+        tmp_path, env={"PRESTIGE_BENCH_SUBMISSION": str(submission)}
+    ) as session:
+        created = json.loads(
+            (
+                await session.call_tool(
+                    "prestige_create_investigation",
+                    {"source_path": str(path), "mode": "auto", "max_turns": 1},
+                )
+            ).content[0].text
+        )
+        run_id = created["run_id"]
+        status = json.loads(
+            (await session.call_tool("prestige_get_status", {"run_id": run_id})).content[0].text
+        )
+        artifact_id = status["artifacts"][0]["id"]
+        first = json.loads(
+            (
+                await session.call_tool(
+                    "prestige_run_experiment",
+                    {"run_id": run_id, "tool": "inspect", "artifact_id": artifact_id, "args": {}},
+                )
+            ).content[0].text
+        )
+        assert first["status"] == "ok"
+        exhausted = json.loads(
+            (
+                await session.call_tool(
+                    "prestige_run_experiment",
+                    {"run_id": run_id, "tool": "inspect", "artifact_id": artifact_id, "args": {}},
+                )
+            ).content[0].text
+        )
+        assert exhausted["status"] != "ok"
+
+        terminal_status = json.loads(
+            (await session.call_tool("prestige_get_status", {"run_id": run_id})).content[0].text
+        )
+        assert terminal_status["status"] == "budget_exhausted"
+        assert terminal_status["progress_signal"]["state"] == "terminal"
+        assert terminal_status["progress_signal"]["recommendation"] == "report_limits"
+
+        submitted = json.loads(
+            (
+                await session.call_tool(
+                    "prestige_submit_final",
+                    {"run_id": run_id, "candidate": "SYNTHETIC{terminal_submission}"},
+                )
+            ).content[0].text
+        )
+        assert submitted["status"] == "submitted"
+        payload = json.loads(submission.read_text())
+        assert set(payload) == {"flag", "run_id"}
