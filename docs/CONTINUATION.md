@@ -1,4 +1,4 @@
-# Continuation / migration checkpoint — 2026-11-15
+# Continuation / migration checkpoint — 2026-11-16
 
 PRESTIGE is an **OpenCode-native** autonomous offline CTF investigation system.
 OpenCode owns the generic agent runtime; the Python engine owns investigation strategy,
@@ -16,6 +16,46 @@ requirements.
   Ubuntu/Windows, Python 3.11 and 3.14). CI for the V3.1/routing commits is checked
   after push and is not claimed here until observed.
 - GitHub account: `0xAldoLim`
+
+## 2026-11-16 V3.2 five-challenge readiness
+
+Status: **provisioning/readiness validated for five distinct original SASCTF 2026
+tasks; the benchmark is not executed and no model CTF attempt was made.** Startup and
+checker self-tests are not solves.
+
+- **MCP stdio smoke actually rerun**: `initialize` (server `prestige`, protocol
+  `2025-11-25`), 47 tools, `prestige_create_investigation` ready, `prestige_exec` ok,
+  `prestige_get_status` ready with one observation, zero client errors.
+- **Protocol hygiene fix**: `python -m prestige agent` previously printed a human JSON
+  object on stdout after stdin closed, polluting the JSON-RPC channel. Routine CLI
+  output is now suppressed for the `agent` command and a regression test asserts an
+  empty stdout on EOF. The rerun has no parse warnings.
+- **Eligibility (all READY)**: `rev-fpga` (reverse, offline RTL replay), `pwn-snaking`,
+  `pwn-snaking-revenge` (pwn TCP), `web-xod-revenge` (PHP/DNS/browser bot) and
+  `web-naas` (gRPC/Postgres/Redis). Participant views match corpus `static/` bytes and
+  contain no answer bytes or answer-derived digests.
+- **Checker basis**: `rev-fpga` is derivation-verified by RTL replay and byte-exact
+  re-encryption. The other four use SHA-256 equality against operator-injected synthetic
+  flags in otherwise unchanged services; service-side flag plumbing was verified. These
+  four are equality-based, not independent solves, and must be labelled as such.
+- **Services**: pwn banners and full wrapper pipeline; XOD page 200, DNS proxy valid
+  response and bot report success; NaaS gRPC register/login, PostgreSQL accepting,
+  Redis PONG. Corpus and owner skills remain unmodified.
+- **Benchmark plan**: B = free DeepSeek Flash in plain OpenCode with latest skills; DP =
+  the same model with the restricted `prestige` agent/PRESTIGE MCP. Five tasks x two
+  conditions x three repetitions, 180 s, randomized order, fresh state/services,
+  identical artifacts and tools-as-applicable, verification outside the solver
+  workspace. Do not execute as part of readiness.
+- **Validation**: focused MCP stdio tests green (3 passed); full offline suite
+  **394 passed, 10 skipped**; `ruff check .` clean; wheel and sdist build; CLI help and
+  roadmap JSON parse clean; `git diff --check` clean. The routing regression is
+  validated against the checked-in free-routing `opencode.jsonc` with the session-local
+  `OPENCODE_CONFIG_CONTENT` override removed, so the committed config remains the
+  authoritative free route.
+- **Git state**: the V3.2 readiness increment (MCP shutdown fix, regression test and
+  readiness docs) is committed and pushed to `0xAldoLim/prestige`; the benchmark itself
+  is not executed and no benchmark result or solve is claimed. See
+  `docs/benchmarks/CTF_EVALUATION_V3_2.md`.
 
 ## 2026-11-11 hardening increment
 
@@ -530,7 +570,8 @@ solve-rate advantage.
     limits, bounded output.
   - `WorkspaceRunner` output directory made writable for the containerized user.
 - **Tests**
-  - Current default suite: **393 passed, 10 skipped**.
+  - Current default suite: **394 passed, 10 skipped** (the V3.2 stdio regression test
+    adds one assertion to the 393-test baseline).
   - Earlier `PRESTIGE_TEST_IMAGE` run (not rerun for this increment):
     **389 passed, 5 skipped**.
   - With GDB + SSHD + Docker + Ghidra opt-ins: 362 passed before the local GDB image was removed by the environment reset; the all-opt-in run is now blocked by that missing image.

@@ -635,6 +635,23 @@ def test_agent_stdio_smoke(tmp_path):
             proc.wait()
 
 
+def test_agent_stdio_exit_does_not_pollute_stdout(tmp_path):
+    """After stdin closes, the CLI must not print human JSON onto the MCP channel."""
+    env = os.environ.copy()
+    env["PRESTIGE_HOME"] = str(tmp_path / "state")
+    proc = subprocess.run(
+        [sys.executable, "-m", "prestige", "agent"],
+        input="",
+        capture_output=True,
+        text=True,
+        cwd=str(Path(__file__).parent.parent),
+        env=env,
+        timeout=20,
+    )
+    assert proc.returncode == 0
+    assert proc.stdout == ""
+
+
 async def test_mcp_preserves_elapsed_time_for_pre_started_runs(tmp_path):
     from prestige.artifacts import Artifacts
     from prestige.engine import new_run

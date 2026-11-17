@@ -645,6 +645,9 @@ def main(argv=None) -> int:
         config = load_config(home)
         store = Store(home)
         result = dispatch(args, store, config)
+        if args.command == "agent":
+            # stdout is the MCP JSON-RPC transport; never write human output to it.
+            return 0
         if not args.quiet:
 
             def scrub(value):
