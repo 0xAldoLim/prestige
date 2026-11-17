@@ -100,19 +100,22 @@ The project uses strict two-model routing in `opencode.jsonc`:
 - **`orchestrator`** (`opencode-go/kimi-k3.1-pro`, primary) plans, delegates and
   reviews. It may read/glob/grep and call only the `executor` and `prestige`
   subagents; it has no shell, edit, write, browser, web or skill tools.
-- **`executor`** (`opencode-go/deepseek-v4.1-flash`, subagent) does implementation,
+- **`executor`** (`opencode/deepseek-v4.1-flash-free`, subagent) does implementation,
   commands, debugging, tests and research autonomously and cannot spawn subagents.
-- **`prestige`** (`opencode-go/deepseek-v4.1-flash`, mode `all`) is the direct CTF
+- **`prestige`** (`opencode/deepseek-v4.1-flash-free`, mode `all`) is the direct CTF
   solver. It can call only `prestige_*` MCP tools; host shell/read/write/browser/skill
   tools are denied. The isolated worker provides execution through `prestige_exec`.
 
-`default_agent` is `orchestrator`, the root fallback model is
-`opencode-go/deepseek-v4.1-flash`, and provider policy denies every provider except
-`opencode-go`. Built-in `build`, `plan`, `general` and `explore` agents are disabled.
-The provider displays that DeepSeek API ID as `DeepSeek V4.1 Flash 1017`; `1017` is a
-display label, not a separately configured model or an independently pinned checkpoint.
-See [model routing](docs/MODEL_ROUTING.md) for the validated trace, model-identity
-details and the minimal-Kimi-intervention policy.
+`default_agent` is `orchestrator`; the root fallback model and the
+`compaction`/`title`/`summary` helpers use `opencode/deepseek-v4.1-flash-free`.
+Provider policy denies every provider except `opencode-go` and `opencode`, and the
+checked-in disable lists leave `opencode models` with exactly those two routes.
+Built-in `build`, `plan`, `general` and `explore` agents are disabled. Paid
+`opencode-go/deepseek-v4.1-flash` (displayed as `DeepSeek V4.1 Flash 1017`),
+GPT-6 Luna, DeepSeek V4 Pro and every other fallback are disabled; a free-route
+failure must be reported, never silently substituted. See
+[model routing](docs/MODEL_ROUTING.md) for the validated trace, catalog metadata,
+fallback limitations and the minimal-Kimi-intervention policy.
 
 ```bash
 # interactive development starts the orchestrator
@@ -237,6 +240,7 @@ Run `prestige --help` or `python -m prestige --help` for the full surface.
 ## Limitations
 
 - No universal solvability or benchmark superiority is claimed.
+- The Sunk_Cost adaptive pilot did not demonstrate a solve-rate advantage; its KE condition did not exercise the child executor handoff.
 - Only challenges with participant-visible artifacts and an independent checker or
   operator answer are eligible for verified evaluation.
 - The default worker image is minimal; specialized tools must be installed in a
@@ -254,6 +258,7 @@ Run `prestige --help` or `python -m prestige --help` for the full surface.
 - Machine-readable V2: `benchmark-results/sasctf-2026-v2.json`
 - Eligibility inventory: `benchmark-results/sasctf-2026-eligibility.json`
 - V3 service pilot: see the V3 section in the benchmark report
+- Adaptive DD/KE/DP pilot (Sunk_Cost 0/15 verified; aborted JSculator cohort kept separate): `docs/benchmarks/ADAPTIVE_EXECUTION_PILOT.md` and `benchmark-results/adaptive-pilot.json`
 - Model routing and real trace evidence: `docs/MODEL_ROUTING.md`
 
 The repository intentionally does not publish private answers, raw transcripts,

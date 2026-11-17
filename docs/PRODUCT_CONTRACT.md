@@ -16,8 +16,8 @@ Status legend: `done`, `partial`, `blocked-external`, `not-started`.
 | RT-3 | No provider credentials are requested, accepted or persisted by MCP | done | `tests/test_mcp_server.py::test_mcp_schema_contains_no_provider_credentials` |
 | RT-4 | Optional Codex/OpenAI-compatible adapters remain opt-in | done | `src/prestige/codex_sdk.py`, `src/prestige/openai_backend.py`, `tests/test_openai_backend.py` |
 | RT-5 | Model-choice changes never alter security boundaries | done | `tests/test_adversarial.py`, `tests/test_security.py` |
-| RT-6 | Delegation-only Kimi orchestrator and autonomous DeepSeek executor use the exact assigned models | done | `opencode.jsonc`, `tests/test_model_routing.py`, `docs/MODEL_ROUTING.md` |
-| RT-7 | Built-in OpenCode agents are disabled and provider policy allows only `opencode-go` | done | `opencode.jsonc`, `tests/test_model_routing.py` |
+| RT-6 | Delegation-only Kimi orchestrator and autonomous free DeepSeek executor use the exact assigned provider/model IDs | done | `opencode.jsonc`, `tests/test_model_routing.py`, `docs/MODEL_ROUTING.md` |
+| RT-7 | Built-in OpenCode agents are disabled; provider policy allows only the Kimi `opencode-go` and free-execution `opencode` routes, and paid/fallback models are disabled | done | `opencode.jsonc`, `tests/test_model_routing.py`, `opencode models` |
 | RT-8 | Routing and provider policy are configuration, not a security sandbox; operator scope stays authoritative | done | `docs/MODEL_ROUTING.md`, `docs/PROVIDERS.md`, existing trust-boundary tests |
 
 ## 2. Trusted scope and verification
@@ -46,6 +46,10 @@ Status legend: `done`, `partial`, `blocked-external`, `not-started`.
 | ST-8 | Operator-registered targets can be bound without model registration/scope expansion | done | `prestige_target_bind`, `tests/test_mcp_server.py` schema, remote scope tests |
 | ST-9 | Configurable web research providers with provenance and disabled-by-default policy | done | `ResearchBroker.web_search`, `prestige_research_web_search`, `tests/test_research.py` |
 | ST-10 | AUTO/EXPERT attempt ceiling supports real multi-stage work without a fixed 12-turn stop | done | `src/prestige/strategy.py`, `tests/test_strategy.py` |
+| ST-11 | Durable progress signal detects repeated unproductive action/result signatures and distinguishes productive novel output; recommendations stay advisory and bounded | done | `src/prestige/progress.py`, `prestige_get_status` `progress_signal`, `tests/test_progress.py` |
+| ST-12 | Escalation recommendation requires durable no-progress evidence and remaining budget; a pending test alone does not force EXPERT | done | `src/prestige/evaluator.py`, `tests/test_evaluator.py::test_pending_test_alone_does_not_recommend_escalation` |
+| ST-13 | Requested and effective investigation budgets are explicit, and resume uses the same first-attempt wall clock as enforcement | done | `prestige_create_investigation` `budget`, `progress.remaining_budget`, `tests/test_mcp_server.py::test_mcp_reports_effective_budget_instead_of_silently_clamping` |
+| ST-14 | Identical durable analysis requests reuse the existing job cache without consuming another attempt | done | `JobManager.find_cached`, `prestige_start_analysis`, `tests/test_mcp_server.py::test_mcp_duplicate_analysis_reuses_durable_job` |
 
 ## 4. Owner skills integration
 
@@ -144,6 +148,8 @@ Status legend: `done`, `partial`, `blocked-external`, `not-started`.
 | BM-1 | Comparable real-agent B0/B1/P1/P2/P3 evaluation | partial | P1/P2/P3 fixture lanes share a contract; a matched live crypto pair solved 1/1 each. B0/B1 command adapters are implemented; no real B0/B1 run exists |
 | BM-3 | B0/B1 reusable operator-command adapters with unknown-usage handling | done | `src/prestige/benchmark_adapter.py`, `tests/test_conditions.py` |
 | BM-2 | Real results recorded only when actually run | not-started | B0/B1 report `not_run` without an explicitly configured adapter; no paid comparison run |
+| BM-15 | Bounded three-configuration pilot (DeepSeek direct, Kimi+DeepSeek executor, DeepSeek PRESTIGE MCP) with equal budgets, fresh state, randomized order and operator-private verification | partial | `docs/benchmarks/ADAPTIVE_EXECUTION_PILOT.md`, `benchmark-results/adaptive-pilot.json`; historical paid-route Sunk_Cost 15 runs completed with 0/15 verified, 15 missing/timeouts. KE child-executor handoff absent. JSculator cohort aborted/separate. Not rerun on the free route |
+| BM-16 | `Sunk_Cost` independently verified as a pilot candidate without exposing solver-visible answers | done | operator-supplied answer verified privately against all 16 samples; only the private commitment was used; participant view contains the mission brief only |
 
 ## 10. Release gates
 

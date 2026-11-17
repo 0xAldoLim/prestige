@@ -185,7 +185,11 @@ requirements.
   `docs/benchmarks/CTF_EVALUATION_V3_1.md`; data:
   `benchmark-results/sasctf-2026-v3_1.json`.
 
-## 2026-11-15 strict two-model routing
+## 2026-11-15 strict two-model routing (historical)
+
+This section records the paid-DeepSeek configuration as it existed on 2026-11-15.
+It is superseded by the 2026-11-16 free execution route below; its trace is kept
+as historical provenance.
 
 - `opencode.jsonc` now has a delegation-only `orchestrator` on
   `opencode-go/kimi-k3.1-pro`, an autonomous `executor` subagent on
@@ -214,6 +218,168 @@ requirements.
 - Routing is configuration, not a security sandbox. PRESTIGE's Python broker and
   operator-controlled registrations, source paths, images, budgets and verification
   commitments remain authoritative.
+
+## 2026-11-16 free execution route and constrained catalog
+
+- Execution moved from paid `opencode-go/deepseek-v4.1-flash` (Flash 1017) to free
+  `opencode/deepseek-v4.1-flash-free` for the root/default model, `executor`,
+  `prestige` and the `compaction`/`title`/`summary` helpers. The orchestrator
+  remains `opencode-go/kimi-k3.1-pro`.
+- Provider policy allows only `opencode-go` and `opencode`. The checked-in config
+  disables the 47 non-authorized `opencode` models and the 33 non-authorized
+  `opencode-go` models observed in the 2026-11-16 catalog (82 chat models total).
+  `opencode models` therefore lists exactly
+  `opencode-go/kimi-k3.1-pro` and `opencode/deepseek-v4.1-flash-free`. Paid Flash
+  1017, GPT-6 Luna, DeepSeek V4 Pro and every other fallback are disabled.
+- Live routing evidence was read from the current OpenCode session rather than
+  starting another model run. Child `ses_e18e257f1ffeOaExcvQ6nilM9g` recorded
+  `agent=executor`, `providerID=opencode`, `id=deepseek-v4.1-flash-free` in all
+  seven assistant messages; its parent `ses_e410ad943ffeOKkuS4TKTRUST4` recorded
+  `agent=orchestrator`, `providerID=opencode-go`, `id=kimi-k3.1-pro`. The
+  2026-11-15 paid trace remains historical.
+- `opencode --standalone debug agents` confirmed orchestrator, executor, prestige
+  and the three helpers at those exact IDs. A first call after a config edit
+  occasionally raced and returned only built-ins; retries returned the complete
+  list, and the offline test retries once.
+- Future adaptive DD runs pin `opencode/deepseek-v4.1-flash-free`; KE executor and
+  DP prestige copy the checked-in agent definitions and therefore inherit the free
+  route. `tests/test_model_routing.py` and `tests/test_adaptive_conditions.py`
+  require the exact free and Kimi IDs and forbid paid Flash in active execution
+  config.
+- Limitation: the disable lists enumerate the catalog observed on 2026-11-16. A
+  newly added provider model is not automatically disabled until the lists are
+  reviewed. An operator `--model` override remains possible by design. If the free
+  route is unavailable or rate-limited, the correct behavior is to report it and
+  stop or ask the operator, never to substitute a paid model.
+- Historical benchmark reports and `benchmark-results/adaptive-pilot.json` keep
+  their original `opencode-go/deepseek-v4.1-flash` provenance and are not rerun or
+  rewritten by this routing change.
+
+## 2026-11-15 adaptive execution and evidence-based optimization (offline)
+
+This increment is offline. No paid model inference, real-model benchmark or new
+external challenge run was executed. Solve-rate, latency and cost effects are
+**NOT YET MEASURED**.
+
+### Surviving-trace audit
+
+Only the V3 and V3.1 traces in the private local trace store survive; V2 raw
+traces do not. The surviving D traces (n=3) show:
+
+- exactly one `prestige_create_investigation` and one `prestige_get_status` per
+  run — the traces do **not** show repeated investigation creation or status
+  polling;
+- zero `prestige_start_analysis`/`prestige_get_analysis` calls — duplicate
+  analysis was not a measured V3/V3.1 problem;
+- one exact duplicate `remote_tcp` call in one run and one duplicate native
+  `skill ctf-pwn` call in one C run — both minor and not the dominant cost;
+- one solved run (57.1 s) and two missing submissions at the outer 180 s cutoff.
+  The failed investigations were still `ready` with remaining attempts, so the
+  missing submissions were outer-budget/orchestration failures, not wrong answers
+  or PRESTIGE budget exhaustion;
+- one solved run requested `mode=fast, max_turns=30, max_seconds=150` but received
+  8 attempts/120 s and exhausted attempts at 30 s. The final submission still
+  succeeded, but the reduction was silent;
+- traces cannot attribute time to reasoning, tool startup or state updates.
+  No per-phase timing claim is made.
+
+### Changes
+
+- **Explicit effective budget.** `prestige_create_investigation` now returns
+  `budget.requested`, `budget.effective`, `budget.adjusted` and a `budget.note`
+  when a lane caps the request. Requested values persist in run settings and are
+  repeated by `prestige_resume_investigation`. Operator hard ceilings and lane
+  caps are unchanged.
+- **Consistent resume clock.** `progress.remaining_budget` uses the same
+  `runs.started` clock as `_check_budget`; a run that has not attempted a tool
+  keeps its full wall-time budget, and `prestige_resume_investigation` no longer
+  measures from `runs.created`.
+- **Durable progress signal.** `progress.assess` summarizes recent observation
+  action/result signatures, result diversity, artifact derivation, hypothesis
+  confidence and remaining attempts/seconds. States are `not_started`,
+  `exploring`, `productive`, `no_progress`, `loop_suspected`, `awaiting_operator`
+  and `terminal`; recommendations are `continue`, `change_test`, `escalate`,
+  `report_limits`, `await_operator` or `stop`. It is advisory and never changes
+  lane, model, provider or scope.
+- **Evidence-gated escalation.** The evaluator no longer recommends `escalate`
+  merely because a hypothesis test is pending. It requires durable
+  `no_progress`/`loop_suspected` evidence, at least two remaining attempts and
+  more than 30 seconds. `prestige_escalate` records the progress state and
+  returns remaining budget; it remains bounded by the existing attempt/time
+  accounting.
+- **Duplicate analysis answered from durable state.** `JobManager.find_cached`
+  backs `prestige_start_analysis`; an identical queued/running/completed job is
+  returned as `cached: true` without consuming another attempt. This is a small
+  defensive reuse of the existing cache, not a measured V3 problem.
+- **Status/resume visibility.** `prestige_get_status` exposes the signal as
+  `progress_signal` alongside the existing event-progress list;
+  `prestige_resume_investigation` exposes `progress` and the budget view.
+
+### Validation
+
+- Focused progress/evaluator/MCP/strategy/jobs tests: 52 passed.
+- Default offline suite at the adaptive-only checkpoint: **384 passed, 10 skipped**;
+  after the free-provider routing tests were added, the current tree is
+  **393 passed, 10 skipped**.
+- With `PRESTIGE_TEST_IMAGE` set to the reviewed pinned
+  `python@sha256:a83ba18aef0f865b1a4a611c2cf460fe446f2795673bbb9fe43be570439e3b39`:
+  **389 passed, 5 skipped** (Ghidra, GDB, real-model trace and SSHD opt-ins).
+- `ruff check .`: clean.
+- `python -m build`: wheel and sdist built successfully.
+- `git diff --check`: clean.
+- Docker worker tests ran against the pinned local image. GDB, Ghidra, SSHD and
+  the paid real-model-trace test were not run; no result is claimed for them.
+
+### Deferred intentionally
+
+Investigation-creation deduplication, status-delta protocols, broad caching
+layers and automatic model/provider changes were not added. Surviving traces do
+not support them, and they would add state/identity complexity without measured
+benefit.
+
+### Pilot readiness
+
+The user-authorized `iboh26` files were inventoried read-only. `Sunk_Cost` is the
+strongest uncontaminated candidate: its participant brief is self-contained,
+offline, deterministic and independently checkable by recomputing
+`(k+i)^-1 mod p` and comparing `>> 170` with every logged block. The checker and
+its SHA-256 commitment stay operator-private. Other candidates lack prompts,
+setup contracts, service descriptors or passwords, or need a kernel/VM/service
+environment; they are not counted. The bounded three-configuration pilot design
+and its completed Sunk_Cost results are in
+`docs/benchmarks/ADAPTIVE_EXECUTION_PILOT.md`; the cohort did not demonstrate a
+solve-rate advantage.
+
+### Adaptive pilot execution status
+
+- A prepared JSculator pilot was started and then stopped when a later instruction
+  required stopping if any paid attempt had begun. It is preserved as
+  **ABORTED / INFRASTRUCTURE-INVALID**: 13 completed attempts (DD 5, DP 5, KE 3),
+  one KE workspace without a result, one KE attempt not started, 0 verified,
+  1 wrong, 12 missing and 13 outer timeouts. It is not a comparative benchmark and
+  its two missing runs were not resumed.
+- The KE completed attempts emitted only a `step_start` (two runs) or one partial
+  orchestrator message (one run), with no `step_finish`, no subagent call, no child
+  executor session and zero tokens. This is recorded as provider/model non-response
+  or an unresolved orchestration stall, not as a proven harness defect.
+- A later operator-supplied Sunk_Cost answer was independently verified against all
+  16 original high-bit modular-inverse samples before any model attempt; neither the
+  answer nor its hash entered the repository or solver views. The fresh 15-run
+  cohort (DD/KE/DP × 5, seed 611, 180 s) completed with **0/15 verified, 0 wrong,
+  15 missing and 15 outer timeouts**. All submissions were absent, so no answer was
+  exposed. Provider-reported cost was 0.0 and is not a genuine dollar measurement.
+- DD routed 5/5 to `bench`/`opencode-go/deepseek-v4.1-flash`; DP routed 5/5 to
+  `prestige`/the same model. KE again showed only one `orchestrator` message on
+  `opencode-go/kimi-k3.1-pro` with no `subagent` call, child executor session, tool
+  calls or tokens. The two-model handoff remains unproven; this is recorded as an
+  unresolved orchestration/provider stall, not a harness defect that was fixed.
+- Paid attempts: 13 completed JSculator (aborted/infrastructure-invalid) + 15
+  completed Sunk_Cost = 28, within the 30-run cap. The two missing JSculator runs
+  were not resumed.
+- **Historical provenance:** both cohorts used the then-configured paid
+  `opencode-go/deepseek-v4.1-flash` route. Their results are preserved unchanged
+  and are not evidence about the free route. No CTF benchmark was rerun for the
+  2026-11-16 provider change.
 
 ## What works now
 
@@ -364,8 +530,9 @@ requirements.
     limits, bounded output.
   - `WorkspaceRunner` output directory made writable for the containerized user.
 - **Tests**
-  - Default suite: **356 passed, 9 skipped**.
-  - With `PRESTIGE_TEST_IMAGE`: **361 passed, 4 skipped**.
+  - Current default suite: **393 passed, 10 skipped**.
+  - Earlier `PRESTIGE_TEST_IMAGE` run (not rerun for this increment):
+    **389 passed, 5 skipped**.
   - With GDB + SSHD + Docker + Ghidra opt-ins: 362 passed before the local GDB image was removed by the environment reset; the all-opt-in run is now blocked by that missing image.
 - **Operator known-answer helper**
   - `prestige verify-candidate --expected-sha256 <digest> [--candidate-file PATH]`
@@ -520,20 +687,28 @@ no performance or superiority claim is made.
     verified; one matched skills/no-skills pair with no improvement claim.
 17. Persistent interactive TCP sessions, reproducible core/pwn worker images and
     V3.1 service qualification (no superiority claim).
-18. Strict Kimi orchestrator / DeepSeek executor routing with disabled built-ins,
-    opencode-go-only provider policy and an opt-in real trace test.
+18. Strict Kimi orchestrator / free-DeepSeek executor routing with disabled
+    built-ins, a two-route provider policy, a constrained effective model catalog
+    and an opt-in trace test.
 
 ## Next executable milestone
 
-1. Integrate the external Gray Swan IPI Arena, AgentLSD and AgentDojo harnesses;
+1. If a new pilot is authorized, replicate the bounded design in
+   `docs/benchmarks/ADAPTIVE_EXECUTION_PILOT.md` on the free
+   `opencode/deepseek-v4.1-flash-free` route under equal budgets, randomized
+   order, fresh workspaces and an operator-private checker. The completed cohorts
+   remain historical paid-route evidence; record actual tokens/cache/cost/tool
+   calls and do not claim superiority from tiny samples.
+2. Integrate the external Gray Swan IPI Arena, AgentLSD and AgentDojo harnesses;
    local file adapters and the 12-class corpus exist, but external runs do not.
-2. Run real B0/B1 comparisons only with a legitimately configured plain-agent
+3. Run real B0/B1 comparisons only with a legitimately configured plain-agent
    adapter and recorded budgets; P1/P2/P3 fixture comparisons are implemented.
-3. Add an independent evaluator that proposes/retires hypotheses beyond the
-   model's own choices (ST-1 remains partial).
-4. Validate the SSH adapter against an operator-assigned external endpoint; the
+4. Add an independent evaluator that proposes/retires hypotheses beyond the
+   model's own choices (ST-1 remains partial). The progress signal added here is
+   not a planner.
+5. Validate the SSH adapter against an operator-assigned external endpoint; the
    real loopback sshd test passes.
-5. Expand verified non-decoding learning and measure whether it improves later
+6. Expand verified non-decoding learning and measure whether it improves later
    solves without fabricating results.
 
 ## Installed toolchain
@@ -549,12 +724,16 @@ no performance or superiority claim is made.
 
 ## Configured providers
 
-- OpenCode Go models are the default and only required runtime.
-- Runtime routing (validated with OpenCode v2.2.7):
+- OpenCode is the only required runtime; the checked-in config uses two providers.
+- Runtime routing (validated with OpenCode v2.2.7 on 2026-11-16):
   `opencode-go/kimi-k3.1-pro` orchestrator and
-  `opencode-go/deepseek-v4.1-flash` executor/prestige.
+  `opencode/deepseek-v4.1-flash-free` executor/prestige and helpers.
+- The effective `opencode models` catalog contains only those two routes. Paid
+  `opencode-go/deepseek-v4.1-flash` (Flash 1017), GPT-6 Luna and other fallbacks
+  are disabled. Free-route unavailability is reported, not substituted.
 - Earlier verified models: `opencode-go/beam-free`, `opencode-go/kimi-k2.7-code`,
-  `opencode-go/kimi-k3.1-pro`.
+  `opencode-go/kimi-k3.1-pro`, and historical paid
+  `opencode-go/deepseek-v4.1-flash`.
 - Standalone OpenAI/Codex providers remain optional and unconfigured.
 
 ## Exact reproduction commands

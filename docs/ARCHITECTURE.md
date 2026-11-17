@@ -11,8 +11,8 @@ PRESTIGE is split into two cooperating layers:
 OpenCode talks to the engine through a stdio MCP server (`src/prestige/mcp_server.py`,
 started by `prestige agent`). The project `opencode.jsonc` registers that server and
 three project agents: a delegation-only `orchestrator` (Kimi K3.1 Pro), an autonomous
-`executor` (DeepSeek V4.1 Flash) and the restricted `prestige` CTF agent (DeepSeek
-V4.1 Flash), whose permissions allow only `prestige_*` tools.
+`executor` (free DeepSeek V4.1 Flash) and the restricted `prestige` CTF agent (free
+DeepSeek V4.1 Flash), whose permissions allow only `prestige_*` tools.
 
 ## Model routing
 
@@ -24,18 +24,22 @@ Routing is deliberately asymmetric:
   task with acceptance criteria, and reviews recorded evidence. It is instructed to
   intervene only for initial planning, meaningful failures, strategy changes, major
   decisions and final evaluation.
-- `executor` is a `subagent` on `opencode-go/deepseek-v4.1-flash`. It executes
+- `executor` is a `subagent` on `opencode/deepseek-v4.1-flash-free`. It executes
   implementation, commands, debugging, tests and research end to end without asking
   the orchestrator to approve individual tool calls, and cannot spawn further
   subagents.
-- `prestige` is mode `all` on `opencode-go/deepseek-v4.1-flash`. It is the direct CTF
+- `prestige` is mode `all` on `opencode/deepseek-v4.1-flash-free`. It is the direct CTF
   path and keeps the existing host-tool denials: only `prestige_*` MCP tools are
   allowed.
 
-`default_agent` is `orchestrator`; the root fallback model is
-`opencode-go/deepseek-v4.1-flash`. The built-in `build`, `plan`, `general` and
-`explore` agents are disabled, and provider policy denies every provider except
-`opencode-go`. Configuration and model choice are not a security sandbox: the Python
+`default_agent` is `orchestrator`; the root fallback model and the
+`compaction`/`title`/`summary` helpers use
+`opencode/deepseek-v4.1-flash-free`. The built-in `build`, `plan`, `general` and
+`explore` agents are disabled. Provider policy allows only `opencode-go` and
+`opencode`, and checked-in disable lists leave exactly the Kimi and free-DeepSeek
+routes selectable. Paid `opencode-go/deepseek-v4.1-flash` (Flash 1017), GPT-6 Luna
+and other fallbacks are disabled; a free-route failure is reported rather than
+substituted. Configuration and model choice are not a security sandbox: the Python
 broker still enforces operator-controlled source paths, target registrations, budgets,
 image policy and verification commitments. Real routing evidence is recorded in
 [MODEL_ROUTING.md](MODEL_ROUTING.md).
@@ -99,7 +103,7 @@ clean-side false positives, added tool calls, legitimate completion and recovery
 `src/prestige/opencode_harness.py` optionally runs the real OpenCode loop and reads
 outcomes from PRESTIGE state; no solve is inferred from model text.
 
-## Lanes and duplicate suppression
+## Lanes, budgets and duplicate suppression
 
 V3 raises the AUTO/EXPERT attempt ceiling to 30 so an investigation is not exhausted
 merely because it used more than twelve evidence actions. FAST remains the lightweight
@@ -109,6 +113,17 @@ deterministic stagnation rule stops or escalates after two actions without new a
 Durable jobs reuse queued, running or completed results; deterministic experiment tools
 reuse prior observations unless `force=true`. This is a simple heuristic, not calibrated
 expected information gain or semantic equivalence of arbitrary code.
+
+Budget handling is explicit: a request is capped by an operator ceiling and then by the
+selected lane, and creation/resume return the requested and effective values with an
+adjustment note. The wall clock starts at the first tool attempt in both enforcement and
+resume, so an idle investigation does not appear to have spent its budget.
+`progress.assess` is a deterministic, advisory signal over durable observations: it
+classifies recent repeated action/result signatures as `no_progress` or `loop_suspected`,
+keeps distinct new outputs `productive`, and only recommends `escalate` when there is
+stagnation plus enough remaining attempts/time. It never changes lane, model, provider or
+scope. The independent hypothesis evaluator uses the same signal to avoid escalating a
+pending or merely difficult test.
 
 ## Skills and learning
 

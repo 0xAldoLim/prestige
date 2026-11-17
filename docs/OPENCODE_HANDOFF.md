@@ -15,10 +15,13 @@ opencode
 ```
 
 The project config routes planning to `opencode-go/kimi-k3.1-pro` and all execution
-to `opencode-go/deepseek-v4.1-flash`. The orchestrator may read/glob/grep and call
+to `opencode/deepseek-v4.1-flash-free`. The orchestrator may read/glob/grep and call
 only the `executor` and `prestige` subagents; it has no shell, edit, write, browser,
 web or skill tools. Built-in `build`, `plan`, `general` and `explore` agents are
-disabled, and provider policy allows only `opencode-go`.
+disabled. Provider policy allows only `opencode-go` and `opencode`, and the
+checked-in disable lists leave exactly those two routes in `opencode models`. Paid
+`opencode-go/deepseek-v4.1-flash` (Flash 1017), GPT-6 Luna and every other fallback
+are disabled; a free-route failure must be reported, never silently substituted.
 
 For a scripted delegated task:
 
@@ -80,13 +83,17 @@ not a claim that later local work has been pushed.
 - OpenCode-native MCP broker (`src/prestige/mcp_server.py`) exposes trusted tools over
   stdio and is registered by `.opencode/plugins/prestige/index.ts`.
 - `opencode.jsonc` defines a delegation-only `orchestrator` on Kimi, an autonomous
-  `executor` on DeepSeek and a restricted `prestige` CTF agent on DeepSeek. The
-  `prestige` agent can call only `prestige_*` tools; shell/read/write/browser/skill
-  are denied. Built-in agents are disabled and provider policy allows only
-  `opencode-go`.
-- Real routing evidence (2026-11-15, OpenCode v2.2.7) is recorded in
-  [MODEL_ROUTING.md](MODEL_ROUTING.md): the orchestrator ran Kimi and its child
-  executor ran DeepSeek on a verified tiny file task.
+  `executor` on free DeepSeek and a restricted `prestige` CTF agent on free
+  DeepSeek. The `prestige` agent can call only `prestige_*` tools;
+  shell/read/write/browser/skill are denied. Built-in agents are disabled and
+  provider policy allows only `opencode-go` and `opencode`, with all other models
+  disabled.
+- Runtime routing evidence (2026-11-16, OpenCode v2.2.7) is recorded in
+  [MODEL_ROUTING.md](MODEL_ROUTING.md): the parent session recorded
+  `agent=orchestrator` on `opencode-go/kimi-k3.1-pro`, and the child session
+  recorded `agent=executor` on `opencode/deepseek-v4.1-flash-free`. The earlier
+  2026-11-15 tiny-file trace used the then-configured paid DeepSeek route and is
+  historical.
 - Durable analysis jobs (`src/prestige/jobs.py`) cache Ghidra/radare2/python work by
   artifact digest and normalized arguments, persisting state outside the conversation.
 - `WorkspaceRunner` is wired into MCP investigations via operator-controlled config

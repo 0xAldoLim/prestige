@@ -1,9 +1,10 @@
-"""Offline regression tests for the strict two-model OpenCode architecture.
+"""Offline regression tests for the strict two-route OpenCode architecture.
 
-The repository routes planning to Kimi through a delegation-only orchestrator and
-all execution to DeepSeek through the executor/prestige agents. These tests are
-deliberately offline: the real-model trace is opt-in so the default suite never
-makes a paid or network request.
+The repository routes planning to paid Kimi through a delegation-only orchestrator
+and all execution to the free DeepSeek V4.1 Flash route through the
+executor/prestige agents. Paid DeepSeek V4.1 Flash 1017 and other fallback models
+must stay disabled. These tests are deliberately offline: the real-model trace is
+opt-in so the default suite never makes a network request.
 """
 
 import json
@@ -76,10 +77,10 @@ def _effective(agent: dict, action: str, resource: str) -> str:
     return effect
 
 
-def test_default_agent_and_root_model_are_deepseek_execution():
+def test_default_agent_and_root_model_are_free_deepseek_execution():
     config = _config()
     assert config["default_agent"] == "orchestrator"
-    assert config["model"] == "opencode-go/deepseek-v4.1-flash"
+    assert config["model"] == "opencode/deepseek-v4.1-flash-free"
 
 
 def test_exact_agent_models_and_modes():
@@ -92,35 +93,54 @@ def test_exact_agent_models_and_modes():
         "plan",
         "general",
         "explore",
+        "compaction",
+        "title",
+        "summary",
     }
     assert agents["orchestrator"]["model"] == "opencode-go/kimi-k3.1-pro"
     assert agents["orchestrator"]["mode"] == "primary"
-    assert agents["executor"]["model"] == "opencode-go/deepseek-v4.1-flash"
+    assert agents["executor"]["model"] == "opencode/deepseek-v4.1-flash-free"
     assert agents["executor"]["mode"] == "subagent"
-    assert agents["prestige"]["model"] == "opencode-go/deepseek-v4.1-flash"
+    assert agents["prestige"]["model"] == "opencode/deepseek-v4.1-flash-free"
     assert agents["prestige"]["mode"] == "all"
 
 
-def test_no_checkpoint_or_alternate_model_mapping():
-    """The config selects exact API IDs, never a display/checkpoint alias."""
+def test_helpers_use_the_free_route_not_the_paid_provider():
+    agents = _config()["agents"]
+    for helper in ("compaction", "title", "summary"):
+        assert agents[helper] == {
+            "model": "opencode/deepseek-v4.1-flash-free"
+        }, helper
+
+
+def test_no_paid_checkpoint_or_alternate_model_mapping():
+    """Active selectors use exact free/Kimi API IDs, never a paid fallback."""
     config = _config()
     selected = {config["model"]}
     selected |= {
         agent["model"] for agent in config["agents"].values() if "model" in agent
     }
     assert selected == {
-        "opencode-go/deepseek-v4.1-flash",
+        "opencode/deepseek-v4.1-flash-free",
         "opencode-go/kimi-k3.1-pro",
     }
     text = CONFIG_PATH.read_text(encoding="utf-8")
     assert "1017" not in text
-    for alternate in (
-        "deepseek-v4.1-flash-1017",
-        "deepseek-v4.1-flash-free",
-        "deepseek-v4-pro",
-        "kimi-k2.7-code",
-    ):
-        assert alternate not in text, alternate
+    assert "deepseek-v4.1-flash-1017" not in text
+
+
+def test_paid_and_fallback_models_are_disabled():
+    providers = _config()["providers"]
+    opencode_disabled = providers["opencode"]["models"]
+    go_disabled = providers["opencode-go"]["models"]
+    for model_id in ("deepseek-v4-pro", "gpt-6-luna"):
+        assert opencode_disabled[model_id] == {"disabled": True}, model_id
+        assert go_disabled[model_id] == {"disabled": True}, model_id
+    assert go_disabled["deepseek-v4.1-flash"] == {"disabled": True}
+    # The free route stays enabled in the opencode catalog.
+    assert "deepseek-v4.1-flash-free" not in opencode_disabled
+    # Kimi stays the only enabled opencode-go model in checked-in config.
+    assert "kimi-k3.1-pro" not in go_disabled
 
 
 def test_builtin_agents_are_disabled():
@@ -161,7 +181,7 @@ def test_prestige_keeps_host_tool_denials_and_mcp_allowlist():
     assert _effective(prestige, "prestige_prestige_submit_final", "*") == "allow"
 
 
-def test_provider_policy_allows_only_opencode_go():
+def test_provider_policy_allows_only_the_two_authorized_routes():
     policies = _config()["policies"]
     assert policies[0] == {
         "action": "provider.use",
@@ -173,21 +193,30 @@ def test_provider_policy_allows_only_opencode_go():
         for rule in policies
         if rule["action"] == "provider.use" and rule["effect"] == "allow"
     }
-    assert allowed == {"opencode-go"}
+    assert allowed == {"opencode-go", "opencode"}
 
 
 @pytest.mark.skipif(not shutil.which("opencode"), reason="OpenCode CLI not available")
 def test_opencode_cli_resolves_only_intended_agents():
-    result = subprocess.run(
-        ["opencode", "--standalone", "debug", "agents"],
-        capture_output=True,
-        text=True,
-        cwd=str(ROOT),
-        timeout=120,
-    )
-    if result.returncode != 0:
-        pytest.skip("OpenCode debug service unavailable: " + result.stderr[:300])
-    agents = {agent["id"]: agent for agent in json.loads(result.stdout)}
+    # The standalone debug service has shown a rare startup race in which the
+    # built-in helpers are returned without project agents. Retry once so a
+    # transient startup does not masquerade as a routing regression; a real
+    # configuration error still fails deterministically.
+    agents = {}
+    for _attempt in range(2):
+        result = subprocess.run(
+            ["opencode", "--standalone", "debug", "agents"],
+            capture_output=True,
+            text=True,
+            cwd=str(ROOT),
+            timeout=120,
+        )
+        if result.returncode != 0:
+            pytest.skip("OpenCode debug service unavailable: " + result.stderr[:300])
+        agents = {agent["id"]: agent for agent in json.loads(result.stdout)}
+        if {"orchestrator", "executor", "prestige"} <= set(agents):
+            break
+    assert {"orchestrator", "executor", "prestige"} <= set(agents), sorted(agents)
 
     assert agents["orchestrator"]["model"] == {
         "id": "kimi-k3.1-pro",
@@ -195,17 +224,35 @@ def test_opencode_cli_resolves_only_intended_agents():
     }
     assert agents["orchestrator"]["mode"] == "primary"
     assert agents["executor"]["model"] == {
-        "id": "deepseek-v4.1-flash",
-        "providerID": "opencode-go",
+        "id": "deepseek-v4.1-flash-free",
+        "providerID": "opencode",
     }
     assert agents["executor"]["mode"] == "subagent"
     assert agents["prestige"]["model"] == {
-        "id": "deepseek-v4.1-flash",
-        "providerID": "opencode-go",
+        "id": "deepseek-v4.1-flash-free",
+        "providerID": "opencode",
     }
     assert agents["prestige"]["mode"] == "all"
+    for helper in ("compaction", "title", "summary"):
+        assert agents[helper]["model"] == {
+            "id": "deepseek-v4.1-flash-free",
+            "providerID": "opencode",
+        }, helper
     for agent_id in ("build", "plan", "general", "explore"):
         assert agent_id not in agents
+
+    models = subprocess.run(
+        ["opencode", "models"],
+        capture_output=True,
+        text=True,
+        cwd=str(ROOT),
+        timeout=120,
+    )
+    assert models.returncode == 0, models.stderr[:300]
+    assert set(models.stdout.split()) == {
+        "opencode-go/kimi-k3.1-pro",
+        "opencode/deepseek-v4.1-flash-free",
+    }
 
     assert _effective(agents["executor"], "shell", "*") == "allow"
     assert _effective(agents["executor"], "edit", "*") == "allow"
@@ -222,10 +269,10 @@ def test_opencode_cli_resolves_only_intended_agents():
 @pytest.mark.live
 @pytest.mark.skipif(
     os.environ.get("PRESTIGE_TEST_REAL_MODEL_TRACE") != "1",
-    reason="set PRESTIGE_TEST_REAL_MODEL_TRACE=1 to make one small paid model call",
+    reason="set PRESTIGE_TEST_REAL_MODEL_TRACE=1 to make one small free-model call",
 )
-def test_real_orchestrator_delegates_to_deepseek_executor(tmp_path):
-    """One opt-in paid trace proving the configured models are actually used.
+def test_real_orchestrator_delegates_to_free_deepseek_executor(tmp_path):
+    """One opt-in trace proving the configured free/Kimi models are used.
 
     This test never runs in the default suite. It asks the orchestrator for one
     executor delegation, then reads the recorded session messages through the
@@ -288,6 +335,6 @@ def test_real_orchestrator_delegates_to_deepseek_executor(tmp_path):
     sessions = api("/api/session")["data"]
     child = next(session for session in sessions if session.get("parentID") == session_id)
     executor = api(f"/api/session/{child['id']}/message")
-    assert ("executor", "opencode-go", "deepseek-v4.1-flash") in assistant_models(
+    assert ("executor", "opencode", "deepseek-v4.1-flash-free") in assistant_models(
         executor["data"]
     )

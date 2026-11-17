@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
-  "updated": "2026-11-15",
+  "updated": "2026-11-16",
   "release_ready": false,
   "baseline_commit": "7a32b4557840d0a49b3590346d843e2a0b6426c1",
-  "current_head": "fa7031e",
-  "revision_note": "Active OpenCode-native CTF agent with persistent interactive TCP sessions, reproducible core/pwn worker images, strict Kimi-orchestrator/DeepSeek-executor routing, remote scope/expiry/TLS controls, an independent evidence evaluator, paired adversarial execution, a deterministic deception detector and quarantine of poisoned memory. V3.1 qualification reran one original service (A 1/3, B 1/3, C 0/3, D 1/3) and does not establish superiority. No official external benchmark or live adversarial model comparison has been run. 371 default tests passing, 10 opt-in skips.",
+  "current_head": "28a0e20",
+  "revision_note": "Active OpenCode-native CTF agent with persistent interactive TCP sessions, reproducible core/pwn worker images, strict Kimi-orchestrator/free-DeepSeek-executor routing with a two-route provider policy and constrained effective model catalog, remote scope/expiry/TLS controls, an independent evidence evaluator, a deterministic progress signal with evidence-gated escalation, explicit requested/effective budgets, durable analysis-job reuse, paired adversarial execution, a deterministic deception detector and quarantine of poisoned memory. V3.1 qualification reran one original service (A 1/3, B 1/3, C 0/3, D 1/3) and does not establish superiority. No official external benchmark or live adversarial model comparison has been run. 393 default tests passing, 10 opt-in skips.",
   "development_agent_target": "OpenCode",
   "primary_product_backend": "OpenCode-native MCP broker with trusted Python engine",
   "items": [
@@ -548,9 +548,25 @@
       "evidence": [
         "opencode.jsonc",
         "tests/test_model_routing.py",
-        "docs/MODEL_ROUTING.md"
+        "tests/test_adaptive_conditions.py",
+        "docs/MODEL_ROUTING.md",
+        "docs/PROVIDERS.md"
       ],
-      "remaining": "Kimi orchestrator plus DeepSeek executor/prestige validated offline and with one real trace; configuration is not a security sandbox."
+      "remaining": "Kimi orchestrator on opencode-go plus free DeepSeek execution on opencode validated offline and by reading the current parent/child session trace. The checked-in disable lists leave exactly two effective models; a newly added provider model is not automatically disabled until reviewed. Configuration is not a security sandbox."
+    },
+    {
+      "id": "adaptive-progress-and-budget",
+      "status": "tested",
+      "evidence": [
+        "src/prestige/progress.py",
+        "src/prestige/evaluator.py",
+        "src/prestige/mcp_server.py",
+        "tests/test_progress.py",
+        "tests/test_evaluator.py",
+        "tests/test_mcp_server.py",
+        "docs/benchmarks/ADAPTIVE_EXECUTION_PILOT.md"
+      ],
+      "remaining": "Offline runtime changes are implemented and tested. The aborted JSculator cohort (13 completed, infrastructure-invalid, not benchmarked) is separate. The fresh Sunk_Cost 15-run cohort (DD/KE/DP x 5, seed 611, 180 s) completed with 0/15 verified, 0 wrong, 15 missing, 15 timeouts; provider cost 0.0. DD and DP model routing was observed on the then-configured paid opencode-go/deepseek-v4.1-flash route; these results are historical and were not rerun. KE did not produce an executor subagent and its two-model handoff remains unproven. Future adaptive runs default to opencode/deepseek-v4.1-flash-free. One challenge and five repetitions do not establish superiority; no measured solve-rate benefit for any offline change."
     }
   ]
 }
