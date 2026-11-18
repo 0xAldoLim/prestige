@@ -257,3 +257,241 @@ experiment is **not executed** here.
 - Only the readiness helper/tests and this sanitized diagnostic are committed. Frozen
   benchmark results, challenge sources, private traces and the 12-job expanded cohort
   remain unchanged.
+
+## 10. Executed follow-up: `web-naas` DP-frozen vs DP-preprimed
+
+Date: 2026-11-18. Status: **6/6 paid attempts completed, 0 independently verified
+solves.** This is a new, separately pre-registered experiment. It does not modify,
+rescore or reinterpret the frozen V3.2 records in Sections 1–9. No answer, candidate
+value, answer digest, raw trace or private path is reproduced here.
+
+### 10.1 Preflight (model-free)
+
+| Check | Result |
+| --- | --- |
+| Pre-registered schedule | 6 jobs, seed 20261118, 180 s, 3 per arm; randomized order fixed before execution |
+| Frozen V3.2 hashes | Recorded before execution; frozen files were not written by the experiment |
+| View integrity | Manifest matched; no answer bytes or digest in the participant view |
+| Artifact settings | Default 1 MiB rejected the bundle; 64 MiB accepted 81 artifacts (26,702,995 bytes; largest 17,403,191) |
+| Endpoint authorization | `naas-api` bound to the probe investigation; pinned loopback TCP exchange returned 46 non-empty bytes; unbound registration rejected |
+| Service reset | `reset_ok=true`; DB truncated, server started, port ready, injected flag matched (42.1 s) |
+| Environment | Paid model listed, skills commit clean, corpus clean, worker image present, disk sufficient |
+| Budget | 0 / 500,000 uncached input and 0 / 100,000 output at start |
+| Tool inventory evidence | Direct stdio MCP `list_tools` = 47; earlier manual provider capture = 48 = 47 `prestige_*` + `skill`; both arms resolve to the identical DP config (`codemode=false`, paid Flash, `prestige_*` allow) |
+
+Tool-inventory limitation: a synthetic local provider stub races OpenCode's asynchronous
+MCP catalog on the first request and records only the native tool set. That is a capture
+limitation, not an absent tool set. The paid runs themselves called `prestige_*` tools
+in all six attempts and resolved the paid model route.
+
+### 10.2 Per-run results
+
+`Setup` counts failed calls to setup-class tools (skill, investigation creation, target
+binding/listing, status, host read/write). `Live` counts successful authorized remote
+exchanges. Times and tokens are sanitized measurements. All six attempts used fresh
+workspaces, state, sessions and service resets.
+
+| Arm | Rep | Status | Submission | Setup failures | Live | First live s | Stall | Uncached in | Output | Cache read | Cost USD | Tools/failed |
+| --- | ---: | --- | --- | --- | ---: | ---: | --- | ---: | ---: | ---: | ---: | --- |
+| DP-preprimed | 2 | timed_out | wrong | 1 (`invalid_skill` 1) | 0 | — | wall_timeout_active | 79,286 | 2,778 | 375,552 | 0.018464 | 19 / 1 |
+| DP-preprimed | 1 | completed | wrong | 1 (`invalid_skill` 1) | 1 | 69.593 | — | 59,565 | 3,047 | 322,304 | 0.031251 | 20 / 1 |
+| DP-frozen | 1 | timed_out | missing | 11 (`invalid_skill` 10, `investigation_create` 1) | 0 | — | wall_timeout_active | 56,799 | 2,546 | 248,192 | 0.028350 | 25 / 11 |
+| DP-frozen | 3 | timed_out | missing | 1 (`investigation_create` 1) | 0 | — | wall_timeout_active | 89,542 | 3,125 | 585,344 | 0.038135 | 25 / 1 |
+| DP-frozen | 2 | timed_out | missing | 5 (`invalid_skill` 4, `investigation_create` 1) | 0 | — | wall_timeout_active | 73,827 | 2,582 | 299,648 | 0.033004 | 20 / 5 |
+| DP-preprimed | 3 | completed | wrong | 1 (`invalid_skill` 1) | 1 | 102.271 | — | 91,126 | 3,331 | 612,480 | 0.039497 | 22 / 1 |
+
+All six runs: fresh run roots true, routing captured, duplicate tool calls 0,
+infrastructure records 0, and observed route `opencode-go/deepseek-v4.1-flash`.
+
+### 10.3 Aggregate by arm
+
+| Metric | DP-frozen (control) | DP-preprimed (treatment) |
+| --- | ---: | ---: |
+| Attempts | 3 | 3 |
+| Verified solves | 0 | 0 |
+| Wrong submissions | 0 | 3 |
+| Missing submissions | 3 | 0 |
+| Completed / timed out | 0 / 3 | 2 / 1 |
+| Runs with authorized live interaction | 0 | 2 |
+| Median time to first live interaction | — | 85.932 s |
+| Total setup failures | 17 | 3 |
+| Deterministic setup failures (artifact/investigation/bind) | 3 | 0 |
+| `invalid_skill` failures | 14 | 3 |
+| Runs with zero deterministic setup failures | 0 | 3 |
+| Runs with zero setup failures (strict) | 0 | 0 |
+| Failed tool calls | 17 | 3 |
+| Tool calls | 70 | 61 |
+| Uncached input / output | 220,168 / 8,253 | 229,977 / 9,156 |
+| Cache read | 1,133,184 | 1,310,336 |
+| Cost USD | 0.099488 | 0.089212 |
+| Model-stall / wall-active timeouts | 0 / 3 | 0 / 1 |
+
+Total observed usage: **450,145 uncached input, 17,409 output, 2,443,520 cache read,
+USD 0.188700**. Both aggregate ceilings were respected; no further attempt was made
+after the sixth.
+
+### 10.4 Primary criterion
+
+The pre-registered primary criterion was: at least 2/3 treatment runs reach an
+authorized live-service interaction with zero setup failures, while control reproduces
+setup friction.
+
+- Treatment reached an authorized live interaction in **2/3** runs.
+- Treatment had **0/3** runs with zero setup failures: each treatment run made exactly
+  one failed `skill` call.
+- Control reproduced setup friction: **17** failed setup calls, including an
+  investigation-creation failure in **3/3** runs.
+
+**Strict primary criterion: FAIL** (2/3 live but 0/3 zero-setup). The deterministic
+setup hypothesis was nonetheless supported descriptively: artifact/investigation
+failures fell from 3/3 control runs to 0/3 treatment runs, and live access rose from 0/3
+to 2/3.
+
+No solve was verified in either arm. All three treatment submissions were independently
+rejected by the private checker; control produced none. The treatment therefore removed
+the deterministic investigation/artifact friction and enabled live-service interaction,
+but did not produce a verified solve, and its remaining `invalid_skill` call kept it from
+the strict zero-setup threshold. This result does **not** establish that the model is
+incapable on this task, and the absence of a solve does not establish that the removed
+friction was immaterial. Three correlated repetitions on one task remain descriptive.
+
+### 10.5 Actionable defects from observed evidence
+
+1. **Native `skill` remains exposed and is called despite denial.** The DP agent denies
+   `skill` and the treatment card explicitly says not to call it, yet all six runs
+   contain failed `skill` calls (17 total). This is the only reason treatment misses the
+   strict zero-setup criterion. Removing the native tool from the benchmark provider
+   surface (or making the denial effective) is the highest-value fix.
+2. **Control still fails investigation creation on the default artifact limit.** All
+   three control runs hit the 1 MiB default on the 9.1 MB bundle; one run spent ten
+   calls guessing skill names. This confirms the original friction and the value of the
+   operator-side 64 MiB/extraction setup.
+3. **Wrong submissions remain a model-behaviour issue.** Treatment wrote three wrong
+   submissions and control wrote none. The private checker rejected all three. Setup
+   improvement did not translate into answer validation; no submission-shape change is
+   made here.
+4. **Harness serialization defect (no paid loss).** The public aggregator raised a type
+   error after the first durable record was written. The record was preserved and the
+   run resumed without re-executing it; no attempt was duplicated or lost.
+5. **Provider-capture race.** The synthetic first-request stub cannot be used as the
+   sole inventory evidence for this OpenCode build; the limitation is recorded above.
+   Paid runs did attach `prestige_*` tools, so no comparability failure was observed.
+
+### 10.6 Evidence boundary
+
+Raw workspaces, state databases, events, submissions and the private checker remain
+outside the repository. The companion `benchmark-results/v3_2_diag.json` contains only
+sanitized per-run and aggregate fields. Frozen V3.2 results and the unexecuted expanded
+cohort are unchanged.
+
+## 11. Milestone 2 localized fixes (2026-11-18)
+
+Status: implementation and offline validation only. No paid model attempt, challenge
+rerun, frozen-result edit or scope/permission widening occurred. Sections 1–10 and
+`benchmark-results/v3_2_diag.json` remain the measured record and are unchanged.
+
+### 11.1 Native `skill` tool: supported removal is unavailable
+
+OpenCode v2.2.7 was checked against its V2 documentation and resolved configuration.
+The PRESTIGE agent already applies `{"action": "skill", "resource": "*", "effect":
+"deny"}`, and `opencode debug agents` confirms the rule. This denies skill loading but
+does not remove the built-in `skill` tool from the provider inventory, which is why the
+earlier capture observed `47 prestige_* + skill`.
+
+V2 provides no supported per-agent tool-removal field for this build:
+
+- `skill` permission `deny` hides matching skills and rejects loading; it does not
+  remove the tool itself.
+- `skill.use` policy and `tool.use` policy can hide or hard-deny a skill action, but the
+  native tool remains advertised.
+- Top-level and per-agent `tools` are explicitly deprecated V1 fields, and
+  `experimental.primary_tools` is also deprecated. They were not used.
+
+The limitation is therefore documented rather than worked around with legacy config or a
+plugin redesign. The PRESTIGE agent system prompt, the checked-in benchmark prompts and
+the MCP skill-tool descriptions now state that models must not call the native `skill`
+tool or guess skill IDs. PRESTIGE-capable prompts and tools direct
+`prestige_skills_search` first, then `prestige_skills_apply` with IDs returned by the
+operator skills index. Owner-skills integration and the `skill` permission denial are
+unchanged.
+
+### 11.2 Host paths versus isolated-worker paths
+
+The same prompts now distinguish host and worker paths explicitly:
+
+- workspace, `source_path`, skills and submission paths are host paths;
+- an isolated PRESTIGE worker sees read-only artifact copies at `/work/input` and
+  writable output at `/work/output`;
+- worker files are addressed through `prestige_exec`/`prestige_run_experiment`, not host
+  `read`/`write`.
+
+No external-directory permission was weakened. Conditions without a PRESTIGE worker keep
+only the host-path note, preserving condition separation.
+
+### 11.3 Actionable artifact-size rejection
+
+The secure 1 MiB per-file default is unchanged. `Artifacts.add()` and
+`Artifacts.inventory()` now report the actual size, the current limit and
+surface-correct recovery:
+
+- MCP: retry `prestige_create_investigation` with `max_artifact_mib` as an integer in the
+  operator bound `1..256`;
+- CLI: rerun with `--max-artifact-mib` in the same bound.
+
+MCP investigation creation records the `mcp` surface and returns a structured
+`{"status": "denied", "reason": ...}` response for policy rejections instead of an
+unstructured exception body. Runs created before this change default to CLI wording.
+The MCP source-digest path uses the same actionable message.
+
+### 11.4 Conservative placeholder rejection
+
+A shared validator in `src/prestige/submission.py` is used by both
+`prestige_submit_final` and the benchmark `read_submission`. It rejects only exact
+normalized obvious placeholders: `UNSOLVED`, `UNKNOWN`, `NO_FLAG`, `NOT_FOUND`, `TBD`,
+`TODO`, `PLACEHOLDER`, `N/A`, `NONE` and `NULL`. Normalization lowercases and removes
+separators; no flag syntax is imposed. Normal flag-shaped values, plain candidates and
+the inactive static deployment value still pass shape validation, so the independent
+checker alone decides correctness. Empty, oversized, control-character and nested-object
+rejections remain in place.
+
+### 11.5 Factual timing fields
+
+`parse_jsonl` accepts an optional outer timeout and records only observed timeline data:
+`timing_observed`, `first_event_s`, `last_event_s`, `span_s`, `last_event_type`,
+`tool_in_flight` and, when an outer timeout is supplied, `unresolved_tail_s`. It does
+not infer whether a gap is model reasoning or provider/transport latency. The benchmark
+passes the outer timeout only for timed-out runs. Frozen result files were not edited.
+
+### 11.6 Production versus benchmark iteration budgets
+
+The tracked production `opencode.jsonc` no longer sets `steps` on `orchestrator`,
+`executor` or `prestige`; normal OpenCode/PRESTIGE use must not inherit benchmark caps.
+The isolated per-run benchmark config now supplies explicit bounds instead:
+
+- KE orchestrator: `steps=8`;
+- bench (A/B/C/D/DD), KE executor and DP prestige: `steps=40`.
+
+These are the documented `BENCHMARK_PLANNER_STEPS` / `BENCHMARK_EXECUTION_STEPS`
+constants and preserve the previous 8/40/40 harness behavior. The `DP` config deep-copies
+the production prestige agent and then sets its own cap, so it cannot inherit an uncapped
+production agent. The outer subprocess timeout, bounded repetitions, operator
+token/attempt guardrails and PRESTIGE `max_turns`/`max_seconds` controls remain in force.
+Historical configs, results and `benchmark-results/v3_2_diag.json` are unchanged.
+
+### 11.7 Validation evidence
+
+- Focused suite (`test_submission`, `test_ctf_benchmark`, `test_workspace_tools`,
+  `test_adaptive_conditions`, `test_model_routing`, `test_adversarial_resilience`,
+  `test_mcp_server`): **110 passed, 2 skipped**.
+- Full offline suite: **441 passed, 10 skipped**.
+- `ruff check .`: clean.
+- `python -m build`: sdist and wheel built successfully.
+- `python -m prestige --help`: successful.
+- `git diff --check`: clean.
+- Frozen V3.2 results, `benchmark-results/v3_2_diag.json`, challenge sources, scope rules
+  and permissions are unchanged.
+
+Remaining limitation: the native `skill` tool can still appear in the provider inventory
+on this OpenCode build. The fix reduces misuse through prompt and MCP guidance; it does
+not remove the tool. Request-level provider latency remains unavailable in the event
+stream, so the timing fields describe observed timeline gaps without assigning cause.

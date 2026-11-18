@@ -125,6 +125,29 @@ stagnation plus enough remaining attempts/time. It never changes lane, model, pr
 scope. The independent hypothesis evaluator uses the same signal to avoid escalating a
 pending or merely difficult test.
 
+### Production versus benchmark budget ownership
+
+Budget limits have two separate owners and must not leak across the boundary:
+
+- **Production**: the tracked root `opencode.jsonc` deliberately defines no `steps` field
+  for `orchestrator`, `executor` or `prestige`. Normal OpenCode/PRESTIGE use is therefore
+  not capped by benchmark iteration counts. Real limits remain the OpenCode session/runtime
+  and the trusted Python broker: PRESTIGE lane ceilings, operator-requested
+  `max_turns`/`max_seconds`, tool attempts, per-tool deadlines and wall clock.
+- **Benchmark**: `run_condition` writes an isolated `opencode.json` inside each fresh
+  benchmark work directory. Every generated agent definition in that file carries an
+  explicit positive `steps` ceiling: **8** for the KE planner/orchestrator and **40** for
+  bench, DD, KE executor, C/D and DP PRESTIGE agents. These constants preserve the former
+  8/40/40 harness bounds. The benchmark also keeps the outer subprocess wall-clock timeout
+  (`seconds`), bounded repetitions, per-run operator token/attempt guardrails and the
+  PRESTIGE prompt's `max_turns=30` / `max_seconds=seconds-30` creation budget.
+
+The production absence of `steps` cannot weaken a benchmark run because the benchmark
+config is explicitly constructed rather than inherited. In particular, `DP` deep-copies
+the production `prestige` agent and then sets its own `steps` value, so an uncapped
+production agent is never used for benchmark measurement. Historical benchmark configs,
+results and measurements are left unchanged.
+
 ## Skills and learning
 
 Web research supports DuckDuckGo HTML, Tavily (API key from the environment) and an

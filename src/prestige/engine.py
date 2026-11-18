@@ -32,6 +32,7 @@ def new_run(
     live=False,
     runner_image=None,
     max_artifact_mib=1,
+    artifact_surface="cli",
     requested_budget=None,
     openai_base_url=None,
     openai_api_key=None,
@@ -60,6 +61,8 @@ def new_run(
         DockerRunner(runner_image)  # validates immutable digest format
     if not 1 <= max_artifact_mib <= 256:
         raise PrestigeError("max-artifact-mib must be between 1 and 256")
+    if artifact_surface not in {"cli", "mcp"}:
+        raise PrestigeError("Unknown artifact surface")
     # Provider secrets are never persisted in investigation state.
     run_id = store.create_run(
         mode,
@@ -74,6 +77,7 @@ def new_run(
             "live": live,
             "runner_image": runner_image,
             "max_artifact_mib": max_artifact_mib,
+            "artifact_surface": artifact_surface,
             "openai_base_url": openai_base_url,
             "openai_model": openai_model,
         },

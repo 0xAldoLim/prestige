@@ -377,6 +377,44 @@ def test_blind_mode_preloads_no_answer_commitment(tmp_path):
     assert not (Path(result["state_dir"]) / "commitments.json").exists()
 
 
+async def test_submit_final_rejects_placeholders_and_accepts_flag_shapes(tmp_path):
+    challenge = tmp_path / "challenge.txt"
+    challenge.write_bytes(b"offline")
+    for index, candidate in enumerate(("TBD", "NO_FLAG", "N/A", "unsolved")):
+        submission = tmp_path / f"placeholder-{index}.json"
+        os.environ["PRESTIGE_BENCH_SUBMISSION"] = str(submission)
+        try:
+            async with _mcp_client(tmp_path / f"home-{index}") as session:
+                run_id, _, _ = await _create(session, challenge)
+                result = await _call(
+                    session,
+                    "prestige_submit_final",
+                    {"run_id": run_id, "candidate": candidate},
+                )
+                assert result["status"] == "denied"
+                assert "placeholder" in result["reason"]
+                assert not submission.exists()
+        finally:
+            os.environ.pop("PRESTIGE_BENCH_SUBMISSION", None)
+    for index, candidate in enumerate(
+        ("SAS{shape_valid_answer}", "flag{static_deployment_decoy}")
+    ):
+        submission = tmp_path / f"shape-{index}.json"
+        os.environ["PRESTIGE_BENCH_SUBMISSION"] = str(submission)
+        try:
+            async with _mcp_client(tmp_path / f"shape-home-{index}") as session:
+                run_id, _, _ = await _create(session, challenge)
+                result = await _call(
+                    session,
+                    "prestige_submit_final",
+                    {"run_id": run_id, "candidate": candidate},
+                )
+                assert result["status"] == "submitted"
+                assert json.loads(submission.read_text())["flag"] == candidate
+        finally:
+            os.environ.pop("PRESTIGE_BENCH_SUBMISSION", None)
+
+
 async def test_submit_final_rejects_nested_json(tmp_path):
     home = tmp_path / "state"
     submission = tmp_path / "submission.json"

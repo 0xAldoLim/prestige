@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from prestige.ctf_benchmark import (
+    BENCHMARK_EXECUTION_STEPS,
     _digest_tree,
     inventory,
     load_answers,
@@ -115,6 +116,78 @@ def test_parse_jsonl_measures_real_usage():
     assert parsed["model_inference_observed"] is True
 
 
+def test_parse_jsonl_records_factual_timeline_without_cause():
+    lines = [
+        json.dumps({"type": "step_start", "sessionID": "ses_t", "timestamp": 1000.0}),
+        json.dumps(
+            {
+                "type": "tool_use",
+                "sessionID": "ses_t",
+                "timestamp": 1002.5,
+                "part": {
+                    "id": "tool-1",
+                    "tool": "shell",
+                    "state": {"status": "running"},
+                },
+            }
+        ),
+        json.dumps(
+            {
+                "type": "tool_use",
+                "sessionID": "ses_t",
+                "timestamp": 1004.0,
+                "part": {
+                    "id": "tool-1",
+                    "tool": "shell",
+                    "state": {"status": "completed"},
+                },
+            }
+        ),
+        json.dumps({"type": "step_start", "sessionID": "ses_t", "timestamp": 1010.0}),
+    ]
+    parsed = parse_jsonl("\n".join(lines), outer_seconds=180)
+    timing = parsed["timing"]
+    assert timing["timing_observed"] is True
+    assert timing["first_event_s"] == 1000.0
+    assert timing["last_event_s"] == 1010.0
+    assert timing["span_s"] == 10.0
+    assert timing["unresolved_tail_s"] == 170.0
+    assert timing["last_event_type"] == "step_start"
+    assert timing["tool_in_flight"] is False
+
+
+def test_parse_jsonl_flags_unfinished_tool_and_normalises_milliseconds():
+    lines = [
+        json.dumps({"type": "step_start", "sessionID": "ses_t", "timestamp": 1700000000000}),
+        json.dumps(
+            {
+                "type": "tool_use",
+                "sessionID": "ses_t",
+                "timestamp": 1700000005000,
+                "part": {
+                    "id": "tool-open",
+                    "tool": "command",
+                    "state": {"status": "running"},
+                },
+            }
+        ),
+    ]
+    timing = parse_jsonl("\n".join(lines), outer_seconds=30)["timing"]
+    assert timing["span_s"] == 5.0
+    assert timing["unresolved_tail_s"] == 25.0
+    assert timing["tool_in_flight"] is True
+    assert timing["last_event_type"] == "tool_use"
+
+
+def test_parse_jsonl_without_timestamps_does_not_invent_timing():
+    parsed = parse_jsonl(
+        json.dumps({"type": "step_start", "sessionID": "ses_t"}), outer_seconds=180
+    )
+    assert parsed["timing"]["timing_observed"] is False
+    assert "span_s" not in parsed["timing"]
+    assert "unresolved_tail_s" not in parsed["timing"]
+
+
 def test_private_answers_are_validated(tmp_path):
     path = tmp_path / "answers.json"
     path.write_text(json.dumps({"demo": {"sha256": "a" * 64}}))
@@ -158,6 +231,53 @@ def test_run_condition_uses_isolated_pwd_and_env(tmp_path):
     env_line = (Path(result["workdir"]) / "env.txt").read_text()
     assert env_line.startswith(result["workdir"] + ":")
     assert env_line.endswith(":")
+
+
+def test_benchmark_step_cap_does_not_replace_outer_or_runtime_budgets(
+    monkeypatch, tmp_path
+):
+    captured = {}
+
+    def fake_run(cmd, cwd, env, timeout):
+        captured["cmd"] = cmd
+        captured["timeout"] = timeout
+        return "", "", 0, False
+
+    monkeypatch.setattr("prestige.ctf_benchmark._run_streaming", fake_run)
+    view = tmp_path / "view"
+    (view / "challenge").mkdir(parents=True)
+    (view / "README.md").write_text("demo")
+    (view / "challenge" / "f").write_bytes(b"x")
+    result = run_condition(
+        view,
+        "DP",
+        model="fake/model",
+        output=tmp_path / "out-budget",
+        answers={},
+        challenge="demo",
+        seconds=180,
+        executable="opencode",
+    )
+    assert result["status"] == "completed"
+    assert captured["timeout"] == 180
+    prompt = captured["cmd"][-1]
+    assert "max_turns=30" in prompt
+    assert "max_seconds=150" in prompt
+    assert result["config"]["agents"]["prestige"]["steps"] == (
+        BENCHMARK_EXECUTION_STEPS
+    )
+
+
+def test_run_matrix_keeps_the_bounded_attempt_policy(tmp_path):
+    with pytest.raises(ValueError):
+        run_matrix(
+            tmp_path / "views",
+            [],
+            [],
+            output=tmp_path / "out",
+            answers={},
+            repetitions=0,
+        )
 
 
 def _fake_with_submission(tmp_path, flag: str | None):
@@ -294,8 +414,10 @@ def test_repetitions_and_resume_do_not_duplicate_runs(tmp_path):
     )
     first = run_matrix(tmp_path / "views", ["demo"], ["A"], **kwargs)
     assert first["attempts"] == 2
+    assert first["seconds_budget"] == 30
     second = run_matrix(tmp_path / "views", ["demo"], ["A"], **kwargs)
     assert second["attempts"] == 2
+    assert second["seconds_budget"] == 30
     assert len({(r["condition"], r["attempt"]) for r in second["results"]}) == 2
 
 

@@ -14,6 +14,14 @@ The execution model is **DeepSeek V4.1 Flash 1017**.
 Flash Free and V4 Pro are disabled. This configuration is committed
 to Git and does not require temporary environment overrides.
 
+Production agents intentionally define **no** `steps` field. Iteration caps are owned by
+the isolated benchmark runner, which writes per-run agent configs with explicit bounds
+(8 planner, 40 execution). Normal OpenCode/PRESTIGE use is limited by the OpenCode
+session and the PRESTIGE broker's lane, attempt, `max_turns`/`max_seconds`, per-tool and
+wall-clock budgets, not by benchmark caps. See
+[ARCHITECTURE.md](ARCHITECTURE.md#production-versus-benchmark-budget-ownership) and
+[ADAPTIVE_EXECUTION_PILOT.md](benchmarks/ADAPTIVE_EXECUTION_PILOT.md#431-production-versus-benchmark-budget-ownership).
+
 Start a new OpenCode conversation after applying this change.
 Historical routing traces below describe earlier configurations.
 The paid 30-attempt benchmark remains gated on explicit budget approval.
@@ -152,13 +160,18 @@ assigned models.
 internal hidden `compaction`, `summary` and `title` helpers:
 
 ```text
-orchestrator  mode=primary   model=opencode-go/kimi-k3.1-pro          steps=8
-executor      mode=subagent  model=opencode/deepseek-v4.1-flash-free  steps=40
-prestige      mode=all       model=opencode/deepseek-v4.1-flash-free  steps=40
+orchestrator  mode=primary   model=opencode-go/kimi-k3.1-pro          (no steps cap)
+executor      mode=subagent  model=opencode/deepseek-v4.1-flash-free  (no steps cap)
+prestige      mode=all       model=opencode/deepseek-v4.1-flash-free  (no steps cap)
 compaction    mode=primary   model=opencode/deepseek-v4.1-flash-free
 summary       mode=primary   model=opencode/deepseek-v4.1-flash-free
 title         mode=primary   model=opencode/deepseek-v4.1-flash-free
 ```
+
+The `steps=8/40/40` values in older traces were benchmark-derived caps that had leaked
+into production. They now exist only in the isolated per-run benchmark configuration;
+the offline regression suite asserts that the tracked production agents have no `steps`
+key and that every generated benchmark agent has a positive bounded cap.
 
 `build`, `plan`, `general` and `explore` were absent. `opencode models` returned
 exactly the two authorized routes above. The first debug call after a config edit

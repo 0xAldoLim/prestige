@@ -5,7 +5,10 @@ import json
 from prestige.ctf_benchmark import (
     ADAPTIVE_AGENTS,
     BENCHMARK_CONDITIONS,
+    BENCHMARK_EXECUTION_STEPS,
+    BENCHMARK_PLANNER_STEPS,
     _agent_config,
+    _checked_in_agents,
     _command,
     _endpoint_instructions,
     _endpoint_registration,
@@ -70,6 +73,56 @@ def test_dp_pins_deepseek_prestige_and_mcp_only(tmp_path):
     assert {"action": "prestige_*", "resource": "*", "effect": "allow"} in permissions
 
 
+def test_every_generated_benchmark_agent_has_an_explicit_bounded_step_cap(tmp_path):
+    home, allowed, submission = _paths(tmp_path)
+    for condition in BENCHMARK_CONDITIONS:
+        config = _agent_config(condition, home, allowed, submission)
+        assert config["agents"], condition
+        for name, agent in config["agents"].items():
+            steps = agent.get("steps")
+            assert type(steps) is int, (condition, name)
+            assert 1 <= steps <= BENCHMARK_EXECUTION_STEPS, (condition, name, steps)
+    assert (
+        _agent_config("KE", home, allowed, submission)["agents"]["orchestrator"][
+            "steps"
+        ]
+        == BENCHMARK_PLANNER_STEPS
+    )
+    assert (
+        _agent_config("KE", home, allowed, submission)["agents"]["executor"]["steps"]
+        == BENCHMARK_EXECUTION_STEPS
+    )
+    for condition in ("DD", "DP", "A", "B", "C", "D"):
+        for agent in _agent_config(condition, home, allowed, submission)["agents"].values():
+            assert agent["steps"] == BENCHMARK_EXECUTION_STEPS, condition
+
+
+def test_ke_keeps_separate_planner_and_execution_models_with_caps(tmp_path):
+    home, allowed, submission = _paths(tmp_path)
+    config = _agent_config("KE", home, allowed, submission)
+    assert config["agents"]["orchestrator"]["model"] == "opencode-go/kimi-k3.1-pro"
+    assert config["agents"]["executor"]["model"] == "opencode-go/deepseek-v4.1-flash"
+    assert (
+        config["agents"]["orchestrator"]["model"]
+        != config["agents"]["executor"]["model"]
+    )
+    assert config["agents"]["orchestrator"]["steps"] == BENCHMARK_PLANNER_STEPS
+    assert config["agents"]["executor"]["steps"] == BENCHMARK_EXECUTION_STEPS
+
+
+def test_dp_never_inherits_the_uncapped_production_prestige_agent(tmp_path):
+    # Production intentionally has no step cap; the DP benchmark copy must still
+    # carry its own explicit bound instead of inheriting that absence.
+    assert "steps" not in _checked_in_agents()["prestige"]
+    home, allowed, submission = _paths(tmp_path)
+    config = _agent_config("DP", home, allowed, submission)
+    assert set(config["agents"]) == {"prestige"}
+    assert config["agents"]["prestige"]["steps"] == BENCHMARK_EXECUTION_STEPS
+    assert config["agents"]["prestige"]["model"] == (
+        _checked_in_agents()["prestige"]["model"]
+    )
+
+
 def test_adaptive_commands_pin_agent_and_skip_global_model_override():
     for condition, agent in ADAPTIVE_AGENTS.items():
         command = _command("unused/model", "opencode", condition, agent)
@@ -130,6 +183,39 @@ def test_adaptive_prompts_keep_conditions_separate(tmp_path):
     assert "prestige_target_bind" not in ke
     assert "prestige_create_investigation" in dp
     assert "prestige_target_bind" in dp
+
+
+def test_benchmark_prompts_guide_native_skill_and_worker_paths(tmp_path):
+    view = tmp_path / "view"
+    view.mkdir()
+    source = view / "challenge"
+    source.mkdir()
+    submission = tmp_path / "submission.json"
+    skills = tmp_path / "skills"
+    for condition in ("B", "C", "D", "DD", "KE", "DP"):
+        prompt = _prompt(
+            condition,
+            view,
+            skills,
+            180,
+            source,
+            submission,
+            {"registration_id": "svc", "port": 31337},
+        )
+        assert "native skill tool" in prompt, condition
+        assert "host paths" in prompt, condition
+        if condition in {"C", "D", "DP"}:
+            assert "/work/input" in prompt and "/work/output" in prompt, condition
+        else:
+            assert "/work/input" not in prompt, condition
+    for condition in ("C", "DP"):
+        prompt = _prompt(condition, view, skills, 180, source, submission)
+        assert "prestige_skills_search" in prompt, condition
+        assert "prestige_skills_apply" in prompt, condition
+        assert "valid IDs" in prompt, condition
+    assert "never guess skill IDs" in _prompt(
+        "DP", view, skills, 180, source, submission
+    )
 
 
 def test_public_redaction_removes_answer_hashes_and_private_paths():

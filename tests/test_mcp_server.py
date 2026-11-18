@@ -79,6 +79,38 @@ async def test_mcp_lists_prestige_tools(tmp_path):
         }
 
 
+async def test_mcp_skill_tools_guide_away_from_native_skill(tmp_path):
+    async with _mcp_client(tmp_path) as session:
+        tools = {tool.name: tool for tool in (await session.list_tools()).tools}
+    for name in ("prestige_skills_discover", "prestige_skills_search", "prestige_skills_apply"):
+        description = tools[name].description.lower()
+        assert "native skill" in description, name
+        assert "id" in description, name
+    assert "returned by" in tools["prestige_skills_apply"].description.lower()
+
+
+async def test_mcp_source_artifact_limit_is_actionable_and_recoverable(tmp_path):
+    path = tmp_path / "large.bin"
+    path.write_bytes(b"x" * (2 * 1024 * 1024))
+    async with _mcp_client(tmp_path) as session:
+        denied = await session.call_tool(
+            "prestige_create_investigation", {"source_path": str(path), "backend": "fake"}
+        )
+        body = json.loads(denied.content[0].text)
+        assert body["status"] == "denied"
+        reason = body["reason"]
+        assert "2.00 MiB" in reason
+        assert "1.00 MiB" in reason
+        assert "max_artifact_mib" in reason
+        assert "1..256" in reason
+        assert "--max-artifact-mib" not in reason
+        accepted = await session.call_tool(
+            "prestige_create_investigation",
+            {"source_path": str(path), "backend": "fake", "max_artifact_mib": 2},
+        )
+        assert json.loads(accepted.content[0].text)["status"] == "ready"
+
+
 async def test_mcp_create_and_status_roundtrip(tmp_path):
     value = b"SYNTHETIC{mcp_roundtrip}"
     path = tmp_path / "challenge.txt"

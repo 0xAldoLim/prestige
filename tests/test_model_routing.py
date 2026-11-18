@@ -105,6 +105,13 @@ def test_exact_agent_models_and_modes():
     assert agents["prestige"]["mode"] == "all"
 
 
+def test_production_agents_have_no_benchmark_step_caps():
+    """Benchmark iteration caps must live only in isolated per-run configs."""
+    agents = _config()["agents"]
+    for agent_id in ("orchestrator", "executor", "prestige"):
+        assert "steps" not in agents[agent_id], agent_id
+
+
 def test_helpers_use_the_free_route_not_the_paid_provider():
     agents = _config()["agents"]
     for helper in ("compaction", "title", "summary"):
@@ -178,6 +185,19 @@ def test_prestige_keeps_host_tool_denials_and_mcp_allowlist():
     assert _effective(prestige, "prestige_prestige_exec", "*") == "allow"
     assert _effective(prestige, "prestige_prestige_run_experiment", "*") == "allow"
     assert _effective(prestige, "prestige_prestige_submit_final", "*") == "allow"
+
+
+def test_prestige_prompt_guides_native_skill_and_worker_paths():
+    system = _config()["agents"]["prestige"]["system"]
+    assert "native skill tool" in system
+    assert "prestige_skills_search" in system
+    assert "prestige_skills_apply" in system
+    assert "Do not call the native skill tool or guess skill IDs" in system
+    assert "source_path and skills paths are host paths" in system
+    assert "/work/input" in system and "/work/output" in system
+    assert "prestige_exec or prestige_run_experiment" in system
+    # The provider-side tool remains available, but permission denial is unchanged.
+    assert _effective(_config()["agents"]["prestige"], "skill", "*") == "deny"
 
 
 def test_provider_policy_allows_only_the_two_authorized_routes():

@@ -26,12 +26,20 @@ from pathlib import Path
 from prestige.commitments import add_commitment
 from prestige.remote import Registration, save_registrations
 from prestige.store import Store
+from prestige.submission import placeholder_reason
 
 MAX_TEXT = 262144
 
 ADAPTIVE_CONDITIONS = ("DD", "KE", "DP")
 BENCHMARK_CONDITIONS = ("A", "B", "C", "D", *ADAPTIVE_CONDITIONS)
 ADAPTIVE_AGENTS = {"DD": "bench", "KE": "orchestrator", "DP": "prestige"}
+
+# Benchmark-only OpenCode step ceilings. These preserve the 8/40/40 bounds that
+# were previously present in production agents, but they are applied only to the
+# isolated per-run benchmark configs. Tracked production agents intentionally have
+# no "steps" field so normal OpenCode/PRESTIGE use does not inherit benchmark caps.
+BENCHMARK_PLANNER_STEPS = 8
+BENCHMARK_EXECUTION_STEPS = 40
 
 # Paid DeepSeek Flash 1017 execution route. Benchmark runs require budget approval.
 FREE_EXECUTION_MODEL = "opencode-go/deepseek-v4.1-flash"
@@ -179,6 +187,8 @@ def read_submission(path: Path) -> dict:
     candidate = candidate.strip()
     if any(ord(char) < 0x20 or ord(char) == 0x7F for char in candidate):
         return {"status": "invalid", "candidate": None, "sha256": None}
+    if placeholder_reason(candidate):
+        return {"status": "invalid", "candidate": None, "sha256": None}
     return {
         "status": "valid",
         "candidate": candidate,
@@ -207,6 +217,7 @@ def _adaptive_agent_config(
                     "mode": "primary",
                     "description": "DeepSeek free direct benchmark agent",
                     "model": FREE_EXECUTION_MODEL,
+                    "steps": BENCHMARK_EXECUTION_STEPS,
                     "permissions": [{"action": "*", "resource": "*", "effect": "allow"}],
                 }
             }
@@ -214,7 +225,10 @@ def _adaptive_agent_config(
     if condition == "KE":
         # Exact checked-in definitions with only the PRESTIGE delegation removed:
         # this condition must not acquire PRESTIGE tools or a second executor path.
+        # Step ceilings are set here explicitly because production agents no longer
+        # carry a "steps" field.
         orchestrator = deepcopy(agents["orchestrator"])
+        orchestrator["steps"] = BENCHMARK_PLANNER_STEPS
         orchestrator["permissions"] = [
             rule
             for rule in orchestrator.get("permissions", [])
@@ -225,14 +239,20 @@ def _adaptive_agent_config(
         ).replace(
             ", or to the `prestige` subagent for CTF challenge work", ""
         )
+        executor = deepcopy(agents["executor"])
+        executor["steps"] = BENCHMARK_EXECUTION_STEPS
         return {
             "agents": {
                 "orchestrator": orchestrator,
-                "executor": deepcopy(agents["executor"]),
+                "executor": executor,
             }
         }
     if condition == "DP":
-        config = {"agents": {"prestige": deepcopy(agents["prestige"])}}
+        # Never inherit an uncapped production PRESTIGE agent. The benchmark copy
+        # always receives its own explicit execution-step bound.
+        prestige = deepcopy(agents["prestige"])
+        prestige["steps"] = BENCHMARK_EXECUTION_STEPS
+        config = {"agents": {"prestige": prestige}}
         config["mcp"] = {
             "servers": {
                 "prestige": {
@@ -265,6 +285,7 @@ def _agent_config(
     base = {
         "mode": "primary",
         "description": "CTF benchmark agent",
+        "steps": BENCHMARK_EXECUTION_STEPS,
         "permissions": [{"action": "*", "resource": "*", "effect": "allow"}],
     }
     if condition == "D":
@@ -273,7 +294,11 @@ def _agent_config(
             "system": (
                 "You are PRESTIGE V3. Use only prestige_* tools. Create ONE "
                 "investigation, then use prestige_exec/run_experiment with the isolated "
-                "worker's broad tools. Avoid repeated status/create calls; escalate only "
+                "worker's broad tools. Do not call the native skill tool or guess skill "
+                "IDs; use prestige_skills_search then prestige_skills_apply with returned "
+                "valid IDs. Worker files are at /work/input (read-only) and /work/output "
+                "(writable); use prestige_exec, not host read/write. Avoid repeated "
+                "status/create calls; escalate only "
                 "when evidence stalls. The final answer is independently checked by the "
                 "operator; submit it once with prestige_submit_final even if internal "
                 "verification is unavailable. Never claim a verified solve without a "
@@ -366,7 +391,14 @@ def _prompt(
         f"object to {submission} with the form "
         '{"flag": "<exact final flag>"}. Do not rely on chat text, intermediate '
         "tool output, or a speculative candidate. Do not submit until you have chosen "
-        "your final answer.\n"
+        "your final answer.\n\n"
+        "PATH NOTE: workspace, source_path, skills and submission paths in this prompt "
+        "are host paths. Use host read/write only for those paths.\n\n"
+    )
+    worker_note = (
+        "WORKER PATH NOTE: an isolated PRESTIGE worker sees read-only artifact copies at "
+        "/work/input and writable output at /work/output; use prestige_exec or "
+        "prestige_run_experiment for worker files, never host read/write.\n"
     )
     if endpoint:
         base += (
@@ -379,14 +411,19 @@ def _prompt(
     if condition == "B":
         return (
             base
-            + f"You may consult the owner's CTF skills read-only at {skills} when useful.\n"
+            + f"You may consult the owner's CTF skills read-only at {skills} when useful. "
+            "Do not call the native skill tool or guess skill IDs; use the host skills "
+            "path directly.\n"
             "Write the submission file yourself before finishing.\n"
         )
     if condition == "C":
         return (
             base
+            + worker_note
             + f"You may consult skills at {skills} and use standard tools plus prestige_* "
-            "MCP tools. If you create a PRESTIGE investigation, use "
+            "MCP tools. Do not call the native skill tool or guess skill IDs; use "
+            "prestige_skills_search then prestige_skills_apply with returned valid IDs. "
+            "If you create a PRESTIGE investigation, use "
             f"source_path={source}. Submit with prestige_submit_final (using its run_id) "
             "or write the submission file; do not submit more than once. The operator "
             "checker is external, so internal verification may be unavailable. "
@@ -402,6 +439,8 @@ def _prompt(
             base
             + "Use standard tools. "
             + (f"You may consult the owner's CTF skills read-only at {skills}. " if skills else "")
+            + "Do not call the native skill tool or guess skill IDs; use the host skills "
+            "path directly. "
             + "Write the submission file yourself exactly once before finishing.\n"
         )
     if condition == "KE":
@@ -411,15 +450,19 @@ def _prompt(
             "subagent; give it a complete task with acceptance criteria and let it work "
             "autonomously. "
             + (f"The executor may consult the owner's CTF skills read-only at {skills}. " if skills else "")
+            + "Do not call the native skill tool or guess skill IDs. "
             + "Have the executor write the submission file exactly once before finishing.\n"
         )
     if condition == "DP":
         return (
             base
+            + worker_note
             + "Use the PRESTIGE workflow only. Standard shell/read/write tools are denied; "
             "retrying them wastes the budget. Call prestige_create_investigation with "
             f"source_path={source}, mode=auto, max_turns=30, "
-            f"max_seconds={max(30, seconds - 30)}. Use prestige_skills_apply, "
+            f"max_seconds={max(30, seconds - 30)}. Do not call the native skill tool or "
+            "guess skill IDs. Use prestige_skills_search and then "
+            "prestige_skills_apply with returned valid IDs; never guess skill IDs. Use "
             "prestige_hypothesis_add, prestige_exec or prestige_run_experiment with the "
             "isolated worker's tools, and prestige_verify_candidate. Do not repeat "
             "status/create calls without new evidence. Submit the final answer exactly "
@@ -434,10 +477,13 @@ def _prompt(
         )
     return (
         base
+        + worker_note
         + "Use the PRESTIGE workflow only. Standard shell/read/write tools are denied; "
         "retrying them wastes the budget. Call prestige_create_investigation with "
         f"source_path={source}, max_turns=30, max_seconds={max(30, seconds - 30)}. "
-        "Then use prestige_skills_apply, prestige_hypothesis_add, prestige_exec or "
+        "Then use prestige_skills_search and prestige_skills_apply with returned valid "
+        "IDs; never call the native skill tool or guess skill IDs. Use "
+        "prestige_hypothesis_add, prestige_exec or "
         "prestige_run_experiment with the isolated worker's tools (shell, python, file, "
         "strings, pdf, transforms, gdb/radare2/ghidra when installed), and "
         "prestige_verify_candidate. Do not repeat status/create calls without new "
@@ -476,7 +522,23 @@ def _command(
     return command
 
 
-def parse_jsonl(text: str) -> dict:
+def _event_time(event: dict) -> float | None:
+    """Read one numeric event timestamp without assuming a single event shape."""
+    values = []
+    for key in ("timestamp", "created"):
+        values.append(event.get(key))
+    for container in (event.get("time"), (event.get("part") or {}).get("time")):
+        if isinstance(container, dict):
+            values.extend(container.get(key) for key in ("created", "start", "end"))
+    for value in values:
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            continue
+        stamp = float(value)
+        return stamp / 1000.0 if abs(stamp) > 1e11 else stamp
+    return None
+
+
+def parse_jsonl(text: str, outer_seconds: float | None = None) -> dict:
     events = []
     for line in text.splitlines():
         try:
@@ -493,10 +555,18 @@ def parse_jsonl(text: str) -> dict:
     text_parts = []
     sessions = set()
     steps = 0
+    timestamps = []
+    last_event_type = None
+    open_tools = set()
     for event in events:
         part = event.get("part") or {}
         if event.get("sessionID"):
             sessions.add(event["sessionID"])
+        stamp = _event_time(event)
+        if stamp is not None:
+            timestamps.append(stamp)
+        if event.get("type"):
+            last_event_type = str(event["type"])
         if event.get("type") == "text":
             value = part.get("text")
             if isinstance(value, str):
@@ -505,6 +575,11 @@ def parse_jsonl(text: str) -> dict:
             tool_calls += 1
             tool_names.append(str(part.get("tool", ""))[:128])
             state = part.get("state") or {}
+            tool_id = str(part.get("id") or event.get("id") or f"tool-{tool_calls}")
+            if state.get("status") in {"streaming", "running"}:
+                open_tools.add(tool_id)
+            else:
+                open_tools.discard(tool_id)
             if state.get("status") in {"error", "failed"}:
                 failed_tools += 1
         if event.get("type") == "step_finish":
@@ -517,6 +592,21 @@ def parse_jsonl(text: str) -> dict:
             tokens["cache_read"] += int(cache.get("read") or 0)
             tokens["cache_write"] += int(cache.get("write") or 0)
             cost += float(part.get("cost") or 0)
+    timing = {
+        "timing_observed": bool(timestamps),
+        "last_event_type": last_event_type,
+        "tool_in_flight": bool(open_tools),
+    }
+    if timestamps:
+        first = timestamps[0]
+        last = timestamps[-1]
+        timing["first_event_s"] = round(first, 3)
+        timing["last_event_s"] = round(last, 3)
+        timing["span_s"] = round(max(0.0, last - first), 3)
+        if outer_seconds is not None:
+            timing["unresolved_tail_s"] = round(
+                max(0.0, float(outer_seconds) - timing["span_s"]), 3
+            )
     return {
         "events": len(events),
         "steps": steps,
@@ -528,6 +618,7 @@ def parse_jsonl(text: str) -> dict:
         "failed_tools": failed_tools,
         "tool_names": tool_names[:200],
         "prestige_tool_calls": sum("prestige" in name for name in tool_names),
+        "timing": timing,
         "text": "\n".join(text_parts)[:MAX_TEXT],
         "model_inference_observed": bool(steps and sessions),
     }
@@ -852,7 +943,7 @@ def run_condition(
         _command(model, executable, condition, agent) + [prompt], work, env, seconds
     )
     elapsed = time.monotonic() - started
-    parsed = parse_jsonl(stdout)
+    parsed = parse_jsonl(stdout, outer_seconds=seconds if timed_out else None)
     (run_root / "events.jsonl").write_text(stdout, encoding="utf-8")
     (run_root / "final.txt").write_text(parsed["text"], encoding="utf-8")
     (run_root / "stderr.txt").write_text(stderr, encoding="utf-8")

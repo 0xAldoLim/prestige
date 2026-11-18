@@ -1,0 +1,441 @@
+{
+  "arms": [
+    "DP-frozen",
+    "DP-preprimed"
+  ],
+  "attempts_planned": 6,
+  "attempts_recorded": 6,
+  "benchmark": "V3.2 web-naas setup-friction diagnostic (separate from frozen V3.2)",
+  "by_arm": {
+    "DP-frozen": {
+      "attempts": 3,
+      "cache_read_tokens": 1133184,
+      "cache_write_tokens": 0,
+      "completed": 0,
+      "cost": 0.099488,
+      "deterministic_setup_failure_categories": {
+        "investigation_create": 3
+      },
+      "deterministic_setup_failures": 3,
+      "duplicate_tool_calls": 0,
+      "failed_runs": 0,
+      "failed_tools": 17,
+      "infrastructure_failures": 0,
+      "input_tokens": 220168,
+      "live_interactions": 0,
+      "max_seconds": 180.034,
+      "median_seconds": 180.026,
+      "median_time_to_first_live_s": null,
+      "missing_submissions": 3,
+      "model_stall_timeouts": 0,
+      "output_tokens": 8253,
+      "reasoning_tokens": 13946,
+      "runs_with_live_interaction": 0,
+      "runs_with_zero_deterministic_setup_failures": 0,
+      "runs_with_zero_setup_failures": 0,
+      "setup_failure_categories": {
+        "invalid_skill": 14,
+        "investigation_create": 3
+      },
+      "setup_failures": 17,
+      "timeouts": 3,
+      "tool_calls": 70,
+      "verified": 0,
+      "verified_independently": 0,
+      "wall_timeout_active": 3,
+      "wrong_submissions": 0
+    },
+    "DP-preprimed": {
+      "attempts": 3,
+      "cache_read_tokens": 1310336,
+      "cache_write_tokens": 0,
+      "completed": 2,
+      "cost": 0.089212,
+      "deterministic_setup_failure_categories": {},
+      "deterministic_setup_failures": 0,
+      "duplicate_tool_calls": 0,
+      "failed_runs": 0,
+      "failed_tools": 3,
+      "infrastructure_failures": 0,
+      "input_tokens": 229977,
+      "live_interactions": 2,
+      "max_seconds": 180.031,
+      "median_seconds": 173.954,
+      "median_time_to_first_live_s": 85.932,
+      "missing_submissions": 0,
+      "model_stall_timeouts": 0,
+      "output_tokens": 9156,
+      "reasoning_tokens": 14713,
+      "runs_with_live_interaction": 2,
+      "runs_with_zero_deterministic_setup_failures": 3,
+      "runs_with_zero_setup_failures": 0,
+      "setup_failure_categories": {
+        "invalid_skill": 3
+      },
+      "setup_failures": 3,
+      "timeouts": 1,
+      "tool_calls": 61,
+      "verified": 0,
+      "verified_independently": 0,
+      "wall_timeout_active": 1,
+      "wrong_submissions": 3
+    }
+  },
+  "ceilings": {
+    "output_tokens": 100000,
+    "paid_attempts": 6,
+    "uncached_input_tokens": 500000
+  },
+  "claim": "Three correlated paired repetitions on one task are descriptive only; setup improvement without an independently verified solve is not evidence of general model incapability.",
+  "date": "2026-11-18",
+  "model": "opencode-go/deepseek-v4.1-flash",
+  "paid_model_attempts": 6,
+  "primary": {
+    "control_reproduced_friction": true,
+    "control_setup_failures": 17,
+    "criterion": "at least 2/3 treatment runs reach an authorized live-service interaction with zero setup failures while control reproduces setup friction",
+    "deterministic_setup_failures_control": 3,
+    "deterministic_setup_failures_treatment": 0,
+    "passed": false,
+    "treatment_live_and_zero_setup": 0,
+    "treatment_runs_with_live": 2,
+    "treatment_runs_with_zero_deterministic_setup": 3,
+    "treatment_runs_with_zero_setup": 0
+  },
+  "repetitions": 3,
+  "runs": [
+    {
+      "arm": "DP-preprimed",
+      "attempt": 2,
+      "checker_verified": false,
+      "cost": 0.018463649999999998,
+      "duplicate_tool_calls": 0,
+      "error_category": null,
+      "failed_tools": 1,
+      "fresh_run_root": true,
+      "infrastructure": false,
+      "live_interactions": 0,
+      "max_step_latency_s": 19.141,
+      "routing_agents": {
+        "prestige": 10
+      },
+      "routing_captured": true,
+      "routing_models": {
+        "opencode-go/deepseek-v4.1-flash": 10
+      },
+      "seconds": 180.031,
+      "setup_failure_categories": {
+        "invalid_skill": 1
+      },
+      "setup_failures": 1,
+      "stall_category": "wall_timeout_active",
+      "status": "timed_out",
+      "steps": 10,
+      "submission_status": "wrong",
+      "tail_s": 17.999,
+      "time_to_first_live_s": null,
+      "tokens": {
+        "cache_read": 375552,
+        "cache_write": 0,
+        "input": 79286,
+        "output": 2778,
+        "reasoning": 4481
+      },
+      "tool_calls": 19,
+      "tool_counts": {
+        "prestige_prestige_exec": 4,
+        "prestige_prestige_get_status": 1,
+        "prestige_prestige_run_experiment": 12,
+        "prestige_prestige_submit_final": 1,
+        "skill": 1
+      },
+      "total_tokens": 82064,
+      "treatment_setup": {
+        "artifact_bytes": 26702995,
+        "artifact_count": 81,
+        "bound": true,
+        "largest_artifact_bytes": 17403191
+      },
+      "verified": false,
+      "verified_independently": false
+    },
+    {
+      "arm": "DP-preprimed",
+      "attempt": 1,
+      "checker_verified": false,
+      "cost": 0.03125133,
+      "duplicate_tool_calls": 0,
+      "error_category": null,
+      "failed_tools": 1,
+      "fresh_run_root": true,
+      "infrastructure": false,
+      "live_interactions": 1,
+      "max_step_latency_s": 35.141,
+      "routing_agents": {
+        "prestige": 11
+      },
+      "routing_captured": true,
+      "routing_models": {
+        "opencode-go/deepseek-v4.1-flash": 11
+      },
+      "seconds": 167.92,
+      "setup_failure_categories": {
+        "invalid_skill": 1
+      },
+      "setup_failures": 1,
+      "stall_category": null,
+      "status": "completed",
+      "steps": 11,
+      "submission_status": "wrong",
+      "tail_s": null,
+      "time_to_first_live_s": 69.593,
+      "tokens": {
+        "cache_read": 322304,
+        "cache_write": 0,
+        "input": 59565,
+        "output": 3047,
+        "reasoning": 6493
+      },
+      "tool_calls": 20,
+      "tool_counts": {
+        "prestige_prestige_exec": 2,
+        "prestige_prestige_get_status": 1,
+        "prestige_prestige_remote_tcp": 1,
+        "prestige_prestige_run_experiment": 13,
+        "prestige_prestige_submit_final": 1,
+        "prestige_prestige_verify_candidate": 1,
+        "skill": 1
+      },
+      "total_tokens": 62612,
+      "treatment_setup": {
+        "artifact_bytes": 26702995,
+        "artifact_count": 81,
+        "bound": true,
+        "largest_artifact_bytes": 17403191
+      },
+      "verified": false,
+      "verified_independently": false
+    },
+    {
+      "arm": "DP-frozen",
+      "attempt": 1,
+      "checker_verified": false,
+      "cost": 0.02834964,
+      "duplicate_tool_calls": 0,
+      "error_category": null,
+      "failed_tools": 11,
+      "fresh_run_root": true,
+      "infrastructure": false,
+      "live_interactions": 0,
+      "max_step_latency_s": 22.525,
+      "routing_agents": {
+        "prestige": 19
+      },
+      "routing_captured": true,
+      "routing_models": {
+        "opencode-go/deepseek-v4.1-flash": 19
+      },
+      "seconds": 180.034,
+      "setup_failure_categories": {
+        "invalid_skill": 10,
+        "investigation_create": 1
+      },
+      "setup_failures": 11,
+      "stall_category": "wall_timeout_active",
+      "status": "timed_out",
+      "steps": 18,
+      "submission_status": "missing",
+      "tail_s": 23.034,
+      "time_to_first_live_s": null,
+      "tokens": {
+        "cache_read": 248192,
+        "cache_write": 0,
+        "input": 56799,
+        "output": 2546,
+        "reasoning": 5638
+      },
+      "tool_calls": 25,
+      "tool_counts": {
+        "prestige_prestige_create_investigation": 2,
+        "prestige_prestige_exec": 10,
+        "prestige_prestige_get_status": 1,
+        "prestige_prestige_run_experiment": 1,
+        "prestige_prestige_target_bind": 1,
+        "skill": 10
+      },
+      "total_tokens": 59345,
+      "treatment_setup": null,
+      "verified": false,
+      "verified_independently": false
+    },
+    {
+      "arm": "DP-frozen",
+      "attempt": 3,
+      "checker_verified": false,
+      "cost": 0.03813506,
+      "duplicate_tool_calls": 0,
+      "error_category": null,
+      "failed_tools": 1,
+      "fresh_run_root": true,
+      "infrastructure": false,
+      "live_interactions": 0,
+      "max_step_latency_s": 22.127,
+      "routing_agents": {
+        "prestige": 21
+      },
+      "routing_captured": true,
+      "routing_models": {
+        "opencode-go/deepseek-v4.1-flash": 21
+      },
+      "seconds": 180.023,
+      "setup_failure_categories": {
+        "investigation_create": 1
+      },
+      "setup_failures": 1,
+      "stall_category": "wall_timeout_active",
+      "status": "timed_out",
+      "steps": 21,
+      "submission_status": "missing",
+      "tail_s": 12.004,
+      "time_to_first_live_s": null,
+      "tokens": {
+        "cache_read": 585344,
+        "cache_write": 0,
+        "input": 89542,
+        "output": 3125,
+        "reasoning": 3342
+      },
+      "tool_calls": 25,
+      "tool_counts": {
+        "prestige_prestige_create_investigation": 2,
+        "prestige_prestige_exec": 17,
+        "prestige_prestige_run_experiment": 4,
+        "prestige_prestige_target_bind": 1,
+        "prestige_prestige_target_list": 1
+      },
+      "total_tokens": 92667,
+      "treatment_setup": null,
+      "verified": false,
+      "verified_independently": false
+    },
+    {
+      "arm": "DP-frozen",
+      "attempt": 2,
+      "checker_verified": false,
+      "cost": 0.03300359,
+      "duplicate_tool_calls": 0,
+      "error_category": null,
+      "failed_tools": 5,
+      "fresh_run_root": true,
+      "infrastructure": false,
+      "live_interactions": 0,
+      "max_step_latency_s": 39.208,
+      "routing_agents": {
+        "prestige": 20
+      },
+      "routing_captured": true,
+      "routing_models": {
+        "opencode-go/deepseek-v4.1-flash": 20
+      },
+      "seconds": 180.026,
+      "setup_failure_categories": {
+        "invalid_skill": 4,
+        "investigation_create": 1
+      },
+      "setup_failures": 5,
+      "stall_category": "wall_timeout_active",
+      "status": "timed_out",
+      "steps": 19,
+      "submission_status": "missing",
+      "tail_s": 18.82,
+      "time_to_first_live_s": null,
+      "tokens": {
+        "cache_read": 299648,
+        "cache_write": 0,
+        "input": 73827,
+        "output": 2582,
+        "reasoning": 4966
+      },
+      "tool_calls": 20,
+      "tool_counts": {
+        "prestige_prestige_create_investigation": 2,
+        "prestige_prestige_exec": 10,
+        "prestige_prestige_get_status": 1,
+        "prestige_prestige_run_experiment": 2,
+        "prestige_prestige_target_bind": 1,
+        "skill": 4
+      },
+      "total_tokens": 76409,
+      "treatment_setup": null,
+      "verified": false,
+      "verified_independently": false
+    },
+    {
+      "arm": "DP-preprimed",
+      "attempt": 3,
+      "checker_verified": false,
+      "cost": 0.039496689999999994,
+      "duplicate_tool_calls": 0,
+      "error_category": null,
+      "failed_tools": 1,
+      "fresh_run_root": true,
+      "infrastructure": false,
+      "live_interactions": 1,
+      "max_step_latency_s": 23.192,
+      "routing_agents": {
+        "prestige": 14
+      },
+      "routing_captured": true,
+      "routing_models": {
+        "opencode-go/deepseek-v4.1-flash": 14
+      },
+      "seconds": 173.954,
+      "setup_failure_categories": {
+        "invalid_skill": 1
+      },
+      "setup_failures": 1,
+      "stall_category": null,
+      "status": "completed",
+      "steps": 14,
+      "submission_status": "wrong",
+      "tail_s": null,
+      "time_to_first_live_s": 102.271,
+      "tokens": {
+        "cache_read": 612480,
+        "cache_write": 0,
+        "input": 91126,
+        "output": 3331,
+        "reasoning": 3739
+      },
+      "tool_calls": 22,
+      "tool_counts": {
+        "prestige_prestige_exec": 10,
+        "prestige_prestige_get_status": 1,
+        "prestige_prestige_remote_tcp": 1,
+        "prestige_prestige_run_experiment": 8,
+        "prestige_prestige_submit_final": 1,
+        "skill": 1
+      },
+      "total_tokens": 94457,
+      "treatment_setup": {
+        "artifact_bytes": 26702995,
+        "artifact_count": 81,
+        "bound": true,
+        "largest_artifact_bytes": 17403191
+      },
+      "verified": false,
+      "verified_independently": false
+    }
+  ],
+  "schema_version": 1,
+  "seconds_budget": 180,
+  "seed": 20261118,
+  "status": "complete",
+  "usage": {
+    "ceiling_reached": false,
+    "output_tokens": 17409,
+    "remaining_input": 49855,
+    "remaining_output": 82591,
+    "uncached_input_tokens": 450145
+  }
+}

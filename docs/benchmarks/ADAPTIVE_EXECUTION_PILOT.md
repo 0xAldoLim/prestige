@@ -116,6 +116,29 @@ benchmark agent configurations so the comparison does not alter the production
 - No internet challenge lookup; network access only to an explicitly registered
   local service if a secondary task provides one.
 
+### 4.3.1 Production versus benchmark budget ownership
+
+The tracked production `opencode.jsonc` does not set `steps` on any agent. Benchmark
+iteration caps therefore live only in the isolated `opencode.json` that `run_condition`
+writes inside each fresh run directory:
+
+| Generated agent | Explicit `steps` cap |
+| --- | ---: |
+| KE `orchestrator` (Kimi planner) | 8 |
+| `bench` for A/B/C/D/DD | 40 |
+| KE `executor` | 40 |
+| DP `prestige` | 40 |
+
+`BENCHMARK_PLANNER_STEPS = 8` and `BENCHMARK_EXECUTION_STEPS = 40` in
+`src/prestige/ctf_benchmark.py` are the documented constants. They preserve the formerly
+production-resident 8/40/40 values. `DP` copies the production `prestige` definition and
+then sets its own `steps`, so it can never inherit an uncapped production agent.
+
+The step cap is an additional bound, not a replacement for the outer subprocess
+wall-clock timeout (`seconds`), bounded repetitions and aggregate attempt/token
+guardrails, or PRESTIGE's trusted `max_turns=30` / `max_seconds=seconds-30` creation
+budget. Historical configs, results and measurements are unchanged.
+
 ### 4.4 Repetitions and fixed schedule
 
 Sunk_Cost is the cohort task. The executed schedule was:

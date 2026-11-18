@@ -55,12 +55,37 @@ def regular_file(path: Path) -> bool:
     )
 
 
+def _mib(size: int) -> str:
+    return f"{size / (1024 * 1024):.2f} MiB"
+
+
+def artifact_limit_message(size: int, limit: int, surface: str, label: str | None = None) -> str:
+    """Actionable per-file limit error with surface-correct recovery wording."""
+    subject = f"{label!r} is {_mib(size)}" if label else f"Artifact is {_mib(size)}"
+    if surface == "mcp":
+        recovery = (
+            "retry prestige_create_investigation with max_artifact_mib set to an "
+            "integer within the operator bound of 1..256"
+        )
+    else:
+        recovery = (
+            "rerun with --max-artifact-mib set to an integer within the operator "
+            "bound of 1..256"
+        )
+    return (
+        f"{subject}, exceeding the current per-file artifact limit of "
+        f"{_mib(limit)}; {recovery}"
+    )
+
+
 class Artifacts:
     def __init__(self, store: Store, run_id: str):
         self.store, self.run_id = store, run_id
         self.root = store.home / "runs" / run_id / "blobs"
         self.root.mkdir(parents=True, exist_ok=True)
-        self.max_file = store.run(run_id)["settings"].get("max_artifact_mib", 1) * 1024 * 1024
+        settings = store.run(run_id)["settings"]
+        self.max_file = settings.get("max_artifact_mib", 1) * 1024 * 1024
+        self.surface = settings.get("artifact_surface", "cli")
         self.max_total = max(MAX_TOTAL, min(256 * 1024 * 1024, self.max_file * 4))
 
     def list(self) -> list[dict]:
@@ -70,7 +95,9 @@ class Artifacts:
 
     def add(self, data: bytes, label: str, parent=None, transform=None) -> str:
         if len(data) > self.max_file:
-            raise PolicyDenied("Artifact exceeds the configured per-file limit")
+            raise PolicyDenied(
+                artifact_limit_message(len(data), self.max_file, self.surface, label)
+            )
         safe_label(label)
         digest = hashlib.sha256(data).hexdigest()
         entries = self.list()
@@ -141,7 +168,9 @@ class Artifacts:
             size = path.stat().st_size
             if size > self.max_file:
                 raise PolicyDenied(
-                    "Artifact exceeds the configured limit; use --max-artifact-mib explicitly"
+                    artifact_limit_message(
+                        size, self.max_file, self.surface, path.relative_to(root).as_posix()
+                    )
                 )
             total += size
             safe_label(path.relative_to(root).as_posix())
