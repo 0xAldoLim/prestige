@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
-  "updated": "2026-11-16",
+  "updated": "2026-11-17",
   "release_ready": false,
   "baseline_commit": "7a32b4557840d0a49b3590346d843e2a0b6426c1",
-  "current_head": "0f29d3b",
-  "revision_note": "Active OpenCode-native CTF agent with persistent interactive TCP sessions, reproducible core/pwn worker images, strict Kimi-orchestrator/free-DeepSeek-executor routing with a two-route provider policy and constrained effective model catalog, remote scope/expiry/TLS controls, an independent evidence evaluator, a deterministic progress signal with evidence-gated escalation, explicit requested/effective budgets, durable analysis-job reuse, paired adversarial execution, a deterministic deception detector and quarantine of poisoned memory. V3.1 qualification reran one original service (A 1/3, B 1/3, C 0/3, D 1/3) and does not establish superiority. No official external benchmark or live adversarial model comparison has been run. V3.2 readiness validated five original tasks (replay-verified reverse plus four equality-based operator-flag services) and reran the stdio MCP smoke; the V3.2 benchmark is not executed. 394 default tests passing, 10 opt-in skips.",
+  "current_head": "7396b71",
+  "revision_note": "Active OpenCode-native CTF agent with persistent interactive TCP sessions, reproducible core/pwn worker images, Kimi-orchestrator/DeepSeek Flash 1017 executor routing with a constrained provider policy, remote scope/expiry/TLS controls, an independent evidence evaluator, a deterministic progress signal with evidence-gated escalation, explicit requested/effective budgets, durable analysis-job reuse, paired adversarial execution, a deterministic deception detector and quarantine of poisoned memory. V3.1 qualification reran one original service and does not establish superiority. V3.2 revalidated four eligible original tasks (replay-verified reverse plus three equality-based operator-flag services); web-xod-revenge is blocked because an unchanged solver-controlled callback/DNS path is unproven. The original five-task/30-run matrix was not executed. OpenCode V2 now uses mcp.servers with direct tools; a model-free capture proved sandbox_exec in the B tool list. The 24-job dry run passed all view/checker/service checks and recorded no model attempts. 397 default tests passing, 10 opt-in skips; no benchmark result or solve is claimed.",
   "development_agent_target": "OpenCode",
   "primary_product_backend": "OpenCode-native MCP broker with trusted Python engine",
   "items": [

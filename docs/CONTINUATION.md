@@ -10,6 +10,8 @@ requirements.
 
 - V3.1 stabilization code commit: `fa7031e` (persistent interactive TCP sessions,
   reproducible worker images, doctor inventory and qualification report).
+- V3.2 readiness refresh code commit: `7396b71` (OpenCode V2 `mcp.servers` with direct
+  tools, scoped HTTP endpoint registrations and manifest-safe view digests).
 - The strict two-model routing change is the follow-up commit containing this line;
   use `git log`/`origin/main` for the final SHA.
 - Last fully validated CI baseline before this increment: `d98958b` (green on
@@ -17,11 +19,12 @@ requirements.
   after push and is not claimed here until observed.
 - GitHub account: `0xAldoLim`
 
-## 2026-11-16 V3.2 five-challenge readiness
+## 2026-11-16/17 V3.2 four-task readiness
 
-Status: **provisioning/readiness validated for five distinct original SASCTF 2026
-tasks; the benchmark is not executed and no model CTF attempt was made.** Startup and
-checker self-tests are not solves.
+Status: **provisioning/readiness validated for four of five prepared original SASCTF
+2026 tasks; `web-xod-revenge` is blocked and excluded before any attempt. The original
+five-task/30-run matrix was not executed and no model CTF attempt was made.** Startup,
+checker self-tests and the 24-job dry run are readiness evidence, not solves.
 
 - **MCP stdio smoke actually rerun**: `initialize` (server `prestige`, protocol
   `2025-11-25`), 47 tools, `prestige_create_investigation` ready, `prestige_exec` ok,
@@ -30,32 +33,46 @@ checker self-tests are not solves.
   object on stdout after stdin closed, polluting the JSON-RPC channel. Routine CLI
   output is now suppressed for the `agent` command and a regression test asserts an
   empty stdout on EOF. The rerun has no parse warnings.
-- **Eligibility (all READY)**: `rev-fpga` (reverse, offline RTL replay), `pwn-snaking`,
-  `pwn-snaking-revenge` (pwn TCP), `web-xod-revenge` (PHP/DNS/browser bot) and
-  `web-naas` (gRPC/Postgres/Redis). Participant views match corpus `static/` bytes and
-  contain no answer bytes or answer-derived digests.
+- **Eligibility (four READY, XOD BLOCKED)**: `rev-fpga` (reverse, offline RTL replay),
+  `pwn-snaking`, `pwn-snaking-revenge` (pwn TCP) and `web-naas`
+  (gRPC/Postgres/Redis). Participant views match corpus `static/` bytes and contain no
+  answer bytes or answer-derived digests. The view manifest digest excludes `VIEW.json`
+  itself and is covered by a regression test.
+- **XOD exclusion**: `web-xod-revenge` services are healthy, but the unchanged bot only
+  visits URLs under `http://chall/` and the PHP app sends DNS to a hard-coded public
+  resolver. An equivalent solver-controlled callback/DNS path cannot be proven for B
+  and DP without changing origin or DNS mechanics, so it is excluded from the
+  executable cohort.
 - **Checker basis**: `rev-fpga` is derivation-verified by RTL replay and byte-exact
-  re-encryption. The other four use SHA-256 equality against operator-injected synthetic
-  flags in otherwise unchanged services; service-side flag plumbing was verified. These
-  four are equality-based, not independent solves, and must be labelled as such.
-- **Services**: pwn banners and full wrapper pipeline; XOD page 200, DNS proxy valid
-  response and bot report success; NaaS gRPC register/login, PostgreSQL accepting,
-  Redis PONG. Corpus and owner skills remain unmodified.
-- **Benchmark plan**: B = free DeepSeek Flash in plain OpenCode with latest skills; DP =
-  the same model with the restricted `prestige` agent/PRESTIGE MCP. Five tasks x two
-  conditions x three repetitions, 180 s, randomized order, fresh state/services,
-  identical artifacts and tools-as-applicable, verification outside the solver
-  workspace. Do not execute as part of readiness.
-- **Validation**: focused MCP stdio tests green (3 passed); full offline suite
-  **394 passed, 10 skipped**; `ruff check .` clean; wheel and sdist build; CLI help and
-  roadmap JSON parse clean; `git diff --check` clean. The routing regression is
-  validated against the checked-in free-routing `opencode.jsonc` with the session-local
-  `OPENCODE_CONFIG_CONTENT` override removed, so the committed config remains the
-  authoritative free route.
-- **Git state**: the V3.2 readiness increment (MCP shutdown fix, regression test and
-  readiness docs) is committed and pushed to `0xAldoLim/prestige`; the benchmark itself
-  is not executed and no benchmark result or solve is claimed. See
-  `docs/benchmarks/CTF_EVALUATION_V3_2.md`.
+  re-encryption. The other three use SHA-256 equality against operator-injected
+  synthetic flags in otherwise unchanged services; service-side flag plumbing was
+  verified. They are equality-based, not independent solves, and must be labelled as
+  such.
+- **Services/reset**: pwn banners and full wrapper pipeline, NaaS gRPC register/login,
+  PostgreSQL and Redis all passed. Reset was validated for all four; NaaS reset now
+  terminates stale task-database backends before truncation, preventing an
+  idle-in-transaction worker from blocking the reset.
+- **B-condition tool proof**: OpenCode V2 config uses `mcp.servers` and
+  `codemode: false`. A model-free fake provider captured the actual provider tool list
+  for the generated B runner config: `edit`, `opencode_worktree_remove`, `read`,
+  `sandbox_exec`, `skill`, `write`. Direct MCP probes confirmed uid 65534, zero
+  capabilities, no Docker socket, read-only skills, read-only root, internal-only
+  network, successful `/work` writes and blocked external access.
+- **Benchmark plan**: B = `opencode-go/deepseek-v4.1-flash` in plain OpenCode with
+  latest skills and the sandbox MCP; DP = the same model with the restricted `prestige`
+  agent/PRESTIGE MCP. Four tasks x two conditions x three repetitions = 24 runs, 180 s,
+  seed `20261116`, original five-task shuffle filtered to the four eligible tasks, fresh
+  state/services, identical artifacts and tools-as-applicable, verification outside the
+  solver workspace. `--execute` requires explicit `--paid-budget-approved`; no approval
+  was given.
+- **Validation**: focused MCP/tool tests green; full offline suite **397 passed, 10
+  skipped**; `ruff check .` clean; wheel and sdist build; CLI help and roadmap JSON parse
+  clean; `git diff --check` clean. The 24-job dry run returned `ok: true`, all four view,
+  checker and service checks true, and recorded no results or model attempts.
+- **Git state**: the general V2 MCP/HTTP endpoint/harness fixes, regression tests and
+  these docs are committed and pushed to `0xAldoLim/prestige` in the follow-up commit
+  containing this line. The benchmark itself is not executed and no benchmark result or
+  solve is claimed. See `docs/benchmarks/CTF_EVALUATION_V3_2.md`.
 
 ## 2026-11-11 hardening increment
 
