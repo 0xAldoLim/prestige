@@ -19,6 +19,57 @@ requirements.
   after push and is not claimed here until observed.
 - GitHub account: `0xAldoLim`
 
+## 2026-11-18 Milestone 2 fixes and execution-budget ownership
+
+Status: committed as `c69b46b`, with implementation and offline validation only. No
+paid attempt, challenge rerun or frozen-result edit was made; measured V3.2 outcomes and
+`benchmark-results/v3_2_diag.json` are unchanged.
+
+- **Production versus benchmark budgets:** the tracked production `opencode.jsonc` no
+  longer sets `steps` on `orchestrator`, `executor` or `prestige`, so normal
+  OpenCode/PRESTIGE use does not inherit benchmark iteration caps. The isolated per-run
+  benchmark config now supplies explicit positive caps to every generated agent:
+  `BENCHMARK_PLANNER_STEPS = 8` for the KE orchestrator and
+  `BENCHMARK_EXECUTION_STEPS = 40` for bench (A/B/C/D/DD), the KE executor and DP
+  prestige. DP deep-copies production prestige and then sets its own cap, so it cannot
+  inherit an uncapped production agent. The outer subprocess wall-clock timeout, bounded
+  repetitions, operator token/attempt guardrails and PRESTIGE trusted
+  `max_turns`/`max_seconds` controls remain. Historical configs, results and
+  measurements were not edited.
+- **Native-skill limitation:** OpenCode v2.2.7 has no supported per-agent tool removal
+  for the built-in `skill` tool. `skill` permission `deny` hides matching skills and
+  rejects loading, but the tool remains in the provider inventory; `skill.use`/
+  `tool.use` policies can deny execution but do not remove it. The deprecated V1
+  `tools`/`experimental.primary_tools` fields were not used. The PRESTIGE system prompt,
+  benchmark prompts and MCP skill descriptions now forbid calling the native tool or
+  guessing IDs and direct `prestige_skills_search` then `prestige_skills_apply` with
+  returned valid IDs. Owner-skills integration and permissions are unchanged.
+- **Host/worker paths:** PRESTIGE-capable prompts now separate host paths (workspace,
+  `source_path`, skills, submission) from worker paths (`/work/input` read-only,
+  `/work/output` writable) and require `prestige_exec`/`prestige_run_experiment` for
+  worker files. No external-directory permission was weakened.
+- **Artifact errors:** the secure 1 MiB default is unchanged. `Artifacts.add()` and
+  `inventory()` report actual size, current limit and surface-correct recovery:
+  `max_artifact_mib` in `1..256` for MCP, `--max-artifact-mib` for CLI. MCP creation
+  records the `mcp` surface and returns a structured `status=denied` response. Runs
+  without the new setting default to CLI wording.
+- **Placeholder submissions:** a shared validator rejects only exact normalized obvious
+  placeholders (`UNSOLVED`, `UNKNOWN`, `NO_FLAG`, `NOT_FOUND`, `TBD`, `TODO`,
+  `PLACEHOLDER`, `N/A`, `NONE`, `NULL`) in both `prestige_submit_final` and benchmark
+  `read_submission`. No flag syntax is imposed; normal flag-shaped values and static
+  decoys still reach the independent checker. Empty/oversized/control/nested checks
+  remain.
+- **Timing metrics:** `parse_jsonl` now records factual first/last event time, span,
+  last event type, tool-in-flight state and unresolved tail when an outer timeout is
+  supplied. It does not assign a model-versus-provider cause. Frozen results were not
+  edited.
+- **Validation:** focused Milestone 2 suite **110 passed, 2 skipped**; full offline suite
+  **441 passed, 10 skipped**; `ruff check .` clean; sdist and wheel built; CLI help,
+  stdio MCP smoke and `git diff --check` clean.
+- **Full evidence and limitation:** `docs/benchmarks/CTF_EVALUATION_V3_2_DIAGNOSTIC.md`
+  Section 11. Production/benchmark budget ownership is also described in
+  `docs/ARCHITECTURE.md` and `docs/benchmarks/ADAPTIVE_EXECUTION_PILOT.md`.
+
 ## 2026-11-17 V3.2 offline diagnostic and TCP readiness fix
 
 Status: offline diagnostic only. No model inference, paid benchmark, new CTF attempt or
