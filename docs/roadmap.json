@@ -3,8 +3,8 @@
   "updated": "2026-11-17",
   "release_ready": false,
   "baseline_commit": "7a32b4557840d0a49b3590346d843e2a0b6426c1",
-  "current_head": "cd832d9",
-  "revision_note": "Active OpenCode-native CTF agent with persistent interactive TCP sessions, reproducible core/pwn worker images, Kimi-orchestrator/DeepSeek Flash 1017 executor routing with a constrained provider policy, remote scope/expiry/TLS controls, an independent evidence evaluator, a deterministic progress signal with evidence-gated escalation, explicit requested/effective budgets, durable analysis-job reuse, paired adversarial execution, a deterministic deception detector and quarantine of poisoned memory. V3.1 qualification reran one original service and does not establish superiority. V3.2 revalidated four eligible original tasks (replay-verified reverse plus three equality-based operator-flag services); web-xod-revenge is blocked because an unchanged solver-controlled callback/DNS path is unproven. The original five-task/30-run matrix was not executed. OpenCode V2 now uses mcp.servers with direct tools; a model-free capture proved sandbox_exec in the B tool list. The 24-job dry run passed all view/checker/service checks and recorded no model attempts. 397 default tests passing, 10 opt-in skips; no benchmark result or solve is claimed. The V3.2 four-task matrix then completed 24/24 durable records (19 paid attempts, 5 pre-model infrastructure failures, 0 verified solves); pwn pairs are non-comparable because of reset-readiness false negatives. A separate 12-job pwn+crypto expanded cohort (seed 20261118) passed a no-solver dry run; reverse/web/forensics/misc candidates remain blocked.",
+  "current_head": "574f637",
+  "revision_note": "Active OpenCode-native CTF agent with persistent interactive TCP sessions, reproducible core/pwn worker images, Kimi-orchestrator/DeepSeek Flash 1017 executor routing with a constrained provider policy, remote scope/expiry/TLS controls, an independent evidence evaluator, a deterministic progress signal with evidence-gated escalation, explicit requested/effective budgets, durable analysis-job reuse, paired adversarial execution, a deterministic deception detector and quarantine of poisoned memory. V3.1 qualification reran one original service and does not establish superiority. V3.2 revalidated four eligible original tasks (replay-verified reverse plus three equality-based operator-flag services); web-xod-revenge is blocked because an unchanged solver-controlled callback/DNS path is unproven. The original five-task/30-run matrix was not executed. OpenCode V2 now uses mcp.servers with direct tools; a model-free capture proved sandbox_exec in the B tool list. The 24-job dry run passed all view/checker/service checks and recorded no model attempts. 403 default tests passing, 10 opt-in skips; no benchmark result or solve is claimed. The V3.2 four-task matrix then completed 24/24 durable records (19 paid attempts, 5 pre-model infrastructure failures, 0 verified solves); pwn pairs are non-comparable because of reset-readiness false negatives. An offline diagnostic classified all 24 records and 20 failed tool calls, and a bounded greeting-based TCP readiness helper replaced the false-negative reset probe; 24/24 offline post-fix restarts passed. A separate 12-job pwn+crypto expanded cohort (seed 20261118) passed a no-solver dry run; reverse/web/forensics/misc candidates remain blocked.",
   "development_agent_target": "OpenCode",
   "primary_product_backend": "OpenCode-native MCP broker with trusted Python engine",
   "items": [
@@ -578,6 +578,16 @@
         "benchmark-results/v3_2_expanded_readiness.json"
       ],
       "remaining": "V3.2 four-task execution is complete and descriptive only: 24/24 durable records, 19 paid attempts, 5 pre-model infrastructure records, 0 verified solves; both pwn pairs are incomplete and no superiority is claimed. The separate 12-job pwn+crypto expanded cohort is dry-run READY for a future approved run with no model attempt: dead-drop uses an operator synthetic flag and isolated service, sunk-cost carries the prior 0/15 history and 16-block-verified operator answer. Reverse, web, forensics and misc candidates remain blocked for missing answers/assets, unavailable offline base images or isolation conflicts."
+    },
+    {
+      "id": "v3_2-diagnostic-readiness",
+      "status": "tested",
+      "evidence": [
+        "docs/benchmarks/CTF_EVALUATION_V3_2_DIAGNOSTIC.md",
+        "src/prestige/readiness.py",
+        "tests/test_readiness.py"
+      ],
+      "remaining": "Offline diagnostic of the frozen V3.2 matrix. The old post-restart TCP probe returned the first recv result, so an immediate EOF from Docker's published-port proxy became a false port_open=false; the bounded helper now requires a real greeting and retries refused/reset/EOF. Post-fix offline validation: 24/24 restarts ready and flag-matched across both pwn services, and both full reset integrations true. No benchmark job was rerun and frozen results are unchanged. The proposed six-attempt web-naas control/treatment experiment to separate harness friction from model limitation is not executed and needs fresh operator approval."
     }
   ]
 }

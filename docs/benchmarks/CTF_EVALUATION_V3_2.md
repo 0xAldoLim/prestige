@@ -357,3 +357,11 @@ document and `benchmark-results/v3_2.json` are the sanitized Phase 1 record. No 
 cohort was started. A future cohort requires a new operator approval, a new pre-registered
 schedule and, for the pwn challenges, a corrected pre-model reset readiness check that
 does not turn a completed restart into a false-negative infrastructure record.
+
+An offline diagnostic was completed after the frozen run:
+`docs/benchmarks/CTF_EVALUATION_V3_2_DIAGNOSTIC.md`. It attributes all 24 records, the
+20 failed tool calls and both wrong submissions, and records the post-restart readiness
+root cause. The corrected bounded probe is `src/prestige/readiness.py` with tests in
+`tests/test_readiness.py`; 24/24 offline restarts across both pwn services then passed
+readiness and flag matching. The frozen results in this document and
+`benchmark-results/v3_2.json` were not regenerated or changed.

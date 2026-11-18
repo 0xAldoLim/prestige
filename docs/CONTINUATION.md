@@ -19,6 +19,47 @@ requirements.
   after push and is not claimed here until observed.
 - GitHub account: `0xAldoLim`
 
+## 2026-11-17 V3.2 offline diagnostic and TCP readiness fix
+
+Status: offline diagnostic only. No model inference, paid benchmark, new CTF attempt or
+model-routing change was made. Frozen V3.2 records, `benchmark-results/v3_2.json`, the
+challenge sources and the unexecuted 12-job expanded cohort are unchanged.
+
+- **Readiness root cause and fix:** the private V3.2 reset probe returned the first
+  `recv()` result, so Docker's published-port proxy accepting before the backend was
+  ready produced an immediate EOF and a false `port_open=false`. Reproduced once in six
+  pre-fix restarts. `src/prestige/readiness.py` now waits for a non-empty protocol
+  greeting with a bounded deadline, retries refused/reset/immediate-EOF and treats a
+  silent-but-open socket as not ready by default. The private runner uses the strict
+  mode. `tests/test_readiness.py` covers refused-then-ready, EOF-then-banner,
+  silent-open, repeated EOF and invalid arguments (6 passed).
+- **Post-fix restart validation:** 12 offline restarts per pwn service (24 total):
+  24/24 ready and flag-matched; readiness min/median/max 0.066/0.137/0.895 s
+  (`pwn-snaking`) and 0.090/0.113/0.145 s (`pwn-snaking-revenge`); restart
+  min/median/max 2.566/4.518/20.636 s and 2.033/2.503/3.114 s. Both full
+  `reset_services` integrations returned `reset_ok=true`. No benchmark job was rerun.
+- **Attribution:** all 24 records classified as 5 pre-model readiness records,
+  5 model/provider-stall-dominant timeouts, 11 wall-clock-exhaustion timeouts, 2
+  completed-without-submission and 1 completed-wrong-submission. The stall category is
+  a timeline observation, not proof of model versus provider latency. The 20 failed tool
+  calls split into 11 invalid skill ids, 3 host-path reads, 2 host-path writes and 4
+  artifact-limit/invalid-argument calls.
+- **Wrong submissions:** one 8-character sentinel accepted by `prestige_submit_final`
+  (model behaviour plus a submission-shape validation gap) and one 13-character
+  flag-shaped value copied from an inactive static deployment config (model failure to
+  validate against the live service, with an environment-level static-decoy finding).
+  Both remain independently rejected. No frozen result was changed.
+- **Comparison:** `rev-fpga` and `web-naas` have 3/3 valid attempts in both conditions;
+  both pwn pairs remain incomplete. On `web-naas`, DP used about 54% more uncached input,
+  91% more output and 50% more cache read than B for a similar tool count, produced two
+  wrong submissions and zero verified solves. No superiority claim follows.
+- **Next experiment (not executed):** a six-attempt, two-arm, three-repetition
+  `web-naas` comparison of the frozen DP harness against a deterministically pre-primed
+  DP harness, with a model-free preflight and bounded 180 s / 500k input / 100k output
+  caps. It is designed to separate setup friction from model limitation. Fresh operator
+  approval is required.
+- **Full diagnostic:** `docs/benchmarks/CTF_EVALUATION_V3_2_DIAGNOSTIC.md`.
+
 ## 2026-11-17 V3.2 execution and expanded readiness
 
 Status: the four-task V3.2 matrix was executed under explicit paid-budget approval and
