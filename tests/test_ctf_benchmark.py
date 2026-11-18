@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from prestige.ctf_benchmark import (
+    _digest_tree,
     inventory,
     load_answers,
     parse_jsonl,
@@ -63,6 +64,17 @@ def test_inventory_and_solution_blind_view(tmp_path):
     assert (view / "challenge" / "static" / "artifact.bin").read_bytes() == b"player bytes"
     assert not any("server" in path.relative_to(view).parts for path in view.rglob("*"))
     assert not any("operator_secret" in path.read_text(errors="ignore") for path in view.rglob("*") if path.is_file())
+
+
+def test_view_manifest_digest_excludes_its_own_manifest(tmp_path):
+    root = _corpus(tmp_path)
+    output = tmp_path / "views"
+    result = prepare_view(root, output)
+    manifest = result["prepared"][0]
+    view = output / "demo"
+    assert _digest_tree(view, exclude=("VIEW.json",)) == manifest["view_sha256"]
+    # The manifest itself is written after the digest and must not self-reference.
+    assert _digest_tree(view) != manifest["view_sha256"]
 
 
 def test_parse_jsonl_measures_real_usage():

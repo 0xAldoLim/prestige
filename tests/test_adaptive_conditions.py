@@ -7,10 +7,13 @@ from prestige.ctf_benchmark import (
     BENCHMARK_CONDITIONS,
     _agent_config,
     _command,
+    _endpoint_instructions,
+    _endpoint_registration,
     _prompt,
     public_result,
     public_summary,
 )
+from prestige.remote import Registration, RemoteBroker
 
 
 def _paths(tmp_path):
@@ -55,8 +58,10 @@ def test_dp_pins_deepseek_prestige_and_mcp_only(tmp_path):
     config = _agent_config("DP", home, allowed, submission, endpoint={"registration_id": "jsvc", "port": 31337})
     agent = config["agents"]["prestige"]
     assert agent["model"] == "opencode-go/deepseek-v4.1-flash"
-    mcp = config["mcp"]["prestige"]
+    mcp = config["mcp"]["servers"]["prestige"]
     assert mcp["command"] == ["python", "-m", "prestige", "agent"]
+    assert mcp["codemode"] is False
+    assert "enabled" not in mcp
     assert mcp["environment"]["PRESTIGE_HOME"] == str(home)
     assert mcp["environment"]["PRESTIGE_BENCH_SUBMISSION"] == str(submission)
     assert mcp["environment"]["PRESTIGE_REMOTE_ENABLED"] == "1"
@@ -72,6 +77,42 @@ def test_adaptive_commands_pin_agent_and_skip_global_model_override():
         assert "--model" not in command
     legacy = _command("provider/model", "opencode", "A", "bench")
     assert legacy[legacy.index("--model") + 1] == "provider/model"
+
+
+def test_http_endpoint_registration_is_scoped_to_declared_paths(tmp_path):
+    endpoint = {
+        "registration_id": "gateway",
+        "port": 18480,
+        "protocol": "http",
+        "paths": ["/chall", "/bot"],
+    }
+    registration = Registration.from_dict(_endpoint_registration(endpoint))
+    assert registration.protocol == "http"
+    assert registration.paths == ("/chall", "/bot")
+    assert registration.allowed_actions == ("http",)
+    broker = RemoteBroker(tmp_path, registration)
+    assert broker._path_allowed("/chall")
+    assert broker._path_allowed("/chall/")
+    assert broker._path_allowed("/bot/report")
+    assert not broker._path_allowed("/other")
+    assert not broker._path_allowed("/challenge")
+    assert not broker._path_allowed("/chall/../other")
+    text = _endpoint_instructions(endpoint)
+    assert "prestige_remote_http" in text
+    assert "prestige_remote_tcp" not in text
+    assert "/chall" in text and "/bot" in text
+
+
+def test_tcp_endpoint_registration_remains_the_default(tmp_path):
+    registration = Registration.from_dict(
+        _endpoint_registration({"registration_id": "svc", "port": 31337})
+    )
+    assert registration.protocol == "tcp"
+    assert registration.paths == ("/",)
+    assert registration.allowed_actions == ("tcp",)
+    assert "prestige_remote_tcp" in _endpoint_instructions(
+        {"registration_id": "svc", "port": 31337}
+    )
 
 
 def test_adaptive_prompts_keep_conditions_separate(tmp_path):

@@ -135,11 +135,15 @@ def prepare_view(corpus: Path, output: Path, challenge_ids: list[str] | None = N
     return {"prepared": prepared, "count": len(prepared)}
 
 
-def _digest_tree(root: Path) -> str:
+def _digest_tree(root: Path, exclude: tuple[str, ...] = ()) -> str:
     digest = hashlib.sha256()
+    excluded = set(exclude)
     for path in sorted(root.rglob("*")):
         if path.is_file():
-            digest.update(path.relative_to(root).as_posix().encode())
+            relative = path.relative_to(root).as_posix()
+            if relative in excluded:
+                continue
+            digest.update(relative.encode())
             digest.update(path.read_bytes())
     return digest.hexdigest()
 
@@ -230,17 +234,19 @@ def _adaptive_agent_config(
     if condition == "DP":
         config = {"agents": {"prestige": deepcopy(agents["prestige"])}}
         config["mcp"] = {
-            "prestige": {
-                "type": "local",
-                "command": ["python", "-m", "prestige", "agent"],
-                "environment": {
-                    "PRESTIGE_HOME": str(home),
-                    "PRESTIGE_ALLOWED_DIRS": str(allowed),
-                    "PRESTIGE_BENCH_SUBMISSION": str(submission or ""),
-                    "PRESTIGE_REMOTE_ENABLED": "1" if endpoint else "",
-                    "PRESTIGE_RESEARCH_ENABLED": "",
-                },
-                "enabled": True,
+            "servers": {
+                "prestige": {
+                    "type": "local",
+                    "codemode": False,
+                    "command": ["python", "-m", "prestige", "agent"],
+                    "environment": {
+                        "PRESTIGE_HOME": str(home),
+                        "PRESTIGE_ALLOWED_DIRS": str(allowed),
+                        "PRESTIGE_BENCH_SUBMISSION": str(submission or ""),
+                        "PRESTIGE_REMOTE_ENABLED": "1" if endpoint else "",
+                        "PRESTIGE_RESEARCH_ENABLED": "",
+                    },
+                }
             }
         }
         return config
@@ -283,18 +289,61 @@ def _agent_config(
         config = {"agents": {"bench": base}}
     if condition in {"C", "D"}:
         config["mcp"] = {
-            "prestige": {
-                "type": "local",
-                "command": ["python", "-m", "prestige", "agent"],
-                "environment": {
-                    "PRESTIGE_HOME": str(home),
-                    "PRESTIGE_ALLOWED_DIRS": str(allowed),
-                    "PRESTIGE_BENCH_SUBMISSION": str(submission or ""),
-                },
-                "enabled": True,
+            "servers": {
+                "prestige": {
+                    "type": "local",
+                    "codemode": False,
+                    "command": ["python", "-m", "prestige", "agent"],
+                    "environment": {
+                        "PRESTIGE_HOME": str(home),
+                        "PRESTIGE_ALLOWED_DIRS": str(allowed),
+                        "PRESTIGE_BENCH_SUBMISSION": str(submission or ""),
+                    },
+                }
             }
         }
     return config
+
+
+def _endpoint_registration(endpoint: dict) -> dict:
+    """Build the trusted operator registration for one benchmark endpoint."""
+    protocol = str(endpoint.get("protocol", "tcp")).lower()
+    return {
+        "id": endpoint["registration_id"],
+        "provenance": "operator benchmark local service",
+        "protocol": protocol,
+        "host": "127.0.0.1",
+        "port": int(endpoint["port"]),
+        "paths": list(endpoint.get("paths") or ["/"]),
+        "pinned_ips": ["127.0.0.1"],
+        "dedicated_private": True,
+        "allowed_actions": list(
+            endpoint.get("allowed_actions")
+            or ([protocol] if protocol in {"tcp", "http"} else ["tcp"])
+        ),
+        "enabled": True,
+        "max_requests": 100,
+        "max_concurrency": 2,
+        "max_seconds": 60,
+        "rate_per_second": 10,
+        "max_response_bytes": 65536,
+    }
+
+
+def _endpoint_instructions(endpoint: dict) -> str:
+    protocol = str(endpoint.get("protocol", "tcp")).lower()
+    paths = endpoint.get("paths") or ["/"]
+    if protocol == "http":
+        return (
+            f"Bind registration {endpoint['registration_id']} with prestige_target_bind and "
+            "use prestige_remote_http with an allowed method and path. Allowed paths: "
+            + ", ".join(str(item) for item in paths)
+            + ".\n"
+        )
+    return (
+        f"Bind registration {endpoint['registration_id']} with prestige_target_bind and "
+        "use prestige_remote_tcp with data_base64.\n"
+    )
 
 
 def _prompt(
@@ -378,8 +427,7 @@ def _prompt(
             "write files directly. The operator checker is external, so internal "
             "verification may be unavailable. "
             + (
-                f"Bind registration {endpoint['registration_id']} with prestige_target_bind and "
-                "use prestige_remote_tcp with data_base64.\n"
+                _endpoint_instructions(endpoint)
                 if endpoint
                 else ""
             )
@@ -398,8 +446,7 @@ def _prompt(
         "run_id; do not write files directly. The operator checker is external, so "
         "internal verification may be unavailable. "
         + (
-            f"Bind registration {endpoint['registration_id']} with prestige_target_bind and "
-            "use prestige_remote_tcp with data_base64.\n"
+            _endpoint_instructions(endpoint)
             if endpoint
             else ""
         )
@@ -747,25 +794,7 @@ def run_condition(
     home.mkdir(parents=True)
     prestige_conditions = {"C", "D", "DP"}
     if endpoint and condition in prestige_conditions:
-        registration = Registration.from_dict(
-            {
-                "id": endpoint["registration_id"],
-                "provenance": "operator benchmark local service",
-                "protocol": "tcp",
-                "host": "127.0.0.1",
-                "port": int(endpoint["port"]),
-                "paths": ["/"],
-                "pinned_ips": ["127.0.0.1"],
-                "dedicated_private": True,
-                "allowed_actions": ["tcp"],
-                "enabled": True,
-                "max_requests": 100,
-                "max_concurrency": 2,
-                "max_seconds": 60,
-                "rate_per_second": 10,
-                "max_response_bytes": 65536,
-            }
-        )
+        registration = Registration.from_dict(_endpoint_registration(endpoint))
         save_registrations(home, {registration.id: registration})
     shutil.copytree(view, work, dirs_exist_ok=True)
     challenge_dir = work / "challenge"
