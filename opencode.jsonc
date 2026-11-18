@@ -244,6 +244,12 @@
         "gpt-6.1-sol": {
           "disabled": true
         },
+        "gpt-6.2-astra": {
+          "disabled": true
+        },
+        "gpt-6.2-sol": {
+          "disabled": true
+        },
         "grok-4.7": {
           "disabled": true
         },

@@ -19,6 +19,43 @@ requirements.
   after push and is not claimed here until observed.
 - GitHub account: `0xAldoLim`
 
+## 2026-11-17 V3.2 execution and expanded readiness
+
+Status: the four-task V3.2 matrix was executed under explicit paid-budget approval and
+the separate expanded pwn+crypto cohort passed a no-solver dry run. Neither result
+establishes model or architecture superiority.
+
+- **V3.2 execution:** 24/24 schedule jobs durably recorded, comprising 19 paid model
+  attempts and 5 pre-model infrastructure records. Results among model attempts: 0
+  verified, 2 wrong, 17 missing, 0 invalid; 16 timeouts, 3 completed. All 19 attempts
+  routed to `opencode-go/deepseek-v4.1-flash`; B used `bench`, DP used `prestige`.
+  Provider-reported cost was 0.0 on every step and remains unverified.
+- **V3.2 comparability:** five pwn service-reset readiness checks returned
+  `port_open=false` after a completed restart while the injected flag matched. No model
+  process was launched for those jobs. `pwn-snaking` B has 1/3 valid attempts and
+  `pwn-snaking-revenge` DP has 0/3, so both pwn pairs are non-comparable. `rev-fpga` and
+  `web-naas` have 3/3 valid attempts in both conditions but zero solves. The two
+  submissions were independently rejected. See `docs/benchmarks/CTF_EVALUATION_V3_2.md`
+  and `benchmark-results/v3_2.json`.
+- **Expanded readiness:** a separate 12-job pwn+crypto cohort was frozen with seed
+  `20261118`, two conditions and three repetitions at 180 s. `dead-drop` is
+  benchmark-unseen but operator-solved, uses an isolated service and an operator
+  synthetic flag with equality checking. `sunk-cost` is not unseen: its prior adaptive
+  cohort was 0/15 with all 15 outer timeouts, and its operator-supplied answer was
+  independently verified against all 16 high-bit blocks. The dry run passed view
+  integrity/contamination, checker self-tests, service health/commitment, B/DP service
+  parity, model/worker/disk and schedule checks; no solver was invoked. Reverse, web,
+  forensics and misc candidates remain blocked for missing assets, answers, base images
+  or isolation conflicts. See `docs/benchmarks/CTF_EVALUATION_V3_2_EXPANDED.md` and
+  `benchmark-results/v3_2_expanded_readiness.json`.
+- **Validation:** full offline suite **397 passed, 10 skipped**; `ruff check .` clean;
+  wheel and sdist built; CLI help and JSON parses clean; `git diff --check` clean. A
+  checked-in provider-policy drift was fixed by disabling the newly listed
+  `opencode/gpt-6.2-astra` and `opencode/gpt-6.2-sol` models; the intended two-route
+  catalog and benchmark routing are unchanged.
+- No expanded-cohort paid attempt was made. A future cohort requires fresh operator
+  approval.
+
 ## 2026-11-16/17 V3.2 four-task readiness
 
 Status: **provisioning/readiness validated for four of five prepared original SASCTF
